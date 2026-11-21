@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   selector:
-    name: Selector on \${{ matrix.name }}
+    name: Selector on ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
@@ -25,7 +25,7 @@ jobs:
             os: windows-2025
           - name: macOS Intel
             os: macos-15-intel
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -49,7 +49,7 @@ jobs:
       - name: Upload screenshot and result JSON
         uses: actions/upload-artifact@v4
         with:
-          name: next3d-selector-\${{ matrix.name }}
+          name: next3d-selector-${{ matrix.name }}
           path: artifacts/
           if-no-files-found: error
           retention-days: 30
