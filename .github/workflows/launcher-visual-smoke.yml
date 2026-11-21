@@ -1,0 +1,55 @@
+name: Next 3D selector visual smoke test
+
+on:
+  push:
+    paths:
+      - 'apps/Next3DLauncher/**'
+      - 'scripts/capture_selector.py'
+      - 'tests/**'
+      - '.github/workflows/launcher-visual-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selector:
+    name: Selector on \${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+          - name: Windows
+            os: windows-2025
+          - name: macOS Intel
+            os: macos-15-intel
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Linux Tk and virtual display
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk xvfb
+      - name: Install screenshot dependency
+        run: python -m pip install --disable-pip-version-check pillow
+      - name: Run selector unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Run actual selector visual smoke test
+        if: runner.os != 'Linux'
+        run: python scripts/capture_selector.py
+      - name: Run actual selector visual smoke test (Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python scripts/capture_selector.py
+      - name: Upload screenshot and result JSON
+        uses: actions/upload-artifact@v4
+        with:
+          name: next3d-selector-\${{ matrix.name }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
