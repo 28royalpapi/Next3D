@@ -18,11 +18,11 @@ def _candidate_paths(kind: str) -> list[Path]:
         override = os.environ.get("NEXTBIM_EXECUTABLE")
         bundled = [APP_ROOT/"runtime"/"NextBIM"/"NextBIM.exe", APP_ROOT/"runtime"/"NextBIM"/"NextBIM",
                    APP_ROOT/"runtime"/"NextBIM.app"/"Contents"/"MacOS"/"NextBIM",
-                   APP_ROOT/"apps"/"NextBIM"/"target"/"release"/"NextBIM.exe",
-                   APP_ROOT/"apps"/"NextBIM"/"target"/"release"/"NextBIM",
+                   APP_ROOT/"apps"/"NextBIM"/"target"/"release"/"nextbim.exe",
+                   APP_ROOT/"apps"/"NextBIM"/"target"/"release"/"nextbim",
                    APP_ROOT/"apps"/"NextBIM"/"target"/"release"/"bimcraft.exe",
                    APP_ROOT/"apps"/"NextBIM"/"target"/"release"/"bimcraft"]
-        names = ("NextBIM.exe", "NextBIM", "bimcraft.exe", "bimcraft")
+        names = ("nextbim.exe", "nextbim", "NextBIM.exe", "NextBIM", "bimcraft.exe", "bimcraft")
     else:
         raise ValueError(f"Unknown application key: {kind}")
     candidates = [Path(override).expanduser()] if override else []
