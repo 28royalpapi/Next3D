@@ -1,23 +1,26 @@
 # Build and visual verification status
 
-## Verified in the current Linux working environment
+## GitHub Actions selector run
 
-- The Next 3D selector was launched under Xvfb and its visible window captured.
-- The selector displays the NextCAD and Next BIM application choices.
-- The NextCAD and Next BIM button callbacks were invoked in the real selector; both produced the expected missing-runtime warning path.
-- Three launcher unit tests pass.
-- Python syntax checks pass.
+Workflow run: [44911879342](https://github.com/28royalpapi/Next3D/actions/runs/44911879342) - completed successfully.
 
-## Not verified
+| Runner | Selector | Button callbacks | Screenshot artifact |
+|---|---|---|---|
+| Ubuntu 24.04 | PASS | PASS | Uploaded |
+| Windows 2025 | PASS | PASS | Uploaded |
+| macOS 15 Intel | PASS | PASS | Uploaded |
+
+The Windows layout was adjusted to fit its smaller runner display. The macOS card buttons were changed to platform-neutral clickable labels so the dark button text remains readable. The corrected screenshots are from the second successful run, after these fixes.
+
+Each runner reported that both native runtimes were not installed. The button callbacks ran and returned the expected missing-runtime warnings; no substitute CAD/BIM applications were launched.
+
+## Native application acceptance - not yet verified
 
 - No NextCAD/FreeCAD native executable has been built or launched.
 - No Next BIM/BIMCraft native executable has been built or launched.
 - No native CAD or BIM model has been edited, saved and reopened.
-- Windows and macOS runtime execution is not evidenced by this local run.
-- No Windows/macOS/Linux native application acceptance report is available.
+- The FreeCAD and BIMCraft screenshots in the supplied source archives are genuine upstream documentation references, not screenshots of the newly branded applications running in these CI jobs.
 
-The source archives include genuine screenshots of the original FreeCAD and BIMCraft interfaces. Such screenshots are upstream documentation references and must not be described as screenshots of the newly branded applications launched in this run.
+The supplied FreeCAD ZIP omits the contents of five declared Git submodules. The Linux working environment used for local source checks has no Rust/Cargo, Pixi or FreeCAD executable.
 
-The Linux environment used here has no Rust compiler, Cargo, Pixi or FreeCAD executable. The supplied FreeCAD archive omits the contents of five declared Git submodules.
-
-The workflow in this repository is currently intended to exercise and capture the **selector only**. It is not a native CAD/BIM build workflow.
+**Scope of this workflow:** the selector only. It is not a FreeCAD or BIMCraft build workflow and does not prove native application editing.
