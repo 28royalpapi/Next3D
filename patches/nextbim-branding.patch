@@ -1,76 +1,37 @@
 --- a/apps/bimcraft/src/main.rs
 +++ b/apps/bimcraft/src/main.rs
-@@ -212,7 +212,7 @@
-     // keeps its own.
-     app.own_title_bar = !cfg!(target_os = "macos");
-     let mut viewport = eframe::egui::ViewportBuilder::default()
+@@ -215 +215 @@
 -        .with_title("BIMCraft")
 +        .with_title("Next BIM")
-         .with_decorations(!app.own_title_bar || app.system_title_bar)
-         .with_app_id(APP_ID)
-         .with_inner_size(window.size.unwrap_or([1440.0, 900.0]))
 --- a/apps/bimcraft/src/startup.rs
 +++ b/apps/bimcraft/src/startup.rs
-@@ -146,7 +146,7 @@
-         rfd::MessageDialog::new()
-             .set_level(rfd::MessageLevel::Error)
+@@ -149 +149 @@
 -            .set_title(word(ui_msg!("BIMCraft couldn't start")))
 +            .set_title(word(ui_msg!("Next BIM couldn't start")))
-             .set_description(body)
-             .show();
 --- a/crates/ui-egui/src/lib.rs
 +++ b/crates/ui-egui/src/lib.rs
-@@ -2009,11 +2009,11 @@
-         self.watch_window(&ctx);
-         let view = self.view_title(self.sheet);
-         let title = match self.family_title() {
+@@ -2012 +2012 @@
 -            Some(family) => format!("{family} · BIMCraft"),
 +            Some(family) => format!("{family} · Next BIM"),
-             None => {
+@@ -2014 +2014 @@
 -                format!("{}{} · {view} · {}BIMCraft", self.session.model.name, if self.dirty() { "*" } else { "" }, self.cowork_title())
 +                format!("{}{} · {view} · {}Next BIM", self.session.model.name, if self.dirty() { "*" } else { "" }, self.cowork_title())
-             }
-         };
-         if title != self.title {
-@@ -2154,7 +2154,7 @@
-                 bar.left_center() + vec2(14.0, 0.0),
-                 Align2::LEFT_CENTER,
+@@ -2158 +2158 @@
 -                "BIMCraft",
 +                "Next BIM",
-                 FontId::proportional(12.5),
-                 pal().app_bar_muted,
-             );
-@@ -3700,7 +3700,7 @@
- 
-     fn save_as(&mut self, ctx: &Context, then: Option<Pending>) {
-         let later = ctx.clone();
+@@ -3702 +3702 @@
 -        self.ask_path(ctx, msg!("BIMCraft project"), &files::SAVED, move |app, p| {
 +        self.ask_path(ctx, msg!("Next BIM project"), &files::SAVED, move |app, p| {
-             if app.save_to(&p)
-                 && let Some(then) = then
-             {
-@@ -3898,7 +3898,7 @@
-             Pending::Open => {
-                 let revit = self.revit.is_some();
+@@ -3902 +3902 @@
 -                let name = t(if revit { msg!("BIMCraft project, IFC or Revit") } else { "BIMCraft project or IFC" });
 +                let name = t(if revit { msg!("Next BIM project, IFC or Revit") } else { "Next BIM project or IFC" });
-                 let dialog = rfd::AsyncFileDialog::new().add_filter(name, &revit::open_extensions(revit));
-                 self.ask_file(ctx, dialog, false, |app, path| {
-                     app.open_path(&path);
 --- a/crates/ui-egui/src/style.rs
 +++ b/crates/ui-egui/src/style.rs
-@@ -416,7 +416,7 @@
-     /// Its name, which is its label too: a name, so never translated.
-     pub fn name(self) -> &'static str {
-         match self {
+@@ -419 +419 @@
 -            Profile::BimCraft => "BIMCraft",
 +            Profile::BimCraft => "Next BIM",
-             Profile::Rev => "Rev",
-         }
-     }
 --- a/crates/ui-egui/src/tests/profile.rs
 +++ b/crates/ui-egui/src/tests/profile.rs
-@@ -52,7 +52,7 @@
-     // A window started on the same file is in the profile this one was left in, and BIMCraft puts its own look back.
+@@ -55 +55 @@
 -    pick(&mut again, Role::RadioButton, "BIMCraft");
 +    pick(&mut again, Role::RadioButton, "Next BIM");
