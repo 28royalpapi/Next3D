@@ -20,7 +20,7 @@
              ExitCode::SUCCESS
 --- a/crates/ui-egui/src/lib.rs
 +++ b/crates/ui-egui/src/lib.rs
-@@ -2092,6 +2092,33 @@
+@@ -2092,6 +2092,29 @@
          }
          let status = style::card([true, true, false, true]).inner_margin(Margin::symmetric(10, 2));
          Panel::bottom("status").frame(status).show_separator_line(false).show(ui, |ui| self.status_bar(ui));
