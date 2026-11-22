@@ -1,37 +1,95 @@
+diff --git a/apps/bimcraft/src/main.rs b/apps/bimcraft/src/main.rs
+index ab77226..0d733ec 100644
 --- a/apps/bimcraft/src/main.rs
 +++ b/apps/bimcraft/src/main.rs
-@@ -215 +215 @@
+@@ -212,7 +212,7 @@ fn main() -> ExitCode {
+     // keeps its own.
+     app.own_title_bar = !cfg!(target_os = "macos");
+     let mut viewport = eframe::egui::ViewportBuilder::default()
 -        .with_title("BIMCraft")
 +        .with_title("Next BIM")
+         .with_decorations(!app.own_title_bar || app.system_title_bar)
+         .with_app_id(APP_ID)
+         .with_inner_size(window.size.unwrap_or([1440.0, 900.0]))
+diff --git a/apps/bimcraft/src/startup.rs b/apps/bimcraft/src/startup.rs
+index 9eb051b..494f277 100644
 --- a/apps/bimcraft/src/startup.rs
 +++ b/apps/bimcraft/src/startup.rs
-@@ -149 +149 @@
+@@ -146,7 +146,7 @@ pub fn tell(language: Lang, what: &str, files: Option<&Files>) {
+     if cfg!(windows) {
+         rfd::MessageDialog::new()
+             .set_level(rfd::MessageLevel::Error)
 -            .set_title(word(ui_msg!("BIMCraft couldn't start")))
 +            .set_title(word(ui_msg!("Next BIM couldn't start")))
+             .set_description(body)
+             .show();
+     }
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 91a86ee..e40c605 100644
 --- a/crates/ui-egui/src/lib.rs
 +++ b/crates/ui-egui/src/lib.rs
-@@ -2012 +2012 @@
+@@ -2009,9 +2009,9 @@ impl BimApp {
+         self.watch_window(&ctx);
+         let view = self.view_title(self.sheet);
+         let title = match self.family_title() {
 -            Some(family) => format!("{family} · BIMCraft"),
 +            Some(family) => format!("{family} · Next BIM"),
-@@ -2014 +2014 @@
+             None => {
 -                format!("{}{} · {view} · {}BIMCraft", self.session.model.name, if self.dirty() { "*" } else { "" }, self.cowork_title())
 +                format!("{}{} · {view} · {}Next BIM", self.session.model.name, if self.dirty() { "*" } else { "" }, self.cowork_title())
-@@ -2158 +2158 @@
+             }
+         };
+         if title != self.title {
+@@ -2155,7 +2155,7 @@ impl BimApp {
+             ui.painter().text(
+                 bar.left_center() + vec2(14.0, 0.0),
+                 Align2::LEFT_CENTER,
 -                "BIMCraft",
 +                "Next BIM",
-@@ -3702 +3702 @@
+                 FontId::proportional(12.5),
+                 pal().app_bar_muted,
+             );
+@@ -3699,7 +3699,7 @@ impl BimApp {
+ 
+     fn save_as(&mut self, ctx: &Context, then: Option<Pending>) {
+         let later = ctx.clone();
 -        self.ask_path(ctx, msg!("BIMCraft project"), &files::SAVED, move |app, p| {
 +        self.ask_path(ctx, msg!("Next BIM project"), &files::SAVED, move |app, p| {
-@@ -3902 +3902 @@
+             if app.save_to(&p)
+                 && let Some(then) = then
+             {
+@@ -3899,7 +3899,7 @@ impl BimApp {
+             }
+             Pending::Open => {
+                 let revit = self.revit.is_some();
 -                let name = t(if revit { msg!("BIMCraft project, IFC or Revit") } else { "BIMCraft project or IFC" });
 +                let name = t(if revit { msg!("Next BIM project, IFC or Revit") } else { "Next BIM project or IFC" });
+                 let dialog = rfd::AsyncFileDialog::new().add_filter(name, &revit::open_extensions(revit));
+                 self.ask_file(ctx, dialog, false, |app, path| {
+                     app.open_path(&path);
+diff --git a/crates/ui-egui/src/style.rs b/crates/ui-egui/src/style.rs
+index 2c3a8bb..43c1d55 100644
 --- a/crates/ui-egui/src/style.rs
 +++ b/crates/ui-egui/src/style.rs
-@@ -419 +419 @@
+@@ -416,7 +416,7 @@ impl Profile {
+     /// Its name, which is its label too: a name, so never translated.
+     pub fn name(self) -> &'static str {
+         match self {
 -            Profile::BimCraft => "BIMCraft",
 +            Profile::BimCraft => "Next BIM",
+             Profile::Rev => "Rev",
+         }
+     }
+diff --git a/crates/ui-egui/src/tests/profile.rs b/crates/ui-egui/src/tests/profile.rs
+index 788ba5e..2b77711 100644
 --- a/crates/ui-egui/src/tests/profile.rs
 +++ b/crates/ui-egui/src/tests/profile.rs
-@@ -55 +55 @@
+@@ -52,7 +52,7 @@ fn the_profile_is_picked_in_settings_and_the_settings_file_keeps_it() {
+     again.run();
+     assert_eq!(again.state().profile, Profile::Rev);
+     press(&mut again, "Settings");
 -    pick(&mut again, Role::RadioButton, "BIMCraft");
 +    pick(&mut again, Role::RadioButton, "Next BIM");
+     press(&mut again, "Close");
+     assert_eq!(again.state().profile, Profile::BimCraft);
+     let kept: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap());
