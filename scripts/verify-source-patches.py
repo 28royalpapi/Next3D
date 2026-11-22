@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static source assertions; these are not a substitute for a native build."""
+"""Static source assertions; native compilation and model round trips are separate checks."""
 from pathlib import Path
 import sys
 
@@ -12,13 +12,12 @@ def need(condition: bool, message: str) -> None:
 def main() -> None:
     if len(sys.argv) != 3:
         raise SystemExit("usage: verify-source-patches.py <FreeCAD root> <BIMCraft root>")
-    freecad = Path(sys.argv[1])
-    bimcraft = Path(sys.argv[2])
-
+    freecad, bimcraft = Path(sys.argv[1]), Path(sys.argv[2])
     main_window = (freecad / "src/Gui/MainWindow.cpp").read_text(encoding="utf-8")
     main_gui = (freecad / "src/Main/MainGui.cpp").read_text(encoding="utf-8")
     bim_main = (bimcraft / "apps/bimcraft/src/main.rs").read_text(encoding="utf-8")
     bim_ui = (bimcraft / "crates/ui-egui/src/lib.rs").read_text(encoding="utf-8")
+    bim_style = (bimcraft / "crates/ui-egui/src/style.rs").read_text(encoding="utf-8")
 
     need("NextAIWorkspace" in main_window and 'tr("Next AI")' in main_window,
          "NextCAD permanent Next AI dock is missing")
@@ -31,12 +30,20 @@ def main() -> None:
     need('Config()["SplashScreen"] = "freecadsplash"' in main_gui,
          "Original FreeCAD splash resource was not preserved")
 
-    need('"com.next3d.nextbim"' in bim_main and '"Next BIM"' in bim_main,
-         "Next BIM product identity is missing")
+    need('"com.next3d.nextbim"' in bim_main,
+         "Next BIM desktop identity is missing")
+    need('.with_title("Next BIM")' in bim_main,
+         "Next BIM viewport/window title is missing")
+    need('run_native("Next BIM"' in bim_main,
+         "Next BIM native window fallback title is missing")
+    need('format!("{family} · Next BIM")' in bim_ui,
+         "Next BIM document window title is missing")
     need('Panel::right("next-ai-workspace")' in bim_ui,
          "Next BIM permanent Next AI panel is missing")
+    need('Profile::BimCraft => "Next BIM"' in bim_style,
+         "Next BIM visible profile label is missing")
 
-    print("SOURCE CHECK PASS: both upstream trees, product identities and reserved Next AI spaces are present.")
+    print("SOURCE CHECK PASS: exact upstream revisions, product identities and reserved Next AI spaces are present.")
     print("This check does not prove compilation, launch, modelling, save/reopen or tool-level acceptance.")
 
 

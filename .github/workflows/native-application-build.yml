@@ -72,6 +72,20 @@ jobs:
         working-directory: upstream/FreeCAD
         run: pixi run test
 
+      - name: Verify NextCAD native create-edit-save-reopen
+        working-directory: upstream/FreeCAD
+        run: pixi run python ../../scripts/verify_nextcad_roundtrip.py
+
+      - name: Launch NextCAD on Windows
+        if: runner.os == 'Windows'
+        working-directory: upstream/FreeCAD
+        run: pixi run python ../../scripts/smoke_native.py --executable build/relWithDebInfo/bin/FreeCAD.exe
+
+      - name: Launch NextCAD on macOS
+        if: runner.os == 'macOS'
+        working-directory: upstream/FreeCAD
+        run: pixi run python ../../scripts/smoke_native.py --executable build/relWithDebInfo/bin/FreeCAD
+
       - name: Install NextCAD for GUI smoke test
         if: runner.os == 'Linux'
         working-directory: upstream/FreeCAD
@@ -181,13 +195,33 @@ jobs:
         working-directory: upstream/BIMCraft
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Run BIMCraft test suite
+      - name: Run Next BIM native test suite
         working-directory: upstream/BIMCraft
         run: cargo test --workspace
 
-      - name: Build Next BIM desktop application
+      - name: Build Next BIM desktop application and project CLI
         working-directory: upstream/BIMCraft
-        run: cargo build --release -p bimcraft
+        run: cargo build --release -p bimcraft -p bimcraft-cli
+
+      - name: Verify Next BIM native create-edit-save-reopen on Windows
+        if: runner.os == 'Windows'
+        working-directory: upstream/BIMCraft
+        run: python ../../scripts/verify_nextbim_roundtrip.py --cli target/release/bimcraft-cli.exe
+
+      - name: Verify Next BIM native create-edit-save-reopen on Unix
+        if: runner.os != 'Windows'
+        working-directory: upstream/BIMCraft
+        run: python ../../scripts/verify_nextbim_roundtrip.py --cli target/release/bimcraft-cli
+
+      - name: Launch Next BIM on Windows
+        if: runner.os == 'Windows'
+        working-directory: upstream/BIMCraft
+        run: python ../../scripts/smoke_native.py --executable target/release/bimcraft.exe
+
+      - name: Launch Next BIM on macOS
+        if: runner.os == 'macOS'
+        working-directory: upstream/BIMCraft
+        run: python ../../scripts/smoke_native.py --executable target/release/bimcraft
 
       - name: Capture the real Next BIM interface
         if: runner.os == 'Linux'
@@ -199,7 +233,8 @@ jobs:
           xvfb-run -a -s "-screen 0 1600x1000x24" bash -lc '
             set -euo pipefail
             cd upstream/BIMCraft
-            ./target/release/bimcraft --sample > ../../artifacts/next-bim.log 2>&1 &
+            export BIMCRAFT_NO_UPDATE_CHECK=1
+            ./target/release/bimcraft > ../../artifacts/next-bim.log 2>&1 &
             app_pid=$!
             window_id=""
             for attempt in $(seq 1 60); do
