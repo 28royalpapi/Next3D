@@ -33,7 +33,7 @@ def main() -> None:
 
     need('"com.next3d.nextbim"' in bim_main and '"Next BIM"' in bim_main,
          "Next BIM product identity is missing")
-    need('SidePanel::right("next-ai-workspace")' in bim_ui,
+    need('Panel::right("next-ai-workspace")' in bim_ui,
          "Next BIM permanent Next AI panel is missing")
 
     print("SOURCE CHECK PASS: both upstream trees, product identities and reserved Next AI spaces are present.")
