@@ -17,6 +17,7 @@ def main() -> None:
     main_gui = (freecad / "src/Main/MainGui.cpp").read_text(encoding="utf-8")
     bim_main = (bimcraft / "apps/bimcraft/src/main.rs").read_text(encoding="utf-8")
     bim_ui = (bimcraft / "crates/ui-egui/src/lib.rs").read_text(encoding="utf-8")
+    bim_style = (bimcraft / "crates/ui-egui/src/style.rs").read_text(encoding="utf-8")
 
     need("NextAIWorkspace" in main_window and 'tr("Next AI")' in main_window,
          "NextCAD permanent Next AI dock is missing")
@@ -39,6 +40,8 @@ def main() -> None:
          "Next BIM document window title is missing")
     need('Panel::right("next-ai-workspace")' in bim_ui,
          "Next BIM permanent Next AI panel is missing")
+    need('Profile::BimCraft => "Next BIM"' in bim_style,
+         "Next BIM visible profile label is missing")
 
     print("SOURCE CHECK PASS: exact upstream revisions, product identities and reserved Next AI spaces are present.")
     print("This check does not prove compilation, launch, modelling, save/reopen or tool-level acceptance.")
