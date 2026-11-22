@@ -89,7 +89,7 @@ A picture of a finished part is insufficient. The model needs the native feature
 
 ## 2.1 Native engine and command surface
 
-The pinned BIMCraft source has a separate Rust core (`crates/core`), a desktop UI (`crates/ui-egui`) and a CLI/MCP entry point (`apps/bimcraft-cli`). The core command table contains **212 command registrations** at the pinned revision.
+The pinned BIMCraft source has a separate Rust core (`crates/core`), a desktop UI (`crates/ui-egui`) and a CLI/MCP entry point (`apps/bimcraft-cli`). The core command table contains **214 command registrations** at the pinned revision.
 
 The agent interface is intentionally smaller than the full command table. Its high-level MCP surface includes project context, command execution, scripts, command discovery, model inspection, element queries, schedules, rendering, open/save and the interactive desktop bridge. A user request should normally use native typed commands, not invent a second building model format.
 
@@ -103,6 +103,8 @@ Project files and supported output paths are not interchangeable:
 - Revit `.rvt` is read by a bounded reader; this is not a public or complete Revit file implementation.
 
 ## 2.2 Building and engineering capability families
+
+A machine-readable index of the 214 registered commands, including each parameter description, edit/read classification and aliases, is available at [BIMCraft native command catalog v1](catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json).
 
 | Family | Native model features documented in the pinned source | AI knowledge and validation |
 | --- | --- | --- |

@@ -1,0 +1,220 @@
+{
+  "schema_version": "1.0.0",
+  "application": "nextcad",
+  "upstream_commit": "00cb280454069966a2fb0a8e7dc184c46e7b38b3",
+  "source_root": "src/Mod",
+  "module_count": 30,
+  "note": "This is a source-tree index, not proof that every workbench loads or all of its external solvers/add-ons are installed. Runtime discovery and acceptance tests are required.",
+  "modules": [
+    {
+      "module": "Assembly",
+      "source_path": "src/Mod/Assembly",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "BIM",
+      "source_path": "src/Mod/BIM",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "CAM",
+      "source_path": "src/Mod/CAM",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Draft",
+      "source_path": "src/Mod/Draft",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Fem",
+      "source_path": "src/Mod/Fem",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Help",
+      "source_path": "src/Mod/Help",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Import",
+      "source_path": "src/Mod/Import",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Inspection",
+      "source_path": "src/Mod/Inspection",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "JtReader",
+      "source_path": "src/Mod/JtReader",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Material",
+      "source_path": "src/Mod/Material",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Measure",
+      "source_path": "src/Mod/Measure",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Mesh",
+      "source_path": "src/Mod/Mesh",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "MeshPart",
+      "source_path": "src/Mod/MeshPart",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "OpenSCAD",
+      "source_path": "src/Mod/OpenSCAD",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Part",
+      "source_path": "src/Mod/Part",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "PartDesign",
+      "source_path": "src/Mod/PartDesign",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Plot",
+      "source_path": "src/Mod/Plot",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Points",
+      "source_path": "src/Mod/Points",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "ReverseEngineering",
+      "source_path": "src/Mod/ReverseEngineering",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Robot",
+      "source_path": "src/Mod/Robot",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Show",
+      "source_path": "src/Mod/Show",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Sketcher",
+      "source_path": "src/Mod/Sketcher",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Spreadsheet",
+      "source_path": "src/Mod/Spreadsheet",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Start",
+      "source_path": "src/Mod/Start",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Surface",
+      "source_path": "src/Mod/Surface",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "TechDraw",
+      "source_path": "src/Mod/TechDraw",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "TemplatePyMod",
+      "source_path": "src/Mod/TemplatePyMod",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Test",
+      "source_path": "src/Mod/Test",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Tux",
+      "source_path": "src/Mod/Tux",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "Web",
+      "source_path": "src/Mod/Web",
+      "source_present": true,
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    }
+  ]
+}
