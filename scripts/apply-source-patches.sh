@@ -7,10 +7,14 @@ BIMCRAFT="$ROOT/upstream/BIMCraft"
 EXPECTED_FREECAD="00cb280454069966a2fb0a8e7dc184c46e7b38b3"
 EXPECTED_BIMCRAFT="a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b"
 
+# Initialize only the two production application sources here. The additional
+# AI projects are pinned under research/ai-reference and are checked out by
+# developers when they are studying/reusing them, not by the native build jobs.
+git -C "$ROOT" submodule update --init upstream/FreeCAD upstream/BIMCraft
+
 for dir in "$FREECAD" "$BIMCRAFT"; do
   if [[ ! -d "$dir/.git" && ! -f "$dir/.git" ]]; then
     echo "Missing upstream submodule: $dir" >&2
-    echo "Run: git submodule update --init --recursive" >&2
     exit 2
   fi
 done
@@ -20,7 +24,8 @@ actual_bimcraft="$(git -C "$BIMCRAFT" rev-parse HEAD)"
 [[ "$actual_freecad" == "$EXPECTED_FREECAD" ]] || { echo "Unexpected FreeCAD source revision: $actual_freecad" >&2; exit 3; }
 [[ "$actual_bimcraft" == "$EXPECTED_BIMCRAFT" ]] || { echo "Unexpected BIMCraft source revision: $actual_bimcraft" >&2; exit 3; }
 
-# Restore every nested FreeCAD dependency at the exact gitlink commit recorded by FreeCAD.
+# Restore FreeCAD's full nested dependency tree at the exact gitlink revisions
+# recorded by the pinned FreeCAD commit.
 git -C "$FREECAD" submodule update --init --recursive
 
 if ! grep -q 'NextAIWorkspace' "$FREECAD/src/Gui/MainWindow.cpp"; then

@@ -22,7 +22,7 @@ cd Next3D
 bash scripts/apply-source-patches.sh
 ```
 
-See [NATIVE_SOURCE.md](NATIVE_SOURCE.md) for source revisions, patch scope and build commands.
+See [NATIVE_SOURCE.md](NATIVE_SOURCE.md) for source revisions, patch scope and build commands. Five separate AI research repositories are pinned under `research/ai-reference/`; their original licences and code remain independent. The native build workflow fetches only `upstream/FreeCAD`, `upstream/BIMCraft` and FreeCAD's own nested dependencies.
 
 ## Next AI
 

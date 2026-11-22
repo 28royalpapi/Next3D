@@ -21,7 +21,7 @@ jobs:
       - name: Checkout all upstream sources
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
           fetch-depth: 1
       - name: Apply and verify Next 3D source changes
         shell: bash
@@ -45,7 +45,7 @@ jobs:
       - name: Checkout all upstream sources
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
           fetch-depth: 1
 
       - name: Apply NextCAD branding and Next AI workspace
@@ -155,7 +155,7 @@ jobs:
       - name: Checkout all upstream sources
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
           fetch-depth: 1
 
       - name: Apply Next BIM identity and Next AI workspace

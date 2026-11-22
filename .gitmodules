@@ -4,3 +4,18 @@
 [submodule "upstream/BIMCraft"]
     path = upstream/BIMCraft
     url = https://github.com/IPedrax/BIMCraft.git
+[submodule "research/ai-reference/freecad-agent"]
+    path = research/ai-reference/freecad-agent
+    url = https://github.com/nasdomak/freecad-agent.git
+[submodule "research/ai-reference/freecad-ai-assistant"]
+    path = research/ai-reference/freecad-ai-assistant
+    url = https://github.com/iplayfast/FreeCAD-AI-Assistant.git
+[submodule "research/ai-reference/freecad-mcp"]
+    path = research/ai-reference/freecad-mcp
+    url = https://github.com/neka-nat/freecad-mcp.git
+[submodule "research/ai-reference/chat-cad"]
+    path = research/ai-reference/chat-cad
+    url = https://github.com/Vittuu/freecad-chatcad.git
+[submodule "research/ai-reference/kerf"]
+    path = research/ai-reference/kerf
+    url = https://github.com/wearethefoos/kerf.git
