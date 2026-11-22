@@ -32,6 +32,8 @@ The first law is: **understand the native application before allowing AI to oper
 - [Application capability inventory](docs/next-ai/CAPABILITY_MATRIX.md)
 - [Pinned third-party AI research projects](docs/next-ai/THIRD_PARTY_AI_RESEARCH.md)
 - [Dataset, training and evaluation plan](docs/next-ai/DATASET_AND_EVALUATION.md)
+- [Integration architecture and implementation order](docs/next-ai/INTEGRATION_ARCHITECTURE.md)
+- [Native action-plan schema v1](schemas/next-ai-action-plan.v1.schema.json)
 
 Next AI is in the research and architecture phase. The reserved workspace is present in both applications, but the local model, provider, knowledge retrieval, native tool adapters and training/evaluation pipeline are not yet implemented. The capability inventory distinguishes source presence from verified runtime support and records known gaps.
 
