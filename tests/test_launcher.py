@@ -43,6 +43,23 @@ class RuntimeDiscoveryTests(unittest.TestCase):
                 if old is None: os.environ.pop("NEXTBIM_EXECUTABLE", None)
                 else: os.environ["NEXTBIM_EXECUTABLE"] = old
 
+
+    def test_native_build_paths_are_discoverable_from_submodules(self):
+        cad = launcher._candidate_paths("nextcad")
+        bim = launcher._candidate_paths("nextbim")
+        self.assertIn(launcher.APP_ROOT / "upstream" / "FreeCAD" / "build" / "relWithDebInfo" / "bin" / "FreeCAD", cad)
+        self.assertIn(launcher.APP_ROOT / "upstream" / "BIMCraft" / "target" / "release" / "bimcraft", bim)
+
+    def test_nextcad_does_not_pass_a_missing_startup_macro(self):
+        command, environment = launcher.build_launch_configuration("nextcad", Path("FreeCAD"), [])
+        self.assertEqual(command, ["FreeCAD"])
+        self.assertIn("NEXT3D_HOME", environment)
+
+    def test_nextbim_disables_upstream_self_update(self):
+        command, environment = launcher.build_launch_configuration("nextbim", Path("bimcraft"), [])
+        self.assertEqual(command, ["bimcraft"])
+        self.assertEqual(environment.get("BIMCRAFT_NO_UPDATE_CHECK"), "1")
+
     def test_missing_runtimes_are_reported_missing(self):
         old_cad = os.environ.pop("NEXTCAD_EXECUTABLE", None)
         old_bim = os.environ.pop("NEXTBIM_EXECUTABLE", None)

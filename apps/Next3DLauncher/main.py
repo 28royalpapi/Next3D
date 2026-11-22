@@ -9,14 +9,19 @@ APP_ROOT = Path(__file__).resolve().parents[2]
 def _candidate_paths(kind: str) -> list[Path]:
     if kind == "nextcad":
         override = os.environ.get("NEXTCAD_EXECUTABLE")
-        bundled = [APP_ROOT/"runtime"/"NextCAD"/"FreeCAD.exe", APP_ROOT/"runtime"/"NextCAD"/"bin"/"FreeCAD.exe",
+        bundled = [APP_ROOT/"upstream"/"FreeCAD"/".pixi"/"envs"/"default"/"Library"/"bin"/"FreeCAD.exe",
+                   APP_ROOT/"upstream"/"FreeCAD"/"build"/"relWithDebInfo"/"bin"/"FreeCAD.exe",
+                   APP_ROOT/"upstream"/"FreeCAD"/"build"/"relWithDebInfo"/"bin"/"FreeCAD",
+                   APP_ROOT/"runtime"/"NextCAD"/"FreeCAD.exe", APP_ROOT/"runtime"/"NextCAD"/"bin"/"FreeCAD.exe",
                    APP_ROOT/"runtime"/"NextCAD"/"bin"/"FreeCAD", APP_ROOT/"runtime"/"NextCAD.app"/"Contents"/"MacOS"/"FreeCAD",
                    APP_ROOT/"runtime"/"NextCAD"/"FreeCAD", APP_ROOT/"apps"/"NextCAD"/"build"/"bin"/"FreeCAD.exe",
                    APP_ROOT/"apps"/"NextCAD"/"build"/"bin"/"FreeCAD"]
         names = ("FreeCAD.exe", "FreeCAD", "freecad")
     elif kind == "nextbim":
         override = os.environ.get("NEXTBIM_EXECUTABLE")
-        bundled = [APP_ROOT/"runtime"/"NextBIM"/"NextBIM.exe", APP_ROOT/"runtime"/"NextBIM"/"NextBIM",
+        bundled = [APP_ROOT/"upstream"/"BIMCraft"/"target"/"release"/"bimcraft.exe",
+                   APP_ROOT/"upstream"/"BIMCraft"/"target"/"release"/"bimcraft",
+                   APP_ROOT/"runtime"/"NextBIM"/"NextBIM.exe", APP_ROOT/"runtime"/"NextBIM"/"NextBIM",
                    APP_ROOT/"runtime"/"NextBIM.app"/"Contents"/"MacOS"/"NextBIM",
                    APP_ROOT/"apps"/"NextBIM"/"target"/"release"/"nextbim.exe",
                    APP_ROOT/"apps"/"NextBIM"/"target"/"release"/"nextbim",
@@ -32,6 +37,20 @@ def _candidate_paths(kind: str) -> list[Path]:
         found = which(name)
         if found: candidates.append(Path(found))
     return candidates
+
+def build_launch_configuration(kind: str, runtime: Path, app_args: list[str] | None = None) -> tuple[list[str], dict[str, str]]:
+    """Build the native process command without changing the upstream app's document or API model."""
+    if kind not in ("nextcad", "nextbim"):
+        raise ValueError(f"Unknown application key: {kind}")
+    command = [str(runtime)]
+    environment = os.environ.copy()
+    environment["NEXT3D_HOME"] = str(APP_ROOT)
+    # Next BIM must never install an upstream BIMCraft release over the branded Next 3D build.
+    # Its original updater remains in source but is disabled until Next 3D publishes its own release channel.
+    if kind == "nextbim":
+        environment["BIMCRAFT_NO_UPDATE_CHECK"] = "1"
+    command.extend(app_args if app_args is not None else sys.argv[1:])
+    return command, environment
 
 def find_runtime(kind: str) -> Path | None:
     for candidate in _candidate_paths(kind):
@@ -135,9 +154,8 @@ class Next3DLauncher:
                 "This is a real runtime check: no placeholder application has been launched.",parent=self.root)
             return
         try:
-            command=[str(runtime)]; environment=os.environ.copy(); environment["NEXT3D_HOME"]=str(APP_ROOT)
-            if kind=="nextcad": command.append(str(APP_ROOT/"apps"/"NextCAD"/"NextCADStartup.FCMacro"))
-            command.extend(sys.argv[1:]); subprocess.Popen(command,env=environment)
+            command, environment = build_launch_configuration(kind, runtime)
+            subprocess.Popen(command, env=environment)
         except OSError as exc:
             messagebox.showerror(f"Could not start {product}",str(exc),parent=self.root)
 
