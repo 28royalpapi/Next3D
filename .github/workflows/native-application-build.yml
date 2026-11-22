@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: native-apps-\${{ github.event.pull_request.number || github.ref }}
+  group: native-apps-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,9 +28,9 @@ jobs:
         run: bash scripts/apply-source-patches.sh
 
   nextcad:
-    name: NextCAD / \${{ matrix.os }}
+    name: NextCAD / ${{ matrix.os }}
     needs: source-preparation
-    runs-on: \${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 360
     strategy:
       fail-fast: false
@@ -126,9 +126,9 @@ jobs:
           retention-days: 14
 
   next-bim:
-    name: Next BIM / \${{ matrix.os }}
+    name: Next BIM / ${{ matrix.os }}
     needs: source-preparation
-    runs-on: \${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
