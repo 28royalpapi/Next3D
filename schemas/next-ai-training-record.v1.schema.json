@@ -1,0 +1,584 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://next3d.dev/schemas/next-ai-training-record.v1.schema.json",
+  "title": "Next AI Native Engineering Record",
+  "description": "A provenance-aware, engine-verifiable example linking a user request and reference images to native CAD/BIM state, typed operations, validation and generated views. A picture alone is not a training example.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "application",
+    "application_version",
+    "task",
+    "specification",
+    "native_states",
+    "operations",
+    "validation",
+    "artifacts",
+    "source",
+    "privacy",
+    "split"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "application": {
+      "enum": [
+        "nextcad",
+        "nextbim"
+      ]
+    },
+    "application_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adapter_schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prompt",
+        "task_type",
+        "discipline",
+        "language"
+      ],
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "task_type": {
+          "enum": [
+            "create",
+            "edit",
+            "inspect",
+            "document",
+            "export",
+            "analysis",
+            "coordinate",
+            "convert"
+          ]
+        },
+        "discipline": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "language": {
+          "type": "string",
+          "minLength": 2
+        },
+        "reference_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "design_rationale": {
+          "type": "string",
+          "description": "Concise, user-approved or source-documented design intent. Do not store hidden model chain-of-thought."
+        }
+      }
+    },
+    "specification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameters",
+        "constraints",
+        "assumptions",
+        "unresolved_questions"
+      ],
+      "properties": {
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value",
+              "unit",
+              "description",
+              "origin",
+              "confirmed"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*$"
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean"
+                ]
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "origin": {
+                "enum": [
+                  "user",
+                  "source_drawing",
+                  "native_default",
+                  "standard_reference",
+                  "derived"
+                ]
+              },
+              "confirmed": {
+                "type": "boolean"
+              },
+              "tolerance": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "reference": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unresolved_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "native_states": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "before",
+        "after"
+      ],
+      "properties": {
+        "before": {
+          "$ref": "#/$defs/native_state"
+        },
+        "after": {
+          "$ref": "#/$defs/native_state"
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sequence",
+          "tool",
+          "tool_schema_version",
+          "arguments",
+          "result",
+          "status",
+          "transaction_id",
+          "before_state_hash",
+          "after_state_hash"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tool": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tool_schema_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "arguments": {
+            "type": "object"
+          },
+          "result": {
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "read_only",
+              "rolled_back",
+              "rejected",
+              "failed"
+            ]
+          },
+          "transaction_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "before_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "after_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user_approved": {
+            "type": "boolean"
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall",
+        "checks"
+      ],
+      "properties": {
+        "overall": {
+          "enum": [
+            "passed",
+            "passed_with_warnings",
+            "failed",
+            "not_run"
+          ]
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "check_id",
+              "status",
+              "summary"
+            ],
+            "properties": {
+              "check_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "enum": [
+                  "pass",
+                  "warning",
+                  "fail",
+                  "not_applicable"
+                ]
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expected": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean",
+                  "null"
+                ]
+              },
+              "actual": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean",
+                  "null"
+                ]
+              },
+              "unit": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tolerance": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "evidence": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "engine_report": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "round_trip_passed": {
+          "type": "boolean"
+        },
+        "recompute_passed": {
+          "type": "boolean"
+        },
+        "parametric_perturbation_passed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "uri",
+          "sha256",
+          "native_state_hash"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "input_image",
+              "input_pdf",
+              "plan",
+              "reflected_ceiling_plan",
+              "elevation",
+              "section",
+              "isometric",
+              "render",
+              "technical_drawing",
+              "schedule",
+              "ifc",
+              "step",
+              "mesh",
+              "other"
+            ]
+          },
+          "uri": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "native_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "view_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "source_id",
+        "license",
+        "permission_status",
+        "terms_reviewed"
+      ],
+      "properties": {
+        "source_type": {
+          "enum": [
+            "synthetic",
+            "user_owned",
+            "permissioned_public",
+            "third_party_contributed",
+            "benchmark"
+          ]
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author_or_owner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "permission_status": {
+          "enum": [
+            "granted",
+            "pending",
+            "denied",
+            "not_required"
+          ]
+        },
+        "terms_reviewed": {
+          "type": "boolean"
+        },
+        "attribution": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "withdrawal_key": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_consent",
+        "contains_personal_data",
+        "public_release_allowed",
+        "redaction_status"
+      ],
+      "properties": {
+        "user_consent": {
+          "type": "boolean"
+        },
+        "contains_personal_data": {
+          "type": "boolean"
+        },
+        "public_release_allowed": {
+          "type": "boolean"
+        },
+        "redaction_status": {
+          "enum": [
+            "not_needed",
+            "complete",
+            "pending",
+            "blocked"
+          ]
+        }
+      }
+    },
+    "split": {
+      "enum": [
+        "train",
+        "validation",
+        "test",
+        "quarantine"
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "native_state": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "uri",
+        "sha256",
+        "state_summary"
+      ],
+      "properties": {
+        "format": {
+          "enum": [
+            "FCStd",
+            "BIMC",
+            "BIMT",
+            "IFC",
+            "other"
+          ]
+        },
+        "uri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "state_summary": {
+          "type": "object"
+        },
+        "application_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

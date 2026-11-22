@@ -12,12 +12,12 @@ The FreeCAD revision includes the five exact dependency gitlinks for OndselSolve
 ## Checkout and prepare
 
 ```bash
-git clone --recurse-submodules https://github.com/28royalpapi/Next3D.git
+git clone --recurse-submodules --branch nextcad https://github.com/28royalpapi/Next3D.git
 cd Next3D
 bash scripts/apply-source-patches.sh
 ```
 
-If the repository was cloned without submodules, run `git submodule update --init --recursive` first. The preparation script checks both pinned upstream revisions, initializes FreeCAD's nested submodules, and applies the two product patches.
+The preparation script selectively initializes the two production source submodules, checks both pinned revisions, initializes FreeCAD's exact nested dependencies, and applies the product patches. It deliberately does not fetch the separate AI research submodules during native builds. A developer can fetch a specific AI reference with `git submodule update --init -- research/ai-reference/<name>`; the full list and pinned licences are in [THIRD_PARTY_AI_RESEARCH.md](docs/next-ai/THIRD_PARTY_AI_RESEARCH.md).
 
 ## Build
 
@@ -36,10 +36,10 @@ Next BIM uses its pinned Rust workspace:
 cd upstream/BIMCraft
 cargo fmt --check
 cargo test --workspace
-cargo build --release -p bimcraft
+cargo build --release -p bimcraft -p bimcraft-cli
 ```
 
-The **Native application builds** GitHub Actions workflow runs these checks on Linux, Windows and macOS. The Linux jobs also attempt to launch the real desktop apps and capture screenshots as CI artifacts.
+The **Native application builds** GitHub Actions workflow runs these checks on Linux, Windows and macOS on both `main` and `nextcad`. It also runs native project round-trip and desktop startup checks. The Linux jobs attempt to launch the real desktop apps and capture screenshots as CI artifacts.
 
 ## What the patches change
 
