@@ -1,0 +1,6 @@
+[submodule "upstream/FreeCAD"]
+    path = upstream/FreeCAD
+    url = https://github.com/FreeCAD/FreeCAD.git
+[submodule "upstream/BIMCraft"]
+    path = upstream/BIMCraft
+    url = https://github.com/IPedrax/BIMCraft.git

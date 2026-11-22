@@ -2,16 +2,16 @@
 
 ## NextCAD / FreeCAD
 
-The intended NextCAD application is derived from the user-supplied `FreeCAD-main.zip`. The original FreeCAD licence, copyright notices, module names and project identifiers must be retained. The archive omits the contents of five declared Git submodules; recursively initialise those exact upstream submodules before attempting a source build.
+NextCAD is derived from the upstream FreeCAD source project and retains its LGPL licence, copyright notices, source identifiers, internal Python modules, workbenches and compatibility names. The pinned source is `FreeCAD/FreeCAD` at commit `00cb280454069966a2fb0a8e7dc184c46e7b38b3`. Its five declared Git submodules are retained at the exact commits recorded by that parent revision.
 
 ## Next BIM / BIMCraft
 
-The intended Next BIM application is derived from the user-supplied `BIMCraft-main.zip`. Preserve its upstream MIT and Apache licence files, NOTICE, internal crate names and source attribution. No native compiled executable is present in the archive.
+Next BIM is derived from `IPedrax/BIMCraft` at commit `a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b`. Preserve its MIT and Apache licence files, NOTICE, attribution, crate names and internal compatibility identifiers.
 
-## Next 3D selector
+## Git submodules
 
-The selector source under `apps/Next3DLauncher/` is newly authored Python/Tkinter code. It starts each native app as a separate process and does not merge document models or undo histories.
+The full original source trees are available from their upstream Git repositories through pinned submodule references. A recursive checkout is required; the Next3D repository does not duplicate thousands of upstream files as a lossy source archive.
 
-## Screenshot provenance
+## Screenshots
 
-The source archive contains upstream documentation screenshots. They depict the original applications and are included in visual documentation only. They are not screenshots captured from a NextCAD or Next BIM executable produced by this project.
+Upstream documentation screenshots depict the original upstream applications. They are references only, not screenshots of NextCAD or Next BIM. A Next 3D screenshot must be captured from the modified executable after it has been built and launched.

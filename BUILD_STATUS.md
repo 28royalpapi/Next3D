@@ -1,26 +1,31 @@
-# Build and visual verification status
+# Build and verification status
 
-## GitHub Actions selector run
+## Selector
 
-Workflow run: [44911879342](https://github.com/28royalpapi/Next3D/actions/runs/44911879342) - completed successfully.
+The selector-only GitHub Actions run `44911879342` passed on Ubuntu 24.04, Windows 2025 and macOS 15 Intel. This validates the selector UI and its app-card callbacks only.
 
-| Runner | Selector | Button callbacks | Screenshot artifact |
-|---|---|---|---|
-| Ubuntu 24.04 | PASS | PASS | Uploaded |
-| Windows 2025 | PASS | PASS | Uploaded |
-| macOS 15 Intel | PASS | PASS | Uploaded |
+## Source provenance and patch preparation
 
-The Windows layout was adjusted to fit its smaller runner display. The macOS card buttons were changed to platform-neutral clickable labels so the dark button text remains readable. The corrected screenshots are from the second successful run, after these fixes.
+- NextCAD source is pinned to the exact FreeCAD commit represented by the supplied archive. Its five nested git submodules are pinned by that upstream commit and are initialized recursively.
+- Next BIM source is pinned to the exact BIMCraft commit represented by the supplied archive.
+- The NextCAD and Next BIM patch sets were applied to clean extractions of the supplied original archives and compared with the prepared working trees. Only the intended four source files differ.
+- Static source assertions verify both Next AI workspace markers and the NextCAD/Next BIM product identities. These checks are not compilation tests.
 
-Each runner reported that both native runtimes were not installed. The button callbacks ran and returned the expected missing-runtime warnings; no substitute CAD/BIM applications were launched.
+## Native app acceptance - pending
 
-## Native application acceptance - not yet verified
+The native application workflow builds and tests both applications on Linux, Windows and macOS. Until its jobs finish successfully, the following are **not** claimed:
 
-- No NextCAD/FreeCAD native executable has been built or launched.
-- No Next BIM/BIMCraft native executable has been built or launched.
-- No native CAD or BIM model has been edited, saved and reopened.
-- The FreeCAD and BIMCraft screenshots in the supplied source archives are genuine upstream documentation references, not screenshots of the newly branded applications running in these CI jobs.
+- successful native compilation on all three operating systems;
+- a real NextCAD or Next BIM application launch;
+- successful creation/editing/saving/reopening of a CAD or BIM model;
+- complete tool-level acceptance of every original workbench and command.
 
-The supplied FreeCAD ZIP omits the contents of five declared Git submodules. The Linux working environment used for local source checks has no Rust/Cargo, Pixi or FreeCAD executable.
+The local execution environment has no Rust/Cargo compiler, Pixi environment or FreeCAD executable, so these native checks cannot be completed locally here.
 
-**Scope of this workflow:** the selector only. It is not a FreeCAD or BIMCraft build workflow and does not prove native application editing.
+## Screenshots
+
+The source archives contain genuine upstream documentation images, not screenshots of the modified NextCAD or Next BIM applications. No image is labelled as a Next 3D application screenshot until it is captured from the newly built executable. The Linux native build workflow attempts to upload real GUI screenshots as artifacts after launching each application.
+
+## Next AI
+
+Both applications contain a permanent reserved Next AI workspace. There is no AI runtime, model connection or CAD/BIM tool-calling implementation in this phase. Next AI implementation should begin after the native app build and edit-save-reopen acceptance checks pass.

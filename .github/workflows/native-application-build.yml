@@ -1,0 +1,235 @@
+name: Native application builds
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-apps-\${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-preparation:
+    name: Verify pinned sources and Next AI patches
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout all upstream sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+      - name: Apply and verify Next 3D source changes
+        shell: bash
+        run: bash scripts/apply-source-patches.sh
+
+  nextcad:
+    name: NextCAD / \${{ matrix.os }}
+    needs: source-preparation
+    runs-on: \${{ matrix.runner }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: Linux, runner: ubuntu-24.04 }
+          - { os: Windows, runner: windows-2025 }
+          - { os: macOS, runner: macos-15 }
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
+    steps:
+      - name: Checkout all upstream sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Apply NextCAD branding and Next AI workspace
+        shell: bash
+        run: bash scripts/apply-source-patches.sh
+
+      - name: Install the pinned FreeCAD build environment
+        uses: prefix-dev/setup-pixi@ad1da6449d9e506fd127fd67ab2d054a769f6a94 # v0.11.2
+        with:
+          pixi-version: v0.82.1
+          working-directory: upstream/FreeCAD
+          locked: true
+          cache: true
+
+      - name: Configure NextCAD
+        working-directory: upstream/FreeCAD
+        run: pixi run configure
+
+      - name: Build NextCAD
+        working-directory: upstream/FreeCAD
+        run: pixi run build
+
+      - name: Run FreeCAD test suite against NextCAD
+        working-directory: upstream/FreeCAD
+        run: pixi run test
+
+      - name: Install NextCAD for GUI smoke test
+        if: runner.os == 'Linux'
+        working-directory: upstream/FreeCAD
+        run: pixi run install
+
+      - name: Capture the real NextCAD interface
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb scrot xdotool
+          mkdir -p artifacts
+          xvfb-run -a -s "-screen 0 1600x1000x24" bash -lc '
+            set -euo pipefail
+            cd upstream/FreeCAD
+            pixi run freecad > ../../artifacts/nextcad.log 2>&1 &
+            app_pid=$!
+            window_id=""
+            for attempt in $(seq 1 90); do
+              sleep 2
+              if ! kill -0 "$app_pid" 2>/dev/null; then
+                echo "NextCAD exited before the screenshot could be captured" >&2
+                cat ../../artifacts/nextcad.log
+                exit 1
+              fi
+              window_id="$(xdotool search --onlyvisible --name "FreeCAD|NextCAD" 2>/dev/null | head -n 1 || true)"
+              if [ -n "$window_id" ]; then
+                break
+              fi
+            done
+            if [ -z "$window_id" ]; then
+              echo "NextCAD did not create a visible desktop window" >&2
+              cat ../../artifacts/nextcad.log
+              kill "$app_pid" || true
+              exit 1
+            fi
+            xdotool windowactivate --sync "$window_id" || true
+            sleep 5
+            scrot ../../artifacts/nextcad.png
+            kill "$app_pid" || true
+            wait "$app_pid" || true
+            test -s ../../artifacts/nextcad.png
+          '
+
+      - name: Upload NextCAD GUI evidence
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextcad-linux-gui-evidence
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
+  next-bim:
+    name: Next BIM / \${{ matrix.os }}
+    needs: source-preparation
+    runs-on: \${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: Linux, runner: ubuntu-22.04 }
+          - { os: Windows, runner: windows-latest }
+          - { os: macOS, runner: macos-15 }
+    steps:
+      - name: Checkout all upstream sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Apply Next BIM identity and Next AI workspace
+        shell: bash
+        run: bash scripts/apply-source-patches.sh
+
+      - name: Linux graphics development libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev
+
+      - name: Install stable Rust and test components
+        shell: bash
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+          rustup target add wasm32-unknown-unknown
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        if: runner.os == 'Linux'
+        working-directory: upstream/BIMCraft
+        run: cargo fmt --check
+
+      - name: Build sample WASM plugin used by tests
+        working-directory: upstream/BIMCraft
+        run: cargo build --manifest-path crates/plugin/tests/sample-plugin/Cargo.toml --target wasm32-unknown-unknown --release
+
+      - name: Run Clippy
+        working-directory: upstream/BIMCraft
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run BIMCraft test suite
+        working-directory: upstream/BIMCraft
+        run: cargo test --workspace
+
+      - name: Build Next BIM desktop application
+        working-directory: upstream/BIMCraft
+        run: cargo build --release -p bimcraft
+
+      - name: Capture the real Next BIM interface
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb scrot xdotool
+          mkdir -p artifacts
+          xvfb-run -a -s "-screen 0 1600x1000x24" bash -lc '
+            set -euo pipefail
+            cd upstream/BIMCraft
+            ./target/release/bimcraft --sample > ../../artifacts/next-bim.log 2>&1 &
+            app_pid=$!
+            window_id=""
+            for attempt in $(seq 1 60); do
+              sleep 2
+              if ! kill -0 "$app_pid" 2>/dev/null; then
+                echo "Next BIM exited before the screenshot could be captured" >&2
+                cat ../../artifacts/next-bim.log
+                exit 1
+              fi
+              window_id="$(xdotool search --onlyvisible --name "Next BIM" 2>/dev/null | head -n 1 || true)"
+              if [ -n "$window_id" ]; then
+                break
+              fi
+            done
+            if [ -z "$window_id" ]; then
+              echo "Next BIM did not create a visible desktop window" >&2
+              cat ../../artifacts/next-bim.log
+              kill "$app_pid" || true
+              exit 1
+            fi
+            xdotool windowactivate --sync "$window_id" || true
+            sleep 5
+            scrot ../../artifacts/next-bim.png
+            kill "$app_pid" || true
+            wait "$app_pid" || true
+            test -s ../../artifacts/next-bim.png
+          '
+
+      - name: Upload Next BIM GUI evidence
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-bim-linux-gui-evidence
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14

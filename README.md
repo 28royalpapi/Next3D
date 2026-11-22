@@ -1,26 +1,30 @@
 # Next 3D
 
-Next 3D is a desktop selector for two separate native engineering applications:
-- **NextCAD** - based on the supplied FreeCAD source.
-- **Next BIM** - based on the supplied BIMCraft source.
+Next 3D is a desktop selector for two independent native engineering applications:
 
-The applications are intended to remain independent: separate model engines, native documents, undo/redo histories and workflows. The earlier combined-engine prototype is not the selected architecture.
+- **NextCAD** - the original FreeCAD application with a NextCAD product name and a permanent `Next AI` workspace.
+- **Next BIM** - the original BIMCraft application with a Next BIM product name and a permanent `Next AI` workspace.
 
-## What is currently in this GitHub repository
+Each app keeps its own native modelling engine, project/document format, APIs, workbenches, undo history and workflows. They are not merged. Civil 3D is not part of this project.
+
+## Native source in this repository
+
+The original source is connected as pinned Git submodules:
+
+- `upstream/FreeCAD` -> `FreeCAD/FreeCAD` at `00cb280454069966a2fb0a8e7dc184c46e7b38b3`.
+- `upstream/BIMCraft` -> `IPedrax/BIMCraft` at `a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b`.
+
+FreeCAD's five nested dependencies are pinned by FreeCAD itself and are fetched recursively. Clone this repository with `--recurse-submodules`, then run `bash scripts/apply-source-patches.sh`. See [NATIVE_SOURCE.md](NATIVE_SOURCE.md) for the source revisions, patch scope and build commands.
+
+## Selector
 
 - `apps/Next3DLauncher/main.py` - cross-platform Python/Tkinter selector.
-- `tests/test_launcher.py` - launcher runtime-discovery tests.
-- `scripts/capture_selector.py` - launches the selector, saves a window screenshot and invokes both app-card callbacks.
-- `.github/workflows/launcher-visual-smoke.yml` - intended selector smoke matrix for Ubuntu, Windows and macOS.
+- `tests/test_launcher.py` - launcher tests.
+- `scripts/capture_selector.py` - selector screenshot and card-callback smoke helper.
+- `.github/workflows/launcher-visual-smoke.yml` - selector checks on Ubuntu, Windows and macOS.
 
-## What is not yet in this GitHub repository
+## Build verification
 
-The complete FreeCAD and BIMCraft source trees from the two original archives have **not** been uploaded to this GitHub branch. They are not present merely because the launcher refers to them. Native NextCAD and Next BIM executables are not included either.
+`.github/workflows/native-application-build.yml` builds NextCAD and Next BIM from the pinned sources on all three desktop operating systems. The workflow also attempts genuine Linux GUI launches and saves screenshots as artifacts.
 
-The local working package was prepared separately from the supplied archives. FreeCAD's uploaded ZIP lacks the contents of five declared Git submodules, which must be initialized before building.
-
-## Verification boundary
-
-A selector screenshot or selector test does not prove that NextCAD or Next BIM builds, launches, or edits a model. No native CAD/BIM build or edit-save-reopen test is claimed by this repository snapshot. See `BUILD_STATUS.md` for the current evidence boundary.
-
-The dedicated Next AI functionality is deferred; this phase is focused on the non-AI platform.
+A source checkout or a passing selector test does not prove a native application is accepted. Native build, launch, model edit and save/reopen evidence is tracked in [BUILD_STATUS.md](BUILD_STATUS.md). Next AI is currently only a reserved UI space; its assistant functionality is the next implementation phase after the two base applications pass acceptance.

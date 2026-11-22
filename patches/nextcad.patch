@@ -1,0 +1,51 @@
+--- a/src/Gui/MainWindow.cpp
++++ b/src/Gui/MainWindow.cpp
+@@ -29,6 +29,8 @@
+ #include <QCloseEvent>
+ #include <QContextMenuEvent>
+ #include <QDesktopServices>
++#include <QVBoxLayout>
++#include <QFont>
+ #include <QDockWidget>
+ #include <QFontMetrics>
+ #include <QHash>
+@@ -705,6 +707,39 @@
+ 
+     initDockWindows(false);
+ 
++    // Next AI is a permanent dedicated workspace in NextCAD. Its assistant logic is
++    // intentionally deferred; this native dock reserves the space without changing
++    // FreeCAD's modelling engine, document format, workbenches or undo history.
++    auto nextAiDock = new QDockWidget(QObject::tr("Next AI"), this);
++    nextAiDock->setObjectName(QStringLiteral("NextAIWorkspace"));
++    nextAiDock->setFeatures(QDockWidget::DockWidgetMovable);
++    auto nextAiContent = new QWidget(nextAiDock);
++    auto nextAiLayout = new QVBoxLayout(nextAiContent);
++    auto nextAiHeading = new QLabel(QObject::tr("Next AI"), nextAiContent);
++    QFont nextAiFont = nextAiHeading->font();
++    nextAiFont.setBold(true);
++    nextAiFont.setPointSize(nextAiFont.pointSize() + 2);
++    nextAiHeading->setFont(nextAiFont);
++    nextAiLayout->addWidget(nextAiHeading);
++    auto nextAiDescription = new QLabel(
++        QObject::tr("Your dedicated AI workspace. Ask for help with CAD tools and design tasks."),
++        nextAiContent);
++    nextAiDescription->setWordWrap(true);
++    nextAiLayout->addWidget(nextAiDescription);
++    nextAiLayout->addStretch(1);
++    auto nextAiReserved = new QLabel(QObject::tr("Next AI workspace reserved"), nextAiContent);
++    nextAiReserved->setAlignment(Qt::AlignCenter);
++    nextAiLayout->addWidget(nextAiReserved);
++    nextAiLayout->addStretch(1);
++    auto nextAiStatus = new QLabel(
++        QObject::tr("AI assistant connection will be enabled in the Next AI implementation phase."),
++        nextAiContent);
++    nextAiStatus->setWordWrap(true);
++    nextAiLayout->addWidget(nextAiStatus);
++    nextAiDock->setWidget(nextAiContent);
++    addDockWidget(Qt::RightDockWidgetArea, nextAiDock);
++    nextAiDock->show();
++
+     std::vector<QTabWidget::TabPosition> tabPos
+         = {QTabWidget::North, QTabWidget::South, QTabWidget::West, QTabWidget::East};
+     long value = d->hGrp->GetInt("LeftDockWidgetAreaTabPos", long(tabPos.front()));

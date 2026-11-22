@@ -1,0 +1,56 @@
+--- a/apps/bimcraft/src/main.rs
++++ b/apps/bimcraft/src/main.rs
+@@ -35,7 +35,7 @@
+ 
+ /// What the desktop knows the app by: Wayland's app id and X11's window class, which a Linux desktop
+ /// matches to the `.desktop` file of that name for the window's icon, and the macOS bundle's identifier.
+-const APP_ID: &str = "io.github.ipedrax.bimcraft";
++const APP_ID: &str = "com.next3d.nextbim";
+ 
+ /// The arguments without `--control PORT`, and the port it names: a number, 0 for one that is free.
+ fn control_port(mut args: Vec<String>) -> Result<(Vec<String>, Option<u16>), String> {
+@@ -274,7 +274,7 @@
+         app.space_mouse = bimcraft_ui_egui::spacemouse::SpaceMouse::start(move || ctx.request_repaint());
+         Ok(Box::new(app))
+     };
+-    match eframe::run_native("BIMCraft", options, Box::new(start)) {
++    match eframe::run_native("Next BIM", options, Box::new(start)) {
+         Ok(()) => {
+             startup::closed(files.as_ref(), graphics);
+             ExitCode::SUCCESS
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -2092,6 +2092,33 @@
+         }
+         let status = style::card([true, true, false, true]).inner_margin(Margin::symmetric(10, 2));
+         Panel::bottom("status").frame(status).show_separator_line(false).show(ui, |ui| self.status_bar(ui));
++        // Next AI is a permanent, dedicated workspace in Next BIM. The reserved panel is
++        // present in every project view; AI execution is intentionally a later phase.
++        egui::SidePanel::right("next-ai-workspace")
++            .resizable(true)
++            .default_width(286.0)
++            .min_width(240.0)
++            .show_inside(ui, |ui| {
++                ui.vertical(|ui| {
++                    ui.heading(RichText::new("Next AI").strong());
++                    ui.label(RichText::new("BIM DESIGN ASSISTANT").small().weak());
++                    ui.separator();
++                    ui.add_space(8.0);
++                    ui.label("Your dedicated AI workspace");
++                    ui.label(RichText::new("Describe a building task or ask for help with the tools in Next BIM.").weak());
++                    ui.add_space(12.0);
++                    ui.group(|ui| {
++                        ui.set_min_height(96.0);
++                        ui.vertical_centered(|ui| {
++                            ui.add_space(20.0);
++                            ui.label(RichText::new("Next AI is reserved here").strong());
++                            ui.label(RichText::new("The workspace stays available while you model.").small().weak());
++                        });
++                    });
++                    ui.add_space(8.0);
++                    ui.label(RichText::new("AI assistant connection will be enabled in the Next AI implementation phase.").small().weak());
++                });
++            });
+         self.docks(ui);
+         CentralPanel::default().frame(Frame::NONE).show(ui, |ui| {
+             if family {
