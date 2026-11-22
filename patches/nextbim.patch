@@ -26,31 +26,27 @@
          Panel::bottom("status").frame(status).show_separator_line(false).show(ui, |ui| self.status_bar(ui));
 +        // Next AI is a permanent, dedicated workspace in Next BIM. The reserved panel is
 +        // present in every project view; AI execution is intentionally a later phase.
-+        egui::Panel::right("next-ai-workspace")
-+            .default_size(286.0)
-+            .resizable(true)
-+            .min_size(240.0)
-+            .show(ui, |ui| {
-+                ui.vertical(|ui| {
-+                    ui.heading(RichText::new("Next AI").strong());
-+                    ui.label(RichText::new("BIM DESIGN ASSISTANT").small().weak());
-+                    ui.separator();
-+                    ui.add_space(8.0);
-+                    ui.label("Your dedicated AI workspace");
-+                    ui.label(RichText::new("Describe a building task or ask for help with the tools in Next BIM.").weak());
-+                    ui.add_space(12.0);
-+                    ui.group(|ui| {
-+                        ui.set_min_height(96.0);
-+                        ui.vertical_centered(|ui| {
-+                            ui.add_space(20.0);
-+                            ui.label(RichText::new("Next AI is reserved here").strong());
-+                            ui.label(RichText::new("The workspace stays available while you model.").small().weak());
-+                        });
++        egui::Panel::right("next-ai-workspace").default_size(286.0).resizable(true).min_size(240.0).show(ui, |ui| {
++            ui.vertical(|ui| {
++                ui.heading(RichText::new("Next AI").strong());
++                ui.label(RichText::new("BIM DESIGN ASSISTANT").small().weak());
++                ui.separator();
++                ui.add_space(8.0);
++                ui.label("Your dedicated AI workspace");
++                ui.label(RichText::new("Describe a building task or ask for help with the tools in Next BIM.").weak());
++                ui.add_space(12.0);
++                ui.group(|ui| {
++                    ui.set_min_height(96.0);
++                    ui.vertical_centered(|ui| {
++                        ui.add_space(20.0);
++                        ui.label(RichText::new("Next AI is reserved here").strong());
++                        ui.label(RichText::new("The workspace stays available while you model.").small().weak());
 +                    });
-+                    ui.add_space(8.0);
-+                    ui.label(RichText::new("AI assistant connection will be enabled in the Next AI implementation phase.").small().weak());
 +                });
++                ui.add_space(8.0);
++                ui.label(RichText::new("AI assistant connection will be enabled in the Next AI implementation phase.").small().weak());
 +            });
++        });
          self.docks(ui);
          CentralPanel::default().frame(Frame::NONE).show(ui, |ui| {
              if family {

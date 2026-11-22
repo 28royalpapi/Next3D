@@ -164,6 +164,9 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            upstream/BIMCraft -> upstream/BIMCraft/target
 
       - name: Check formatting
         if: runner.os == 'Linux'
