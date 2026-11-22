@@ -41,14 +41,9 @@ if ! grep -q 'pub mod local;' "$BIMCRAFT/crates/assistant/src/lib.rs"; then
   gzip -dc "$ROOT/patches/nextbim-local-provider.patch.gz" | git -C "$BIMCRAFT" apply -
 fi
 
-# Both branches of the local/remote attachment disclosure must have the same String type.
-if ! grep -Fq 't("Attached files go only to the local Ollama service on this computer.").to_owned()' "$BIMCRAFT/crates/ui-egui/src/assistant.rs"; then
-  if grep -Fq 't("Attached files go only to the local Ollama service on this computer.")' "$BIMCRAFT/crates/ui-egui/src/assistant.rs"; then
-    git -C "$BIMCRAFT" apply "$ROOT/patches/nextbim-local-provider-type-fix.patch"
-  else
-    echo "Could not find the expected Local provider attachment disclosure; source shape changed." >&2
-    exit 4
-  fi
-fi
+# The local-provider patch uses the same owned String type in both branches
+# of its attachment disclosure. Use an idempotent source fix rather than a
+# line-number patch so small upstream context shifts cannot break the build.
+python3 "$ROOT/scripts/fix-nextbim-local-provider-type.py" "$BIMCRAFT"
 
 python3 "$ROOT/scripts/verify-source-patches.py" "$FREECAD" "$BIMCRAFT"
