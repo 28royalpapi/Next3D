@@ -67,29 +67,3 @@ index 91a86ee..e40c605 100644
                  let dialog = rfd::AsyncFileDialog::new().add_filter(name, &revit::open_extensions(revit));
                  self.ask_file(ctx, dialog, false, |app, path| {
                      app.open_path(&path);
-diff --git a/crates/ui-egui/src/style.rs b/crates/ui-egui/src/style.rs
-index 2c3a8bb..43c1d55 100644
---- a/crates/ui-egui/src/style.rs
-+++ b/crates/ui-egui/src/style.rs
-@@ -416,7 +416,7 @@ impl Profile {
-     /// Its name, which is its label too: a name, so never translated.
-     pub fn name(self) -> &'static str {
-         match self {
--            Profile::BimCraft => "BIMCraft",
-+            Profile::BimCraft => "Next BIM",
-             Profile::Rev => "Rev",
-         }
-     }
-diff --git a/crates/ui-egui/src/tests/profile.rs b/crates/ui-egui/src/tests/profile.rs
-index 788ba5e..2b77711 100644
---- a/crates/ui-egui/src/tests/profile.rs
-+++ b/crates/ui-egui/src/tests/profile.rs
-@@ -52,7 +52,7 @@ fn the_profile_is_picked_in_settings_and_the_settings_file_keeps_it() {
-     again.run();
-     assert_eq!(again.state().profile, Profile::Rev);
-     press(&mut again, "Settings");
--    pick(&mut again, Role::RadioButton, "BIMCraft");
-+    pick(&mut again, Role::RadioButton, "Next BIM");
-     press(&mut again, "Close");
-     assert_eq!(again.state().profile, Profile::BimCraft);
-     let kept: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap());
