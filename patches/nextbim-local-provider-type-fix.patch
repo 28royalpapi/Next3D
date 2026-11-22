@@ -1,0 +1,6 @@
+diff --git a/crates/ui-egui/src/assistant.rs b/crates/ui-egui/src/assistant.rs
+--- a/crates/ui-egui/src/assistant.rs
++++ b/crates/ui-egui/src/assistant.rs
+@@ -579,1 +579,1 @@
+-                        t("Attached files go only to the local Ollama service on this computer.")
++                        t("Attached files go only to the local Ollama service on this computer.").to_owned()
