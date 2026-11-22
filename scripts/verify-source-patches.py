@@ -18,6 +18,10 @@ def main() -> None:
     bim_main = (bimcraft / "apps/bimcraft/src/main.rs").read_text(encoding="utf-8")
     bim_ui = (bimcraft / "crates/ui-egui/src/lib.rs").read_text(encoding="utf-8")
     bim_style = (bimcraft / "crates/ui-egui/src/style.rs").read_text(encoding="utf-8")
+    assistant = (bimcraft / "crates/assistant/src/lib.rs").read_text(encoding="utf-8")
+    local_provider = (bimcraft / "crates/assistant/src/local.rs").read_text(encoding="utf-8")
+    net = (bimcraft / "crates/assistant/src/net.rs").read_text(encoding="utf-8")
+    assistant_ui = (bimcraft / "crates/ui-egui/src/assistant.rs").read_text(encoding="utf-8")
 
     need("NextAIWorkspace" in main_window and 'tr("Next AI")' in main_window,
          "NextCAD permanent Next AI dock is missing")
@@ -43,8 +47,19 @@ def main() -> None:
     need('Profile::BimCraft => "Next BIM"' in bim_style,
          "Next BIM visible profile label is missing")
 
-    print("SOURCE CHECK PASS: exact upstream revisions, product identities and reserved Next AI spaces are present.")
-    print("This check does not prove compilation, launch, modelling, save/reopen or tool-level acceptance.")
+    need("pub mod local;" in assistant and "Provider::Local" in assistant,
+         "Next BIM local model provider is missing")
+    need('http://127.0.0.1:11434/v1/chat/completions' in local_provider,
+         "Next BIM local provider endpoint is missing")
+    need("allowed_local" in net and 'host == "127.0.0.1"' in net,
+         "Next BIM loopback-only network restriction is missing")
+    need("Local model mode is available only in this window" in (bimcraft / "crates/assistant/src/chat.rs").read_text(encoding="utf-8"),
+         "Next BIM must reject local inference in Co-Work sessions")
+    need("No remote AI provider is contacted" in assistant_ui,
+         "Next BIM local-provider privacy notice is missing")
+
+    print("SOURCE CHECK PASS: upstream revisions, product identities, Next AI spaces and Next BIM local-provider guardrails are present.")
+    print("This check does not prove compilation, runtime Ollama connectivity, modelling or save/reopen acceptance.")
 
 
 if __name__ == "__main__":

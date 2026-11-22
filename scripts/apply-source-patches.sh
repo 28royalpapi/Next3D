@@ -41,4 +41,11 @@ if grep -q 'with_title("BIMCraft")' "$BIMCRAFT/apps/bimcraft/src/main.rs"; then
   git -C "$BIMCRAFT" apply "$ROOT/patches/nextbim-branding.patch"
 fi
 
+# Extend BIMCraft's existing Assistant with local Ollama inference. The patch
+# is compressed in the repository to keep the source delta easy to fetch.
+if ! grep -q 'pub mod local;' "$BIMCRAFT/crates/assistant/src/lib.rs"; then
+  python3 -c 'import base64,gzip,pathlib,sys; sys.stdout.buffer.write(gzip.decompress(base64.b64decode(pathlib.Path(sys.argv[1]).read_bytes())))' \
+    "$ROOT/patches/nextbim-local-provider.patch.gz.b64" | git -C "$BIMCRAFT" apply -
+fi
+
 python3 "$ROOT/scripts/verify-source-patches.py" "$FREECAD" "$BIMCRAFT"

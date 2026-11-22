@@ -37,7 +37,7 @@ The first law is: **understand the native application before allowing AI to oper
 - [Integration architecture and implementation order](docs/next-ai/INTEGRATION_ARCHITECTURE.md)
 - [Native action-plan schema v1](schemas/next-ai-action-plan.v1.schema.json)
 
-Next AI is in the research and architecture phase. The reserved workspace is present in both applications, but the local model, provider, knowledge retrieval, native tool adapters and training/evaluation pipeline are not yet implemented. The capability inventory distinguishes source presence from verified runtime support and records known gaps.
+Next AI is in the research and architecture phase. The reserved workspace is present in both applications, but the local model, provider, knowledge retrieval, native tool adapters and training/evaluation pipeline are not yet implemented. The capability inventory distinguishes source presence from verified runtime support and records known gaps. The first Next BIM local-provider source patch is now included: it extends BIMCraft's existing Assistant with a fixed loopback Ollama endpoint, keyless requests and no remote fallback. Its Rust formatting, compilation and live Ollama tests are still being verified by CI.
 
 ## Selector
 
