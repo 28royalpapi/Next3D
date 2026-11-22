@@ -62,7 +62,7 @@ The assistant's native `execute` tool calls a registered BIMCraft command with t
 
 ### Local provider — initial source patch prepared
 
-The first Next3D implementation patch is in `patches/nextbim-local-provider.patch.gz.b64`. It adds a keyless OpenAI-compatible Ollama Chat Completions client at the fixed loopback endpoint `http://127.0.0.1:11434/v1/chat/completions`, keeps the remote HTTPS allow-list separate, and blocks local mode in Co-Work sessions. Tests cover request shape, tool-call parsing, local privacy/UI behaviour and a native tool-call-to-undo round trip. These checks are source-level test additions until the CI Rust tests and an actual Ollama runtime test pass.
+The first Next3D implementation patch is in `patches/nextbim-local-provider.patch.gz`. It adds a keyless OpenAI-compatible Ollama Chat Completions client at the fixed loopback endpoint `http://127.0.0.1:11434/v1/chat/completions`, keeps the remote HTTPS allow-list separate, and blocks local mode in Co-Work sessions. Tests cover request shape, tool-call parsing, local privacy/UI behaviour and a native tool-call-to-undo round trip. These checks are source-level test additions until the CI Rust tests and an actual Ollama runtime test pass.
 
 ### Remaining local provider checks
 
