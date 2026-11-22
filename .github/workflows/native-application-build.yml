@@ -2,7 +2,7 @@ name: Native application builds
 
 on:
   push:
-    branches: [main]
+    branches: [main, nextcad]
   pull_request:
   workflow_dispatch:
 

@@ -14,7 +14,24 @@ The original source is connected as pinned Git submodules:
 - `upstream/FreeCAD` -> `FreeCAD/FreeCAD` at `00cb280454069966a2fb0a8e7dc184c46e7b38b3`.
 - `upstream/BIMCraft` -> `IPedrax/BIMCraft` at `a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b`.
 
-FreeCAD's five nested dependencies are pinned by FreeCAD itself and are fetched recursively. Clone this repository with `--recurse-submodules`, then run `bash scripts/apply-source-patches.sh`. See [NATIVE_SOURCE.md](NATIVE_SOURCE.md) for the source revisions, patch scope and build commands.
+FreeCAD's nested dependencies are pinned by FreeCAD itself and are fetched recursively. To work on the selected Next AI branch:
+
+```bash
+git clone --recurse-submodules --branch nextcad https://github.com/28royalpapi/Next3D.git
+cd Next3D
+bash scripts/apply-source-patches.sh
+```
+
+See [NATIVE_SOURCE.md](NATIVE_SOURCE.md) for source revisions, patch scope and build commands.
+
+## Next AI
+
+The first law is: **understand the native application before allowing AI to operate it.** The AI must use each application's real commands and model, ask when important design information is missing, validate native results and preserve undo/editability.
+
+- [Next AI foundation and first law](docs/next-ai/FOUNDATION.md)
+- [Application capability inventory](docs/next-ai/CAPABILITY_MATRIX.md)
+
+Next AI is in the research and architecture phase. The reserved workspace is present in both applications, but the local model, provider, knowledge retrieval, native tool adapters and training/evaluation pipeline are not yet implemented. The capability inventory distinguishes source presence from verified runtime support and records known gaps.
 
 ## Selector
 
@@ -25,6 +42,6 @@ FreeCAD's five nested dependencies are pinned by FreeCAD itself and are fetched 
 
 ## Build verification
 
-`.github/workflows/native-application-build.yml` builds NextCAD and Next BIM from the pinned sources on all three desktop operating systems. The workflow also attempts genuine Linux GUI launches and saves screenshots as artifacts.
+`.github/workflows/native-application-build.yml` builds NextCAD and Next BIM from the pinned sources on Linux, Windows and macOS. It also runs upstream tests and attempts genuine Linux GUI launches with screenshots as artifacts.
 
-A source checkout or a passing selector test does not prove a native application is accepted. Native build, launch, model edit and save/reopen evidence is tracked in [BUILD_STATUS.md](BUILD_STATUS.md). Next AI is currently only a reserved UI space; its assistant functionality is the next implementation phase after the two base applications pass acceptance.
+A source checkout or a passing selector test does not prove a native application is accepted. Native build, launch, model edit and save/reopen evidence is tracked in [BUILD_STATUS.md](BUILD_STATUS.md). The base applications must pass those checks before they are called complete; the native workflow runs on both `main` and `nextcad`.
