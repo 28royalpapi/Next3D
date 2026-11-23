@@ -1,66 +1,96 @@
 #!/usr/bin/env python3
-"""Static source assertions; native compilation and model round trips are separate checks."""
+"""Verify pinned native applications and the first NextAI operator integration."""
+from __future__ import annotations
+import json
 from pathlib import Path
 import sys
 
+EXPECTED_FREECAD = "00cb280454069966a2fb0a8e7dc184c46e7b38b3"
+EXPECTED_BIMCRAFT = "a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b"
 
 def need(condition: bool, message: str) -> None:
     if not condition:
-        raise SystemExit(f"FAIL: {message}")
+        raise SystemExit("FAIL: " + message)
 
+def read(path: Path) -> str:
+    need(path.is_file(), "required source file is missing: %s" % path)
+    return path.read_text(encoding="utf-8")
 
-def main() -> None:
+def main() -> int:
     if len(sys.argv) != 3:
         raise SystemExit("usage: verify-source-patches.py <FreeCAD root> <BIMCraft root>")
     freecad, bimcraft = Path(sys.argv[1]), Path(sys.argv[2])
-    main_window = (freecad / "src/Gui/MainWindow.cpp").read_text(encoding="utf-8")
-    main_gui = (freecad / "src/Main/MainGui.cpp").read_text(encoding="utf-8")
-    bim_main = (bimcraft / "apps/bimcraft/src/main.rs").read_text(encoding="utf-8")
-    bim_ui = (bimcraft / "crates/ui-egui/src/lib.rs").read_text(encoding="utf-8")
-    bim_style = (bimcraft / "crates/ui-egui/src/style.rs").read_text(encoding="utf-8")
-    assistant = (bimcraft / "crates/assistant/src/lib.rs").read_text(encoding="utf-8")
-    local_provider = (bimcraft / "crates/assistant/src/local.rs").read_text(encoding="utf-8")
-    net = (bimcraft / "crates/assistant/src/net.rs").read_text(encoding="utf-8")
-    assistant_ui = (bimcraft / "crates/ui-egui/src/assistant.rs").read_text(encoding="utf-8")
 
+    # The full applications remain the source of truth; this is not a reduced model editor.
+    need((freecad / ".git").exists(), "FreeCAD must remain a native upstream git submodule")
+    need((bimcraft / ".git").exists(), "BIMCraft must remain a native upstream git submodule")
+    main_window = read(freecad / "src/Gui/MainWindow.cpp")
+    main_gui = read(freecad / "src/Main/MainGui.cpp")
     need("NextAIWorkspace" in main_window and 'tr("Next AI")' in main_window,
-         "NextCAD permanent Next AI dock is missing")
-    need('Config()["ExeName"] = "NextCAD"' in main_gui,
-         "NextCAD application name is missing")
-    need('Config()["ExeVendor"] = "Next 3D"' in main_gui,
-         "NextCAD vendor branding is missing")
-    need('Config()["AppIcon"] = "freecad"' in main_gui,
-         "Original FreeCAD icon resource was not preserved")
-    need('Config()["SplashScreen"] = "freecadsplash"' in main_gui,
-         "Original FreeCAD splash resource was not preserved")
+         "NextCAD permanent native Next AI dock is missing")
+    need('Config()["ExeName"] = "NextCAD"' in main_gui, "NextCAD application branding is missing")
+    need('Config()["ExeVendor"] = "Next 3D"' in main_gui, "NextCAD vendor branding is missing")
+    need('Config()["AppIcon"] = "freecad"' in main_gui, "Original FreeCAD app icon resource was not preserved")
+    need('Config()["SplashScreen"] = "freecadsplash"' in main_gui, "Original FreeCAD splash resource was not preserved")
+    for module in ("Part", "PartDesign", "Sketcher", "Assembly", "Draft", "TechDraw", "BIM", "Fem", "CAM"):
+        need((freecad / "src/Mod" / module).is_dir(), "upstream FreeCAD %s workbench/module is missing" % module)
 
-    need('"com.next3d.nextbim"' in bim_main,
-         "Next BIM desktop identity is missing")
-    need('.with_title("Next BIM")' in bim_main,
-         "Next BIM viewport/window title is missing")
-    need('run_native("Next BIM"' in bim_main,
-         "Next BIM native window fallback title is missing")
-    need('format!("{family} · Next BIM")' in bim_ui,
-         "Next BIM document window title is missing")
-    need('Panel::right("next-ai-workspace")' in bim_ui,
-         "Next BIM permanent Next AI panel is missing")
-    need('Profile::BimCraft => "Next BIM"' in bim_style,
-         "Next BIM visible profile label is missing")
+    adapter = freecad / "src/Mod/NextAI"
+    init_gui = read(adapter / "InitGui.py")
+    ui = read(adapter / "next_ai/ui.py")
+    provider = read(adapter / "next_ai/provider.py")
+    tools = read(adapter / "next_ai/freecad_tools.py")
+    registry = read(adapter / "next_ai/tool_registry.py")
+    need("from NextAI.next_ai.ui import NextAIWidget" in init_gui, "NextCAD native dock is not connected to its widget")
+    need("QTimer.singleShot" in init_gui and "NextAIWorkspace" in init_gui, "NextCAD dock attachment hook is missing")
+    need("DEFAULT_ENDPOINT" in provider and "_NoRedirect" in provider, "NextCAD local provider/redirect protection is missing")
+    need("ProxyHandler({})" in provider, "NextCAD local provider must bypass configured system proxies")
+    need("discover_capabilities" in tools and "listWorkbenches" in tools and "listCommands" in tools,
+         "NextCAD runtime capability discovery is missing")
+    need("create_draft_line" in tools and "openTransaction" in tools and "abortTransaction" in tools,
+         "NextCAD first native write is not transaction-protected")
+    need("execute_code" not in registry and "run_python" not in registry,
+         "NextCAD default typed registry must not expose arbitrary code execution")
+    need("NATIVE PLAN" in ui and "QMessageBox.question" in ui, "NextCAD mutation approval UI is missing")
+    need("begin_turn" in tools and "document changed during" in tools, "NextCAD stale-document protection is missing")
 
-    need("pub mod local;" in assistant and "Provider::Local" in assistant,
-         "Next BIM local model provider is missing")
-    need('http://127.0.0.1:11434/v1/chat/completions' in local_provider,
-         "Next BIM local provider endpoint is missing")
-    need("allowed_local" in net and 'host == "127.0.0.1"' in net,
-         "Next BIM loopback-only network restriction is missing")
-    need("Local model mode is available only in this window" in (bimcraft / "crates/assistant/src/chat.rs").read_text(encoding="utf-8"),
-         "Next BIM must reject local inference in Co-Work sessions")
-    need("No remote AI provider is contacted" in assistant_ui,
-         "Next BIM local-provider privacy notice is missing")
+    bim_main = read(bimcraft / "apps/bimcraft/src/main.rs")
+    bim_ui = read(bimcraft / "crates/ui-egui/src/lib.rs")
+    bim_dock = read(bimcraft / "crates/ui-egui/src/dock.rs")
+    bim_style = read(bimcraft / "crates/ui-egui/src/style.rs")
+    assistant = read(bimcraft / "crates/assistant/src/lib.rs")
+    local_provider = read(bimcraft / "crates/assistant/src/local.rs")
+    net = read(bimcraft / "crates/assistant/src/net.rs")
+    assistant_ui = read(bimcraft / "crates/ui-egui/src/assistant.rs")
+    chat = read(bimcraft / "crates/assistant/src/chat.rs")
+    commands = read(bimcraft / "crates/core/src/commands.rs")
 
-    print("SOURCE CHECK PASS: upstream revisions, product identities, Next AI spaces and Next BIM local-provider guardrails are present.")
-    print("This check does not prove compilation, runtime Ollama connectivity, modelling or save/reopen acceptance.")
+    need('"com.next3d.nextbim"' in bim_main, "Next BIM desktop app identity is missing")
+    need('.with_title("Next BIM")' in bim_main and 'run_native("Next BIM"' in bim_main,
+         "Next BIM window title/branding is missing")
+    need('Palette::Assistant => msg!("Next AI")' in bim_dock, "Native Assistant palette is not branded Next AI")
+    need('Stack { tabs: vec![Palette::Browser, Palette::Assistant], active: 1 }' in bim_dock,
+         "Next AI workspace is not visible beside the project browser by default")
+    need('Panel::right("next-ai-workspace")' not in bim_ui,
+         "A duplicate placeholder AI panel must not be created beside the native Assistant")
+    need('Profile::BimCraft => "Next BIM"' in bim_style, "Next BIM profile name is missing")
+    need("pub mod local;" in assistant and "Provider::Local" in assistant, "Next BIM local provider is missing")
+    need("http://127.0.0.1:11434/v1/chat/completions" in local_provider, "Next BIM local provider endpoint is missing")
+    need("allowed_local" in net and 'host == "127.0.0.1"' in net, "Next BIM provider loopback boundary is missing")
+    need("Local model mode is available only in this window" in chat, "Next BIM local mode must not leak to Co-Work")
+    need("No remote AI provider is contacted" in assistant_ui, "Next BIM local privacy notice is missing")
+    need('Palette::Assistant => msg!("Next AI")' in bim_dock and 'msg!("Next AI settings")' in read(bimcraft / "crates/ui-egui/src/settings.rs"),
+         "Next BIM AI workspace labels are incomplete")
+    need("pub static ALL: &[Command]" in commands, "Original BIMCraft native command registry is missing")
 
+    root = Path(__file__).resolve().parents[1]
+    catalogue = json.loads((root / "docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json").read_text(encoding="utf-8"))
+    need(catalogue.get("command_count") == 214 and len(catalogue.get("commands", [])) == 214,
+         "Pinned Next BIM command catalogue must contain all 214 native registrations")
+    print("SOURCE CHECK PASS: pinned native apps, full manual workbench/command foundations and both Next AI workspaces are present.")
+    print("SOURCE CHECK PASS: NextCAD uses typed, approved, transaction-based local tools; Next BIM reuses its native Assistant and local provider.")
+    print("NOT PROOF: live FreeCAD/Ollama GUI session or successful platform build. CI and live acceptance supply that evidence.")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
