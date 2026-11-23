@@ -23,6 +23,10 @@ on:
       - ".github/workflows/native-application-build.yml"
       - ".gitmodules"
       - "upstream/**"
+      - "adapters/nextcad-ai/**"
+      - "tests/next-ai/**"
+      - "scripts/install-nextcad-ai.py"
+      - "scripts/fix-nextbim-local-provider-type.py"
       - "patches/**"
       - "scripts/apply-source-patches.sh"
       - "scripts/apply-nextcad-branding.py"
@@ -51,7 +55,25 @@ jobs:
           fetch-depth: 1
       - name: Apply and verify Next 3D source changes
         shell: bash
-        run: bash scripts/apply-source-patches.sh
+        run: |
+          python3 - <<'PY'
+          import base64
+          import gzip
+          from pathlib import Path
+          folder = Path("patches/nextai-operator-overlay")
+          parts = sorted(folder.glob("part-*.b64"))
+          if len(parts) != 7:
+              raise SystemExit(f"Expected 7 NextAI overlay chunks, found {len(parts)}")
+          encoded = "".join(part.read_text(encoding="ascii").strip() for part in parts)
+          compressed = base64.b64decode(encoded, validate=True)
+          patch = gzip.decompress(compressed)
+          target = Path("/tmp/nextai-operator-overlay.patch")
+          target.write_bytes(patch)
+          print(f"Decoded NextAI overlay: {len(encoded)} base64 chars, {len(patch)} patch bytes")
+          PY
+          git apply --check /tmp/nextai-operator-overlay.patch
+          git apply /tmp/nextai-operator-overlay.patch
+          bash scripts/apply-source-patches.sh
 
   nextcad:
     name: NextCAD / ${{ matrix.os }}
@@ -76,7 +98,25 @@ jobs:
 
       - name: Apply NextCAD branding and Next AI workspace
         shell: bash
-        run: bash scripts/apply-source-patches.sh
+        run: |
+          python3 - <<'PY'
+          import base64
+          import gzip
+          from pathlib import Path
+          folder = Path("patches/nextai-operator-overlay")
+          parts = sorted(folder.glob("part-*.b64"))
+          if len(parts) != 7:
+              raise SystemExit(f"Expected 7 NextAI overlay chunks, found {len(parts)}")
+          encoded = "".join(part.read_text(encoding="ascii").strip() for part in parts)
+          compressed = base64.b64decode(encoded, validate=True)
+          patch = gzip.decompress(compressed)
+          target = Path("/tmp/nextai-operator-overlay.patch")
+          target.write_bytes(patch)
+          print(f"Decoded NextAI overlay: {len(encoded)} base64 chars, {len(patch)} patch bytes")
+          PY
+          git apply --check /tmp/nextai-operator-overlay.patch
+          git apply /tmp/nextai-operator-overlay.patch
+          bash scripts/apply-source-patches.sh
 
       - name: Install the pinned FreeCAD build environment
         uses: prefix-dev/setup-pixi@ad1da6449d9e506fd127fd67ab2d054a769f6a94 # v0.11.2
@@ -186,7 +226,25 @@ jobs:
 
       - name: Apply Next BIM identity and Next AI workspace
         shell: bash
-        run: bash scripts/apply-source-patches.sh
+        run: |
+          python3 - <<'PY'
+          import base64
+          import gzip
+          from pathlib import Path
+          folder = Path("patches/nextai-operator-overlay")
+          parts = sorted(folder.glob("part-*.b64"))
+          if len(parts) != 7:
+              raise SystemExit(f"Expected 7 NextAI overlay chunks, found {len(parts)}")
+          encoded = "".join(part.read_text(encoding="ascii").strip() for part in parts)
+          compressed = base64.b64decode(encoded, validate=True)
+          patch = gzip.decompress(compressed)
+          target = Path("/tmp/nextai-operator-overlay.patch")
+          target.write_bytes(patch)
+          print(f"Decoded NextAI overlay: {len(encoded)} base64 chars, {len(patch)} patch bytes")
+          PY
+          git apply --check /tmp/nextai-operator-overlay.patch
+          git apply /tmp/nextai-operator-overlay.patch
+          bash scripts/apply-source-patches.sh
 
       - name: Linux graphics development libraries
         if: runner.os == 'Linux'
