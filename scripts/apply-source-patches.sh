@@ -29,21 +29,30 @@ if ! grep -q 'NextAIWorkspace' "$FREECAD/src/Gui/MainWindow.cpp"; then
 fi
 python3 "$ROOT/scripts/apply-nextcad-branding.py" "$FREECAD"
 
-if ! grep -q 'next-ai-workspace' "$BIMCRAFT/crates/ui-egui/src/lib.rs"; then
+# Preserve BIMCraft's complete native application and brand its executable as Next BIM.
+if ! grep -q 'com.next3d.nextbim' "$BIMCRAFT/apps/bimcraft/src/main.rs"; then
+  git -C "$BIMCRAFT" apply --check "$ROOT/patches/nextbim.patch"
   git -C "$BIMCRAFT" apply "$ROOT/patches/nextbim.patch"
 fi
 if grep -q 'with_title("BIMCraft")' "$BIMCRAFT/apps/bimcraft/src/main.rs"; then
   git -C "$BIMCRAFT" apply "$ROOT/patches/nextbim-branding.patch"
 fi
 
-# Extend BIMCraft's existing Assistant with local Ollama inference.
+# Keep BIMCraft's existing native Assistant, but expose it as Next AI in the same workspace.
+if ! grep -q 'Palette::Assistant => msg!("Next AI")' "$BIMCRAFT/crates/ui-egui/src/dock.rs"; then
+  git -C "$BIMCRAFT" apply --check "$ROOT/patches/nextbim-native-assistant-workspace.patch"
+  git -C "$BIMCRAFT" apply "$ROOT/patches/nextbim-native-assistant-workspace.patch"
+fi
+
+# Extend the existing native Assistant with local-only inference; no remote fallback.
 if ! grep -q 'pub mod local;' "$BIMCRAFT/crates/assistant/src/lib.rs"; then
   gzip -dc "$ROOT/patches/nextbim-local-provider.patch.gz" | git -C "$BIMCRAFT" apply -
 fi
-
-# The local-provider patch uses the same owned String type in both branches
-# of its attachment disclosure. Use an idempotent source fix rather than a
-# line-number patch so small upstream context shifts cannot break the build.
 python3 "$ROOT/scripts/fix-nextbim-local-provider-type.py" "$BIMCRAFT"
 
+# Install NextAI into FreeCAD's native module tree. All original workbenches remain present.
+python3 "$ROOT/scripts/install-nextcad-ai.py" "$FREECAD"
+
+# Contract tests and source checks run before native platform build/GUI acceptance.
+python3 -m unittest discover -s "$ROOT/tests/next-ai" -p 'test_*.py' -v
 python3 "$ROOT/scripts/verify-source-patches.py" "$FREECAD" "$BIMCRAFT"
