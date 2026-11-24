@@ -66,7 +66,7 @@ def main() -> int:
          "NextCAD default typed registry must not expose arbitrary code execution")
 
     model = json.loads((root / "models/nextai/model.json").read_text(encoding="utf-8"))
-    need(model.get("quantization") == "Q5_K_M", "Shared NextAI model must be the selected Q5 candidate")
+    need(model.get("quantization") == "Q4_K_M", "Shared NextAI model must use the selected compact Q4 student baseline")
     need(model.get("input_mode") == "text_and_image", "Shared NextAI model must declare image input")
     need(model.get("minimum_ollama_version_for_vision") == "0.40.11",
          "Shared NextAI model must declare the multimodal Ollama minimum")
