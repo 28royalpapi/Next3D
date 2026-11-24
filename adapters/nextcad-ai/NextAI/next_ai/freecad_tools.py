@@ -155,8 +155,8 @@ def _create_step(doc, tool, args):
         if not isinstance(raw_points, list) or not 2 <= len(raw_points) <= 200:
             raise ValueError("A wall path needs between 2 and 200 points.")
         points = [App.Vector(*_point(p, "wall point")) for p in raw_points]
-        if all((points[0] - point).Length <= 1e-7 for point in points[1:]):
-            raise ValueError("The wall path has no length.")
+        if any((points[i] - points[i - 1]).Length <= 1e-7 for i in range(1, len(points))):
+            raise ValueError("A wall path cannot contain consecutive duplicate points.")
         height = _number(args.get("height", 3000), "height", 100.0, 100_000.0)
         width = _number(args.get("width", 200), "width", 25.0, 5_000.0)
         baseline = Draft.make_wire(points, closed=False)
