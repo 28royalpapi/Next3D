@@ -184,6 +184,40 @@ def _create_step(doc, tool, args):
             obj.Label = str(args["label"])[:120]
         return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
 
+    if tool == "create_draft_wire":
+        import Draft
+        raw_points = args.get("points")
+        if not isinstance(raw_points, list) or not 2 <= len(raw_points) <= 200:
+            raise ValueError("A Draft polyline needs between 2 and 200 points.")
+        points = [App.Vector(*_point(p, "wire point")) for p in raw_points]
+        if any((points[i] - points[i - 1]).Length <= 1e-7 for i in range(1, len(points))):
+            raise ValueError("A Draft polyline cannot contain consecutive duplicate points.")
+        closed = args.get("closed", False)
+        if not isinstance(closed, bool):
+            raise ValueError("closed must be true or false.")
+        if closed and len(points) < 3:
+            raise ValueError("A closed outline needs at least three points.")
+        obj = Draft.make_wire(points, closed=closed, face=False)
+        if obj is None:
+            raise RuntimeError("FreeCAD did not create the Draft polyline.")
+        if args.get("label"):
+            obj.Label = str(args["label"])[:120]
+        return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
+
+    if tool == "create_draft_dimension":
+        import Draft
+        start = App.Vector(*_point(args.get("start"), "start"))
+        end = App.Vector(*_point(args.get("end"), "end"))
+        position = App.Vector(*_point(args.get("dimension_line_point"), "dimension_line_point"))
+        if (end - start).Length <= 1e-7:
+            raise ValueError("A dimension needs two different measurement points.")
+        obj = Draft.make_dimension(start, end, position)
+        if obj is None:
+            raise RuntimeError("FreeCAD did not create the Draft dimension.")
+        if args.get("label"):
+            obj.Label = str(args["label"])[:120]
+        return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
+
     if tool == "create_draft_circle":
         import Draft
         radius = _number(args.get("radius"), "radius", 0.001, 1_000_000.0)
