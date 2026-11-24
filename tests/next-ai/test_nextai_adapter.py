@@ -3,12 +3,13 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / "adapters/nextcad-ai/NextAI"
 sys.path.insert(0, str(ADAPTER))
 
-from next_ai import freecad_tools, provider, tool_registry
+from next_ai import freecad_tools, knowledge, provider, tool_registry
 
 
 class ProviderBoundaryTests(unittest.TestCase):
@@ -38,6 +39,28 @@ class ProviderBoundaryTests(unittest.TestCase):
 
 
 class NativeToolSafetyTests(unittest.TestCase):
+
+    def test_selected_shared_model_identifier(self):
+        self.assertEqual(
+            provider.DEFAULT_MODEL,
+            "hf.co/axteam/Qwen3.5-0.8B-GGUF:Q4_K_M",
+        )
+
+    def test_offline_native_manual_retrieval(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            docs = root / "Draft" / "docs"
+            docs.mkdir(parents=True)
+            (docs / "walls.md").write_text(
+                "# Draft walls\\n\\nCreate a parametric wall from a Draft wire "
+                "using the Arch workbench.\\n",
+                encoding="utf-8",
+            )
+            result = knowledge.search("Draft Arch parametric wall", root)
+            self.assertTrue(result)
+            self.assertIn("walls.md", result[0]["source"])
+            self.assertIn("parametric wall", result[0]["excerpt"])
+
     def test_coordinate_validation(self):
         self.assertEqual(freecad_tools._point([10, 20]), [10.0, 20.0, 0.0])
         with self.assertRaises(ValueError):
