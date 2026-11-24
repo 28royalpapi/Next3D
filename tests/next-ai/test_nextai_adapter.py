@@ -84,13 +84,13 @@ class NativeToolSafetyTests(unittest.TestCase):
     def test_selected_shared_model_identifier(self):
         self.assertEqual(
             provider.DEFAULT_MODEL,
-            "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q5_K_M",
+            "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M",
         )
 
     def test_model_manifest_requires_vision_and_records_size_gate(self):
         manifest = json.loads((ROOT / "models/nextai/model.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["base_model"], "Qwen/Qwen3.5-0.8B")
-        self.assertEqual(manifest["quantization"], "Q5_K_M")
+        self.assertEqual(manifest["quantization"], "Q4_K_M")
         self.assertTrue(manifest["vision"]["enabled"])
         self.assertTrue(manifest["vision"]["supports_image_input"])
         self.assertEqual(manifest["minimum_ollama_version_for_vision"], "0.40.11")
