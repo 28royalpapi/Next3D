@@ -13,7 +13,7 @@ import sys
 
 def replace_once(path: Path, old: str, new: str, description: str) -> None:
     source = path.read_text(encoding="utf-8")
-    if new in source and old not in source:
+    if new in source:
         return
     count = source.count(old)
     if count != 1:
