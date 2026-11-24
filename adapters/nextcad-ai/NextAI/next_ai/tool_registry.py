@@ -181,6 +181,116 @@ TOOLS = [
         },
         "read_only": False,
     },
+    {
+        "name": "create_partdesign_body",
+        "description": "Create or retrieve a native parametric PartDesign body. This starts an editable feature-history model, not a static mesh.",
+        "parameters": {
+            "type": "object",
+            "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 80}},
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+        "read_only": False,
+    },
+    {
+        "name": "create_partdesign_sketch",
+        "description": "Create a native Sketcher sketch attached to the selected body's own XY, XZ or YZ origin plane. Offset is millimetres along the plane normal.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "body_name": {"type": "string"},
+                "name": {"type": "string", "minLength": 1, "maxLength": 80},
+                "plane": {"type": "string", "enum": ["XY_Plane", "XZ_Plane", "YZ_Plane"], "default": "XY_Plane"},
+                "offset": {"type": "number", "default": 0}
+            },
+            "required": ["body_name", "name"],
+            "additionalProperties": False,
+        },
+        "read_only": False,
+    },
+    {
+        "name": "add_sketch_line",
+        "description": "Add a native line segment to a sketch in millimetres. Both endpoints are fixed by Sketcher constraints; use exact coordinates and don't infer dimensions.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sketch_name": {"type": "string"},
+                "start": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "end": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "label": {"type": "string"},
+                "construction": {"type": "boolean", "default": false}
+            },
+            "required": ["sketch_name", "start", "end"],
+            "additionalProperties": False,
+        },
+        "read_only": False,
+    },
+    {
+        "name": "add_sketch_circle",
+        "description": "Add a native, dimension-constrained circle to a sketch. The centre and diameter are constrained; radius is in millimetres.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sketch_name": {"type": "string"},
+                "radius": {"type": "number", "exclusiveMinimum": 0},
+                "center": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "label": {"type": "string"},
+                "construction": {"type": "boolean", "default": false}
+            },
+            "required": ["sketch_name", "radius"],
+            "additionalProperties": false,
+        },
+        "read_only": False,
+    },
+    {
+        "name": "add_sketch_polygon",
+        "description": "Add a closed native polygonal Sketcher profile with connected, fully constrained vertices. The points are XY coordinates in millimetres. Only use for a planar, non-self-intersecting outline.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sketch_name": {"type": "string"},
+                "points": {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3}, "minItems": 3, "maxItems": 80}
+            },
+            "required": ["sketch_name", "points"],
+            "additionalProperties": false,
+        },
+        "read_only": False,
+    },
+    {
+        "name": "create_partdesign_pad",
+        "description": "Create a native parametric PartDesign Pad from a fully constrained sketch in the same body. The result must be one valid solid and increase volume.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "body_name": {"type": "string"},
+                "sketch_name": {"type": "string"},
+                "length": {"type": "number", "exclusiveMinimum": 0},
+                "name": {"type": "string", "maxLength": 120},
+                "symmetric": {"type": "boolean", "default": false}
+            },
+            "required": ["body_name", "sketch_name", "length"],
+            "additionalProperties": false,
+        },
+        "read_only": false,
+    },
+    {
+        "name": "create_partdesign_pocket",
+        "description": "Create a native parametric PartDesign Pocket from a fully constrained sketch in the same body. The result must remove material from a valid solid or the operation is rolled back.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "body_name": {"type": "string"},
+                "sketch_name": {"type": "string"},
+                "length": {"type": "number", "exclusiveMinimum": 0},
+                "name": {"type": "string", "maxLength": 120},
+                "reversed": {"type": "boolean", "default": true},
+                "through_all": {"type": "boolean", "default": false}
+            },
+            "required": ["body_name", "sketch_name", "length"],
+            "additionalProperties": false,
+        },
+        "read_only": false,
+    },
 ]
 
 
