@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -202,6 +203,19 @@ def main() -> int:
             str(gguf_dir), tokenizer, quantization_method="q4_k_m"
         )
         result["gguf_export"] = str(gguf_dir)
+        gguf_files = []
+        for file_path in sorted(gguf_dir.rglob("*.gguf")):
+            digest = hashlib.sha256()
+            with file_path.open("rb") as handle:
+                for block in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(block)
+            gguf_files.append({
+                "file": str(file_path.relative_to(gguf_dir)),
+                "size_bytes": file_path.stat().st_size,
+                "sha256": digest.hexdigest(),
+            })
+        result["gguf_files"] = gguf_files
+        result["gguf_total_bytes"] = sum(item["size_bytes"] for item in gguf_files)
         (output / "training_result.json").write_text(
             json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8"
         )
