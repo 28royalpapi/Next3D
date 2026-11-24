@@ -26,6 +26,8 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertEqual(plan["ordered_features"][1]["parameters"]["diameter"], "4.0")
         self.assertEqual(plan["geometry_metadata"]["reference_face_count"], 72)
 
+    @unittest.skipUnless(__import__("importlib").util.find_spec("PIL") is not None,
+                         "Pillow is installed by the dedicated NextAI pipeline CI step")
     def test_hugging_face_decoded_pil_images_are_saved(self):
         from PIL import Image
         import io
