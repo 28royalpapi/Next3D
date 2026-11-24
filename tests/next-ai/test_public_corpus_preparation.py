@@ -7,6 +7,11 @@ spec = importlib.util.spec_from_file_location("prepare_public_corpora", SCRIPT)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
+EVAL_SCRIPT = SCRIPT.parent / "evaluate_nextai.py"
+eval_spec = importlib.util.spec_from_file_location("evaluate_nextai", EVAL_SCRIPT)
+evaluator = importlib.util.module_from_spec(eval_spec)
+eval_spec.loader.exec_module(evaluator)
+
 
 class PublicCorpusPreparationTests(unittest.TestCase):
     def test_cad_operations_keep_feature_order_and_parameters(self):
@@ -65,6 +70,20 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertIn("finetune_vision_layers=False", source)
         self.assertIn("held_out_test_metrics_by_domain", source)
         self.assertIn("test_set_used_for_training", source)
+
+    def test_evaluator_json_and_text_metrics(self):
+        expected = '{"features": [{"type": "pad", "length": 10}], "units": "mm"}'
+        predicted = '{"features": [{"type": "pad", "length": 10}], "units": "mm"}'
+        score = evaluator.score_record(expected, predicted)
+        self.assertEqual(score["json_parse"], 1.0)
+        self.assertEqual(score["key_recall"], 1.0)
+        self.assertEqual(score["scalar_match"], 1.0)
+        text_score = evaluator.token_f1("IFC wall opening window", "IFC wall opening")
+        self.assertGreater(text_score, 0.7)
+
+    def test_evaluator_script_compiles(self):
+        source = EVAL_SCRIPT.read_text(encoding="utf-8")
+        compile(source, str(EVAL_SCRIPT), "exec")
 
     def test_sampler_uses_available_domains_and_respects_limit(self):
         groups = {
