@@ -5,6 +5,7 @@ No Python console, exec/eval, shell or arbitrary macro execution is exposed.
 from __future__ import annotations
 
 import math
+import re
 
 
 def _apps():
@@ -59,8 +60,8 @@ def inspect_document():
     return {"open": True, **_doc_summary(doc)}
 
 
-def discover_capabilities():
-    """Discover the workbenches and commands registered in this live FreeCAD build."""
+def discover_capabilities(query: str = ""):
+    """Discover live FreeCAD workbenches and rank native commands for this task."""
     App, Gui = _apps()
     workbenches = Gui.listWorkbenches()
     commands = Gui.listCommands()
@@ -69,13 +70,24 @@ def discover_capabilities():
     else:
         workbench_ids = sorted(str(item) for item in workbenches)
     command_ids = sorted(set(str(item) for item in commands))
+    terms = [part.lower() for part in re.findall(r"[a-zA-Z][a-zA-Z0-9_+-]{1,}", str(query))]
+    if terms:
+        ranked = [
+            (sum(term in command.lower() for term in terms), command)
+            for command in command_ids
+        ]
+        relevant = [item for item in ranked if item[0] > 0]
+        relevant.sort(key=lambda item: (-item[0], item[1]))
+        selected_commands = [item[1] for item in relevant[:180]] or command_ids[:120]
+    else:
+        selected_commands = command_ids[:120]
     return {
         "application": "NextCAD (FreeCAD native engine)",
         "version": str(getattr(App, "Version", lambda: "unknown")()),
         "workbenches": workbench_ids,
         "command_count": len(command_ids),
-        "commands": command_ids[:400],
-        "commands_truncated": len(command_ids) > 400,
+        "commands": selected_commands,
+        "commands_truncated": len(command_ids) > len(selected_commands),
         "native_formats": [
             "FCStd", "STEP", "IGES", "BREP", "STL", "OBJ", "DXF", "SVG", "IFC"
         ],
