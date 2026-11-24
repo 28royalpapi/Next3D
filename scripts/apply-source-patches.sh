@@ -38,11 +38,8 @@ if grep -q 'with_title("BIMCraft")' "$BIMCRAFT/apps/bimcraft/src/main.rs"; then
   git -C "$BIMCRAFT" apply "$ROOT/patches/nextbim-branding.patch"
 fi
 
-# Keep BIMCraft's existing native Assistant, but expose it as Next AI in the same workspace.
-if ! grep -q 'Palette::Assistant => msg!("Next AI")' "$BIMCRAFT/crates/ui-egui/src/dock.rs"; then
-  git -C "$BIMCRAFT" apply --check "$ROOT/patches/nextbim-native-assistant-workspace.patch"
-  git -C "$BIMCRAFT" apply "$ROOT/patches/nextbim-native-assistant-workspace.patch"
-fi
+# Keep BIMCraft's existing native Assistant and expose it as the default Next AI workspace.
+python3 "$ROOT/scripts/apply-nextbim-assistant-workspace.py" "$BIMCRAFT"
 
 # Extend the existing native Assistant with local-only inference; no remote fallback.
 if ! grep -q 'pub mod local;' "$BIMCRAFT/crates/assistant/src/lib.rs"; then
