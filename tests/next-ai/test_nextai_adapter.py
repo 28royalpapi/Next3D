@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -37,14 +38,46 @@ class ProviderBoundaryTests(unittest.TestCase):
         self.assertIn("ProxyHandler({})", source)
         self.assertIn("_NoRedirect()", source)
 
+    def test_multimodal_payload_preserves_local_image(self):
+        image_uri = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/"
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Read this drawing."},
+                {"type": "image_url", "image_url": {"url": image_uri}},
+            ],
+        }]
+        payload = provider.build_payload(messages)
+        self.assertEqual(payload["model"], provider.DEFAULT_MODEL)
+        self.assertEqual(payload["messages"][0]["content"][1]["image_url"]["url"], image_uri)
+
+    def test_multimodal_payload_rejects_remote_image_urls(self):
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": "https://example.com/drawing.png"}}
+            ],
+        }]
+        with self.assertRaises(provider.ProviderError):
+            provider.build_payload(messages)
+
 
 class NativeToolSafetyTests(unittest.TestCase):
 
     def test_selected_shared_model_identifier(self):
         self.assertEqual(
             provider.DEFAULT_MODEL,
-            "hf.co/axteam/Qwen3.5-0.8B-GGUF:Q4_K_M",
+            "turintech/qwen3.5-0.8b-artemis:q4_k_m",
         )
+
+    def test_model_manifest_requires_vision_and_records_size_gate(self):
+        manifest = json.loads((ROOT / "models/nextai/model.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["base_model"], "Qwen/Qwen3.5-0.8B")
+        self.assertEqual(manifest["quantization"], "Q4_K_M")
+        self.assertTrue(manifest["vision"]["enabled"])
+        self.assertTrue(manifest["vision"]["supports_image_input"])
+        self.assertEqual(manifest["runtime_validation"], "pending")
+        self.assertEqual(manifest["release_size_validation"], "pending")
 
     def test_offline_native_manual_retrieval(self):
         with TemporaryDirectory() as temp:
@@ -52,14 +85,19 @@ class NativeToolSafetyTests(unittest.TestCase):
             docs = root / "Draft" / "docs"
             docs.mkdir(parents=True)
             (docs / "walls.md").write_text(
-                "# Draft walls\\n\\nCreate a parametric wall from a Draft wire "
-                "using the Arch workbench.\\n",
+                "# Draft walls\n\nCreate a parametric wall from a Draft wire "
+                "using the Arch workbench.\n",
                 encoding="utf-8",
             )
             result = knowledge.search("Draft Arch parametric wall", root)
             self.assertTrue(result)
             self.assertIn("walls.md", result[0]["source"])
             self.assertIn("parametric wall", result[0]["excerpt"])
+
+    def test_bundled_engineering_skill_pack_is_retrievable(self):
+        result = knowledge.search("parametric sketch constraints feature tree")
+        self.assertTrue(result)
+        self.assertTrue(any(item["source"].startswith("nextai/") for item in result))
 
     def test_coordinate_validation(self):
         self.assertEqual(freecad_tools._point([10, 20]), [10.0, 20.0, 0.0])
