@@ -270,7 +270,7 @@ TOOLS = [
                 "start": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
                 "end": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
                 "label": {"type": "string"},
-                "construction": {"type": "boolean", "default": false}
+                "construction": {"type": "boolean", "default": False}
             },
             "required": ["sketch_name", "start", "end"],
             "additionalProperties": False,
