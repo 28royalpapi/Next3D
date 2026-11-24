@@ -55,7 +55,7 @@ def _candidate_files(mod_root: Path):
                 candidates.append(path)
         for path in candidates:
             try:
-                resolved = path.resolve()
+                resolved = path.absolute()
                 if resolved in seen or resolved.stat().st_size > MAX_FILE_BYTES:
                     continue
                 seen.add(resolved)
@@ -85,7 +85,7 @@ def search(query: str, mod_root: Path | None = None, limit: int = 5):
     terms = _terms(query)
     if not terms:
         return []
-    root = (Path(mod_root) if mod_root is not None else _mod_root()).resolve()
+    root = (Path(mod_root) if mod_root is not None else _mod_root()).absolute()
     results = []
     for path in _candidate_files(root):
         try:
