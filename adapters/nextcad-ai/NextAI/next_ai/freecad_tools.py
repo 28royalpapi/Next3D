@@ -591,8 +591,17 @@ def _partdesign_step(doc, tool, args):
                 False,
             )
             indices.append(geometry_index)
-            _pin_sketch_point(sketch, geometry_index, 1, start[0], start[1])
-            _pin_sketch_point(sketch, geometry_index, 2, end[0], end[1])
+        # Join each segment end to the following segment start, then pin each
+        # vertex once. This produces a closed, fully constrained native profile
+        # without duplicating coordinate constraints on shared endpoints.
+        import Sketcher
+        for i, geometry_index in enumerate(indices):
+            following = indices[(i + 1) % len(indices)]
+            sketch.addConstraint(
+                Sketcher.Constraint("Coincident", geometry_index, 2, following, 1)
+            )
+        for i, geometry_index in enumerate(indices):
+            _pin_sketch_point(sketch, geometry_index, 1, points2d[i][0], points2d[i][1])
         doc.recompute()
         return {
             "sketch": sketch.Name,
