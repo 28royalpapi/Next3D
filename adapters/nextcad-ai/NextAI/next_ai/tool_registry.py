@@ -1,7 +1,7 @@
 """Machine-readable tool catalogue and dispatcher for NextAI."""
 from __future__ import annotations
 
-from . import freecad_tools
+from . import freecad_tools, knowledge
 
 TOOLS = [
     {
@@ -105,11 +105,12 @@ TOOLS = [
 ]
 
 
-def read_context():
+def read_context(query: str = ""):
     return {
         "capabilities": freecad_tools.discover_capabilities(),
         "document": freecad_tools.inspect_document(),
         "available_tools": TOOLS,
+        "relevant_native_documentation": knowledge.search(query),
     }
 
 
