@@ -58,6 +58,7 @@ jobs:
       - name: Apply and verify Next 3D source changes
         shell: bash
         run: |
+          echo "Preparing the two pinned native source trees; no encoded overlay patch is used."
           bash scripts/apply-source-patches.sh
 
   nextcad:
