@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Recover the single truncated character in the committed NextAI overlay.
+"""Recover one missing Base64 character in the committed NextAI overlay.
 
-Recovery is deliberately narrow and fail-closed: first try the source as stored;
-if invalid, insert one Base64 alphabet character into the final chunk only. A
-candidate is accepted only if strict Base64 decoding and gzip CRC/size checks
-succeed and the result is a Git patch containing the expected NextAI adapters.
+The repair is fail-closed: strict base64 decoding and gzip CRC/size validation
+must produce exactly one patch containing the expected NextAI files.
 """
 from __future__ import annotations
 
@@ -45,42 +43,49 @@ def main() -> int:
     parts = sorted(args.folder.glob("part-*.b64"))
     if len(parts) != 7:
         raise SystemExit(f"Expected 7 NextAI overlay chunks, found {len(parts)}")
+    chunks = [p.read_text(encoding="ascii").strip() for p in parts]
+    patch = decode_patch("".join(chunks))
 
-    chunks = [path.read_text(encoding="ascii").strip() for path in parts]
-    encoded = "".join(chunks)
-    patch = decode_patch(encoded)
     if patch is None:
-        # The committed final chunk is 228 characters. The complete stream is
-        # exactly one Base64 data character short; never guess which character.
-        final = chunks[-1]
-        if not final.endswith("="):
-            raise SystemExit("Overlay is invalid and the final chunk has no Base64 padding")
-        candidates: list[tuple[int, str, bytes]] = []
-        insertion_limit = len(final) - len(final.rstrip("="))
-        for position in range(len(final) - insertion_limit + 1):
-            for char in ALPHABET:
-                repaired = final[:position] + char + final[position:]
-                candidate = decode_patch("".join(chunks[:-1]) + repaired)
-                if candidate is not None:
-                    candidates.append((position, repaired, candidate))
-                    if len(candidates) > 1:
-                        raise SystemExit("Overlay recovery is ambiguous; refusing to apply it")
-        if len(candidates) != 1:
+        # The joined source is one data character short. Try the two chunks
+        # whose stored lengths differ from the 6,000-character split, then the
+        # final chunk. Never accept an ambiguous or CRC-invalid reconstruction.
+        matches: list[tuple[int, int, str, bytes]] = []
+        for chunk_index in (1, 5, 6):
+            chunk = chunks[chunk_index]
+            padding = len(chunk) - len(chunk.rstrip("="))
+            if padding and chunk_index != 6:
+                continue
+            for position in range(len(chunk) - padding + 1):
+                for char in ALPHABET:
+                    repaired = chunk[:position] + char + chunk[position:]
+                    candidate_chunks = list(chunks)
+                    candidate_chunks[chunk_index] = repaired
+                    candidate = decode_patch("".join(candidate_chunks))
+                    if candidate is not None:
+                        matches.append((chunk_index, position, repaired, candidate))
+                        if len(matches) > 1:
+                            raise SystemExit("Overlay recovery is ambiguous; refusing to apply it")
+        if len(matches) != 1:
             raise SystemExit(
-                "Could not uniquely recover the final NextAI overlay chunk; "
+                "Could not uniquely recover the NextAI overlay from parts 02, 06 or 07; "
                 "refusing to apply unverified data"
             )
-        position, repaired_final, patch = candidates[0]
-        print(f"OVERLAY_RECOVERY_PASS: inserted one Base64 character in part-07 at offset {position}")
-        print("REPAIRED_PART_07_BASE64=" + repaired_final)
+        chunk_index, position, repaired_chunk, patch = matches[0]
+        print(
+            f"OVERLAY_RECOVERY_PASS: inserted one Base64 character into "
+            f"part-{chunk_index + 1:02d} at offset {position}"
+        )
+        print(f"REPAIRED_PART_{chunk_index + 1:02d}_BASE64=" + repaired_chunk)
         if args.repair_in_place:
-            parts[-1].write_text(repaired_final + "\n", encoding="ascii")
+            parts[chunk_index].write_text(repaired_chunk + "\n", encoding="ascii")
     else:
         print("OVERLAY_INTEGRITY_PASS: stored Base64 and gzip are valid")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(patch)
-    print(f"OVERLAY_DECODE_PASS: {len(patch)} patch bytes; sha256={hashlib.sha256(patch).hexdigest()}")
+    digest = hashlib.sha256(patch).hexdigest()
+    print(f"OVERLAY_DECODE_PASS: {len(patch)} patch bytes; sha256={digest}")
     return 0
 
 
