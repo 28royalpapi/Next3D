@@ -42,6 +42,21 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertEqual(result["license"], "CC-BY-4.0")
         self.assertTrue(result["attribution"])
 
+    def test_synthetic_curriculum_covers_2d_parametric_bim_and_documentation(self):
+        lessons = module.make_synthetic_curriculum()
+        domains = {row["domain"] for row in lessons}
+        self.assertIn("cad_2d_drafting", domains)
+        self.assertIn("cad_parametric_sketch", domains)
+        self.assertIn("cad_3d_modelling", domains)
+        self.assertIn("cad_documentation", domains)
+        self.assertIn("bim_concepts", domains)
+        self.assertIn("bim_ifc_relationships", domains)
+        self.assertIn("bim_documentation", domains)
+        self.assertIn("construction_workflows", domains)
+        dimension_lesson = next(row for row in lessons if row["domain"] == "cad_2d_drafting")
+        self.assertIn("6000", dimension_lesson["completion"])
+        self.assertIn("mm", dimension_lesson["completion"])
+
     def test_sampler_uses_available_domains_and_respects_limit(self):
         groups = {
             "cad_visual": [{"domain": "cad_visual", "id": i} for i in range(30)],
