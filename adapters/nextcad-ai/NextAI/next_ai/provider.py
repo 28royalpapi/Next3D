@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib.error import HTTPError, URLError
 from urllib.request import (
     HTTPRedirectHandler,
@@ -13,8 +14,10 @@ from urllib.parse import urlsplit
 
 DEFAULT_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions"
 DEFAULT_MODEL = "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M"
-MAX_REQUEST_BYTES = 12_000_000
+MINIMUM_OLLAMA_VERSION = (0, 40, 11)
+MAX_REQUEST_BYTES = 16_000_000
 MAX_RESPONSE_BYTES = 2_000_000
+MAX_STATUS_BYTES = 1_000_000
 
 
 class ProviderError(RuntimeError):
@@ -40,6 +43,83 @@ def _validated_endpoint(endpoint: str = DEFAULT_ENDPOINT) -> str:
     ):
         raise ProviderError("NextAI only connects to the local model at 127.0.0.1:11434.")
     return endpoint
+
+
+def _version_tuple(value: str) -> tuple[int, int, int]:
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", str(value))
+    if not match:
+        return (0, 0, 0)
+    return tuple(int(part) for part in match.groups())
+
+
+def _local_get(path: str) -> dict:
+    if path not in {"/api/version", "/api/tags"}:
+        raise ProviderError("NextAI requested an unsupported local runtime status path.")
+    request = Request(
+        "http://127.0.0.1:11434" + path,
+        headers={"Accept": "application/json"},
+        method="GET",
+    )
+    opener = build_opener(ProxyHandler({}), _NoRedirect())
+    try:
+        with opener.open(request, timeout=5) as response:
+            raw = response.read(MAX_STATUS_BYTES + 1)
+    except (HTTPError, URLError, OSError) as exc:
+        raise ProviderError(
+            "Ollama is not responding on 127.0.0.1:11434. Start the local Ollama service first."
+        ) from exc
+    if len(raw) > MAX_STATUS_BYTES:
+        raise ProviderError("The local model service returned an oversized status response.")
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ProviderError("The local model service returned invalid status data.") from exc
+    if not isinstance(value, dict):
+        raise ProviderError("The local model service returned an invalid status object.")
+    return value
+
+
+def runtime_status() -> dict:
+    """Check the local Ollama version and whether the selected multimodal model is installed."""
+    version_payload = _local_get("/api/version")
+    version = str(version_payload.get("version", ""))
+    if _version_tuple(version) < MINIMUM_OLLAMA_VERSION:
+        return {
+            "ready": False,
+            "version": version or "unknown",
+            "model": DEFAULT_MODEL,
+            "message": (
+                "Ollama " + (version or "unknown")
+                + " is too old for this multimodal model. Update Ollama to 0.40.11 or newer."
+            ),
+        }
+
+    tags_payload = _local_get("/api/tags")
+    models = tags_payload.get("models", [])
+    installed = []
+    if isinstance(models, list):
+        installed = [
+            str(item.get("name", ""))
+            for item in models
+            if isinstance(item, dict) and item.get("name")
+        ]
+    found = any(name.casefold() == DEFAULT_MODEL.casefold() for name in installed)
+    if not found:
+        return {
+            "ready": False,
+            "version": version,
+            "model": DEFAULT_MODEL,
+            "message": (
+                "The selected local model and its vision projector are not installed. "
+                "Run: ollama run " + DEFAULT_MODEL
+            ),
+        }
+    return {
+        "ready": True,
+        "version": version,
+        "model": DEFAULT_MODEL,
+        "message": "Local NextAI model is installed and ready. Image input is enabled if the model pull included its vision projector.",
+    }
 
 
 def build_payload(messages, model: str = DEFAULT_MODEL) -> dict:
