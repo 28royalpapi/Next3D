@@ -78,7 +78,7 @@ class NextAIWidget(QtWidgets.QWidget):
         heading.setFont(font)
         layout.addWidget(heading)
 
-        self.status = QtWidgets.QLabel("Local model: 127.0.0.1:8080")
+        self.status = QtWidgets.QLabel("Local model: 127.0.0.1:11434")
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
 
