@@ -22,6 +22,7 @@ def main() -> int:
         source / "next_ai/provider.py",
         source / "next_ai/freecad_tools.py",
         source / "next_ai/tool_registry.py",
+        source / "next_ai/knowledge.py",
     )
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
