@@ -235,7 +235,11 @@ def _create_step(doc, tool, args):
 
     if tool == "run_native_command":
         command_id = args.get("command_id")
-        commands = set(discover_capabilities()["commands"])
+        native_commands = Gui.listCommands()
+        if isinstance(native_commands, dict):
+            commands = {str(key) for key in native_commands.keys()}
+        else:
+            commands = {str(item) for item in native_commands}
         if not isinstance(command_id, str) or command_id not in commands:
             raise ValueError("That native command is not registered in this NextCAD installation.")
         blocked = ("Macro", "Python", "Quit", "Exit", "Open", "CloseAll", "SaveAs")
