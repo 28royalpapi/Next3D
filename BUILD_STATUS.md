@@ -28,4 +28,9 @@ The source archives contain genuine upstream documentation images, not screensho
 
 ## Next AI
 
-Both applications contain a permanent reserved Next AI workspace. There is no AI runtime, model connection or CAD/BIM tool-calling implementation in this phase. Next AI implementation should begin after the native app build and edit-save-reopen acceptance checks pass.
+- NextCAD has a native Next AI workbench adapter in `adapters/nextcad-ai/NextAI`. It includes a local-only Ollama-compatible provider, document/workbench inspection, a typed tool registry, a plan approval dialog and transaction-protected starter operations. The current write-tool coverage is still limited; it does not yet cover the full FreeCAD workspace (Sketcher constraints, broad PartDesign, Assembly, TechDraw, FEM/CAM and complete BIM workflows).
+- Next BIM reuses BIMCraft's existing native Assistant, relabelled and placed as the default Next AI workspace. A separate local-only Ollama-compatible provider patch is prepared. The native 214-command catalogue is indexed, but full command coverage and runtime execution have not yet been accepted.
+- Both local model and provider configurations are present in source, but no end-to-end model download, inference, multi-step CAD/BIM task, or cross-platform package-size test has passed yet.
+- Selected initial model for the 1.2 GB package target: Qwen3.5-0.8B Q4_K_M (541,903,360 bytes). This is a footprint-driven selection for runtime benchmarking, not a claim that the model alone guarantees expert CAD/BIM reasoning.
+- The native build, GUI launch and save/reopen acceptance gates remain pending. The source-preparation workflow was updated on 24 November 2026 to remove ambiguity about the obsolete encoded overlay step and to run the current pinned-source preparation script.
+
