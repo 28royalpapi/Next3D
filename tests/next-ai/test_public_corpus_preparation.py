@@ -133,6 +133,51 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         source = EVAL_SCRIPT.read_text(encoding="utf-8")
         compile(source, str(EVAL_SCRIPT), "exec")
 
+    def test_compact_projector_export_replaces_f16_only_after_q8_is_valid(self):
+        import importlib.util
+        import tempfile
+
+        script = SCRIPT.parent / "compact_multimodal_export.py"
+        export_spec = importlib.util.spec_from_file_location("compact_multimodal_export", script)
+        exporter = importlib.util.module_from_spec(export_spec)
+        export_spec.loader.exec_module(exporter)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            gguf_dir = root / "gguf"
+            gguf_dir.mkdir()
+            main = gguf_dir / "nextai-Q4_K_M.gguf"
+            main.write_bytes(b"GGUF" + b"main-model")
+            old_projector = gguf_dir / "mmproj-F16.gguf"
+            old_projector.write_bytes(b"GGUF" + b"old-projector")
+            q8 = root / "mmproj-Q8_0.gguf"
+            q8.write_bytes(b"GGUF" + b"quantized-projector")
+
+            files = exporter.install_projector(gguf_dir, q8)
+            self.assertTrue(main.is_file())
+            self.assertFalse(old_projector.exists())
+            self.assertTrue((gguf_dir / "mmproj-Q8_0.gguf").is_file())
+            self.assertEqual({item["kind"] for item in files}, {"language_model", "vision_projector"})
+
+    def test_compact_projector_export_rejects_invalid_gguf(self):
+        import importlib.util
+        import tempfile
+
+        script = SCRIPT.parent / "compact_multimodal_export.py"
+        export_spec = importlib.util.spec_from_file_location("compact_multimodal_export_invalid", script)
+        exporter = importlib.util.module_from_spec(export_spec)
+        export_spec.loader.exec_module(exporter)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            gguf_dir = root / "gguf"
+            gguf_dir.mkdir()
+            (gguf_dir / "model.gguf").write_bytes(b"GGUF" + b"main")
+            invalid = root / "bad.gguf"
+            invalid.write_bytes(b"not-gguf")
+            with self.assertRaises(RuntimeError):
+                exporter.install_projector(gguf_dir, invalid)
+
     def test_sampler_uses_available_domains_and_respects_limit(self):
         groups = {
             "cad_visual": [{"domain": "cad_visual", "id": i} for i in range(30)],
