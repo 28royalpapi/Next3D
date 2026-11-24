@@ -13,7 +13,7 @@ from urllib.request import (
 from urllib.parse import urlsplit
 
 DEFAULT_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions"
-DEFAULT_MODEL = "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M"
+DEFAULT_MODEL = "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q5_K_M"
 MINIMUM_OLLAMA_VERSION = (0, 40, 11)
 MAX_REQUEST_BYTES = 16_000_000
 MAX_RESPONSE_BYTES = 2_000_000
