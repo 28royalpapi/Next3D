@@ -148,6 +148,8 @@ class NativeToolSafetyTests(unittest.TestCase):
             "add_sketch_polygon",
             "create_partdesign_pad",
             "create_partdesign_pocket",
+            "create_parametric_variables",
+            "bind_parametric_expression",
         }
         self.assertTrue(expected.issubset(tools))
         for name in expected:
@@ -156,6 +158,8 @@ class NativeToolSafetyTests(unittest.TestCase):
             self.assertFalse(tools[name]["parameters"]["additionalProperties"])
         self.assertIn("length", tools["create_partdesign_pad"]["parameters"]["required"])
         self.assertIn("sketch_name", tools["create_partdesign_pocket"]["parameters"]["required"])
+        self.assertIn("variables", tools["create_parametric_variables"]["parameters"]["required"])
+        self.assertIn("expression", tools["bind_parametric_expression"]["parameters"]["required"])
 
     def test_sketch_point_pinning_uses_native_dimensions(self):
         from types import SimpleNamespace
