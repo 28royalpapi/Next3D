@@ -467,6 +467,170 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
             },
         },
     ]
+    # Expand the authored curriculum with deterministic parameter variations.
+    # These are neutral design-intent lessons, not native execution traces.
+    for index in range(80):
+        width = 4000 + (index % 10) * 400
+        height = 3000 + (index % 8) * 300
+        lessons.append({
+            "domain": "cad_2d_drafting",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                f"Create a neutral 2D room outline, {width} mm wide by {height} mm high. "
+                "Use the lower-left corner as the origin, draw a closed four-edge outline, "
+                "put geometry on A-WALL and dimensions on A-DIMS, and return exact dimensions."
+            ),
+            "completion": {
+                "schema": "nextai.2d_drawing_plan.v1",
+                "units": "mm",
+                "origin": [0, 0],
+                "outline": [[0, 0], [width, 0], [width, height], [0, height], [0, 0]],
+                "layers": {"geometry": "A-WALL", "dimensions": "A-DIMS"},
+                "dimensions": [{"axis": "x", "value": width}, {"axis": "y", "value": height}],
+                "validation": ["closed polyline", "opposite edges parallel", "dimensions exact"],
+            },
+        })
+
+        plate_width = 80 + (index % 9) * 10
+        plate_height = 50 + (index % 7) * 5
+        hole_diameter = 6 + (index % 4) * 2
+        edge_offset = 15 + (index % 5) * 2
+        lessons.append({
+            "domain": "cad_parametric_sketch",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                f"Plan a fully constrained {plate_width} mm by {plate_height} mm plate sketch "
+                f"with two {hole_diameter} mm diameter holes on the horizontal centreline, "
+                f"each centre {edge_offset} mm from its nearest vertical edge. State the "
+                "geometric constraints and driving dimensions; no app-specific code."
+            ),
+            "completion": {
+                "schema": "nextai.parametric_sketch_plan.v1",
+                "units": "mm",
+                "profile": {"type": "rectangle", "width": plate_width, "height": plate_height},
+                "holes": [
+                    {"centre": [edge_offset, plate_height / 2], "diameter": hole_diameter},
+                    {"centre": [plate_width - edge_offset, plate_height / 2], "diameter": hole_diameter},
+                ],
+                "constraints": ["coincident corners", "horizontal and vertical edges", "equal opposite sides",
+                                "hole centres horizontal", "holes symmetric about plate centreline"],
+                "driving_dimensions": {"width": plate_width, "height": plate_height,
+                                       "hole_diameter": hole_diameter, "edge_offset": edge_offset},
+                "acceptance": ["zero remaining degrees of freedom", "no conflicting constraints"],
+            },
+        })
+
+        length = 100 + (index % 8) * 10
+        breadth = 60 + (index % 6) * 5
+        thickness = 8 + (index % 5) * 2
+        diameter = 6 + (index % 4) * 2
+        chamfer = 1 + (index % 3)
+        lessons.append({
+            "domain": "cad_3d_modelling",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                f"Plan a parametric plate {length} mm by {breadth} mm by {thickness} mm, "
+                f"with two {diameter} mm through-holes and a {chamfer} mm chamfer on the "
+                "specified outside top edges. Return the feature order and checks."
+            ),
+            "completion": {
+                "schema": "nextai.cad_feature_plan.v1",
+                "units": "mm",
+                "features": [
+                    {"step": 1, "operation": "constrained_rectangle", "width": length, "height": breadth},
+                    {"step": 2, "operation": "pad", "length": thickness},
+                    {"step": 3, "operation": "two_through_holes", "diameter": diameter},
+                    {"step": 4, "operation": "chamfer", "distance": chamfer,
+                     "target": "user-specified outside top edges"},
+                ],
+                "validation": ["valid solid", "hole count is two", "dimensions preserved", "recompute and reopen"],
+            },
+        })
+
+        storeys = 2 + (index % 4)
+        levels = [{"name": f"Level {n + 1}", "elevation_mm": n * 3000} for n in range(storeys)]
+        lessons.append({
+            "domain": "bim_concepts",
+            "system": BIM_SYSTEM,
+            "prompt": f"Describe a BIM spatial hierarchy for a {storeys}-storey building. Explain project, site, building, storeys, spaces and placed element instances.",
+            "completion": {
+                "schema": "nextai.bim_spatial_model.v1",
+                "hierarchy": ["project", "site", "building", "building storey", "space"],
+                "levels": levels,
+                "principle": "Building elements are assigned to their spatial context; a type is reusable definition data and an instance is a specific placed occurrence.",
+                "checks": ["unique element identities", "correct storey assignment", "consistent elevations and units"],
+            },
+        })
+
+        fill_type = "IfcDoor" if index % 2 == 0 else "IfcWindow"
+        fill_relation = "IfcRelFillsElement"
+        lessons.append({
+            "domain": "bim_ifc_relationships",
+            "system": BIM_SYSTEM,
+            "prompt": f"Explain the IFC relationship chain for an IfcWall containing an IfcOpeningElement filled by an {fill_type}. State relationship direction.",
+            "completion": {
+                "schema": "nextai.ifc_relationship_lesson.v1",
+                "entities": ["IfcWall", "IfcOpeningElement", fill_type],
+                "relationships": [
+                    {"entity": "IfcRelVoidsElement", "relating": "IfcWall", "related": "IfcOpeningElement"},
+                    {"entity": fill_relation, "relating": "IfcOpeningElement", "related": fill_type},
+                ],
+                "checks": ["opening linked to host wall", "filling linked to opening", "placements and geometry consistent"],
+            },
+        })
+
+        sheet_count = 4 + (index % 5)
+        lessons.append({
+            "domain": "bim_documentation",
+            "system": BIM_SYSTEM,
+            "prompt": f"Prepare a BIM documentation checklist for a {storeys}-storey building with {sheet_count} drawing sheets. Include views, schedules and coordination checks; do not invent dimensions.",
+            "completion": {
+                "schema": "nextai.bim_documentation_plan.v1",
+                "views": ["floor plans by storey", "roof plan", "elevations", "sections", "overall 3D view"],
+                "schedules": ["doors", "windows", "rooms", "walls", "floors and roofs"],
+                "sheet_count_target": sheet_count,
+                "coordination": ["levels and grids match", "hosted openings coordinated", "annotations legible", "model warnings reviewed", "IFC export checked"],
+            },
+        })
+
+    for index in range(32):
+        drawing_scale = ["1:50", "1:100", "1:20", "1:10"][index % 4]
+        lessons.append({
+            "domain": "cad_documentation",
+            "system": CAD_SYSTEM,
+            "prompt": f"Create a technical drawing checklist for a manufactured component at drawing scale {drawing_scale}. Include projection views, dimensions, tolerances only when specified, units, material and revision metadata.",
+            "completion": {
+                "schema": "nextai.technical_drawing_checklist.v1",
+                "scale": drawing_scale,
+                "views": ["front", "top", "side", "isometric reference", "section when internal geometry requires it"],
+                "annotations": ["specified functional dimensions", "specified tolerances", "material", "part identifier"],
+                "sheet_metadata": ["units", "projection method", "title block", "revision", "date"],
+                "checks": ["views consistent with the model", "no contradictory dimensions", "critical dimensions present"],
+            },
+        })
+
+    for index in range(24):
+        stages = [
+            "confirm project coordinates, levels, grids and information requirements",
+            "develop architecture, structure and MEP models",
+            "coordinate model interfaces and identify clashes",
+            "assign issues with owners and due dates",
+            "resolve issues and update coordinated models",
+            "publish approved documentation and handover data",
+        ]
+        shift = index % len(stages)
+        ordered = stages[shift:] + stages[:shift]
+        lessons.append({
+            "domain": "construction_workflows",
+            "system": BIM_SYSTEM,
+            "prompt": "Describe a model-based coordination and construction information workflow. Distinguish design/model milestones from verified site progress.",
+            "completion": {
+                "schema": "nextai.construction_information_workflow.v1",
+                "stages": ordered,
+                "rule": "A model or planned sequence does not prove that site work happened. Site progress requires independent project evidence.",
+            },
+        })
+
     records = []
     for index, lesson in enumerate(lessons):
         completion = lesson["completion"]
@@ -502,21 +666,39 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
-    available = {key: rows for key, rows in groups.items() if rows}
-    if not available or limit <= 0:
+    pools = {key: list(rows) for key, rows in groups.items() if rows}
+    if not pools or limit <= 0:
         return []
-    total = sum(weights.get(key, 1.0) for key in available)
     rng = random.Random(seed)
     selected = []
-    for key, rows in available.items():
-        count = min(len(rows), max(1, round(limit * weights.get(key, 1.0) / total)))
-        selected.extend(rng.sample(rows, count))
-    if len(selected) > limit:
-        selected = rng.sample(selected, limit)
-    elif len(selected) < limit:
-        remaining = [row for rows in available.values() for row in rows if row not in selected]
-        rng.shuffle(remaining)
-        selected.extend(remaining[:limit - len(selected)])
+    while pools and len(selected) < limit:
+        remaining = limit - len(selected)
+        total_weight = sum(weights.get(key, 1.0) for key in pools)
+        exact = {key: remaining * weights.get(key, 1.0) / total_weight for key in pools}
+        quotas = {key: int(value) for key, value in exact.items()}
+        spare = remaining - sum(quotas.values())
+        for key in sorted(pools, key=lambda item: exact[item] - quotas[item], reverse=True):
+            if spare <= 0:
+                break
+            quotas[key] += 1
+            spare -= 1
+        progress = 0
+        for key in list(pools):
+            count = min(len(pools[key]), quotas.get(key, 0))
+            if count <= 0:
+                continue
+            indices = set(rng.sample(range(len(pools[key])), count))
+            selected.extend(row for index, row in enumerate(pools[key]) if index in indices)
+            pools[key] = [row for index, row in enumerate(pools[key]) if index not in indices]
+            progress += count
+            if not pools[key]:
+                del pools[key]
+        if progress == 0:
+            # Defensive fallback if rounding ever produces no quota.
+            key = max(pools, key=lambda item: weights.get(item, 1.0))
+            count = min(remaining, len(pools[key]))
+            selected.extend(rng.sample(pools[key], count))
+            del pools[key]
     rng.shuffle(selected)
     return selected
 
