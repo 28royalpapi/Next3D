@@ -18,6 +18,7 @@ on:
       - "scripts/verify_nextcad_roundtrip.py"
       - "scripts/verify_nextbim_roundtrip.py"
       - "scripts/smoke_native.py"
+      - "scripts/repair-nextai-overlay.py"
   pull_request:
     paths:
       - ".github/workflows/native-application-build.yml"
@@ -56,21 +57,7 @@ jobs:
       - name: Apply and verify Next 3D source changes
         shell: bash
         run: |
-          python3 - <<'PY'
-          import base64
-          import gzip
-          from pathlib import Path
-          folder = Path("patches/nextai-operator-overlay")
-          parts = sorted(folder.glob("part-*.b64"))
-          if len(parts) != 7:
-              raise SystemExit(f"Expected 7 NextAI overlay chunks, found {len(parts)}")
-          encoded = "".join(part.read_text(encoding="ascii").strip() for part in parts)
-          compressed = base64.b64decode(encoded, validate=True)
-          patch = gzip.decompress(compressed)
-          target = Path("/tmp/nextai-operator-overlay.patch")
-          target.write_bytes(patch)
-          print(f"Decoded NextAI overlay: {len(encoded)} base64 chars, {len(patch)} patch bytes")
-          PY
+          python3 scripts/repair-nextai-overlay.py --output /tmp/nextai-operator-overlay.patch --repair-in-place
           git apply --check /tmp/nextai-operator-overlay.patch
           git apply /tmp/nextai-operator-overlay.patch
           bash scripts/apply-source-patches.sh
@@ -99,21 +86,7 @@ jobs:
       - name: Apply NextCAD branding and Next AI workspace
         shell: bash
         run: |
-          python3 - <<'PY'
-          import base64
-          import gzip
-          from pathlib import Path
-          folder = Path("patches/nextai-operator-overlay")
-          parts = sorted(folder.glob("part-*.b64"))
-          if len(parts) != 7:
-              raise SystemExit(f"Expected 7 NextAI overlay chunks, found {len(parts)}")
-          encoded = "".join(part.read_text(encoding="ascii").strip() for part in parts)
-          compressed = base64.b64decode(encoded, validate=True)
-          patch = gzip.decompress(compressed)
-          target = Path("/tmp/nextai-operator-overlay.patch")
-          target.write_bytes(patch)
-          print(f"Decoded NextAI overlay: {len(encoded)} base64 chars, {len(patch)} patch bytes")
-          PY
+          python3 scripts/repair-nextai-overlay.py --output /tmp/nextai-operator-overlay.patch --repair-in-place
           git apply --check /tmp/nextai-operator-overlay.patch
           git apply /tmp/nextai-operator-overlay.patch
           bash scripts/apply-source-patches.sh
@@ -227,21 +200,7 @@ jobs:
       - name: Apply Next BIM identity and Next AI workspace
         shell: bash
         run: |
-          python3 - <<'PY'
-          import base64
-          import gzip
-          from pathlib import Path
-          folder = Path("patches/nextai-operator-overlay")
-          parts = sorted(folder.glob("part-*.b64"))
-          if len(parts) != 7:
-              raise SystemExit(f"Expected 7 NextAI overlay chunks, found {len(parts)}")
-          encoded = "".join(part.read_text(encoding="ascii").strip() for part in parts)
-          compressed = base64.b64decode(encoded, validate=True)
-          patch = gzip.decompress(compressed)
-          target = Path("/tmp/nextai-operator-overlay.patch")
-          target.write_bytes(patch)
-          print(f"Decoded NextAI overlay: {len(encoded)} base64 chars, {len(patch)} patch bytes")
-          PY
+          python3 scripts/repair-nextai-overlay.py --output /tmp/nextai-operator-overlay.patch --repair-in-place
           git apply --check /tmp/nextai-operator-overlay.patch
           git apply /tmp/nextai-operator-overlay.patch
           bash scripts/apply-source-patches.sh
