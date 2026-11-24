@@ -106,6 +106,22 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertIn("bim_ifc_relationships", domains)
         self.assertIn("bim_documentation", domains)
         self.assertIn("construction_workflows", domains)
+        self.assertIn("bim_architectural_floorplan", domains)
+        self.assertIn("bim_structural_model", domains)
+        self.assertIn("bim_mep_systems", domains)
+        self.assertIn("bim_coordination", domains)
+        self.assertIn("bim_quantities", domains)
+        self.assertIn("construction_information", domains)
+        floorplan = next(row for row in lessons if row["domain"] == "bim_architectural_floorplan")
+        floorplan_data = json.loads(floorplan["completion"])
+        shell = floorplan_data["shell"]
+        room_area = sum(
+            (bounds[2] - bounds[0]) * (bounds[3] - bounds[1])
+            for room in floorplan_data["room_rectangles"]
+            for bounds in [room["bounds"]]
+        )
+        self.assertEqual(room_area, shell["width"] * shell["depth"])
+        self.assertEqual(len(floorplan_data["door_centres"]), 8)
         dimension_lesson = next(row for row in lessons if row["domain"] == "cad_2d_drafting")
         self.assertIn("6000", dimension_lesson["completion"])
         self.assertIn("mm", dimension_lesson["completion"])
