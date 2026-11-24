@@ -33,6 +33,15 @@ The trainer follows the Unsloth Qwen3.5-0.8B vision recipe with BF16/FP16 LoRA (
 
 The script saves the LoRA adapter and exports a Q4_K_M GGUF. The teacher weights are not required for this training script and are not bundled. The final merged quantised model is a new candidate; it must be independently benchmarked before replacing the current runtime baseline.
 
+## Compare the untouched student and tuned candidate
+
+Run the same held-out test file against the untouched student and the trained candidate, writing separate reports:
+
+    python training/nextai/evaluate_nextai.py --model Qwen/Qwen3.5-0.8B --test-jsonl /workspace/nextai-corpus/test.jsonl --output /workspace/eval-base.json
+    python training/nextai/evaluate_nextai.py --model /workspace/nextai-run-001/adapter --test-jsonl /workspace/nextai-corpus/test.jsonl --output /workspace/eval-tuned.json
+
+The evaluator reports JSON parse rate, expected-key recall, scalar matches and lexical overlap separately by task domain. These are diagnostics, not engineering correctness. Compare the base and tuned reports on the identical test split before native engine validation.
+
 ## Promotion gates
 
 - Measure CAD visual feature recognition, feature ordering, dimensional preservation, and unit handling.
