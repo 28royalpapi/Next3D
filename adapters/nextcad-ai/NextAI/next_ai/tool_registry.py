@@ -209,6 +209,58 @@ TOOLS = [
         "read_only": False,
     },
     {
+        "name": "create_parametric_variables",
+        "description": "Create or extend a native FreeCAD App::VarSet of named project parameters. Numbers default to millimetres; choose Integer, Angle, Float, String or Bool explicitly when needed. Returns the exact expression paths to use.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "default": "Vars", "minLength": 1, "maxLength": 40},
+                "variables": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 80,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "minLength": 1, "maxLength": 40},
+                            "value": {"type": ["number", "integer", "string", "boolean"]},
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "App::PropertyLength", "App::PropertyFloat",
+                                    "App::PropertyInteger", "App::PropertyAngle",
+                                    "App::PropertyString", "App::PropertyBool"
+                                ],
+                                "default": "App::PropertyLength"
+                            },
+                            "description": {"type": "string", "maxLength": 240}
+                        },
+                        "required": ["name", "value"],
+                        "additionalProperties": False
+                    }
+                }
+            },
+            "required": ["variables"],
+            "additionalProperties": False
+        },
+        "read_only": False
+    },
+    {
+        "name": "bind_parametric_expression",
+        "description": "Bind a native object property or named Sketcher constraint to a validated FreeCAD expression, such as Vars.OverallLength or Vars.Bore * 2. The expression is checked and the document recomputed.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "property_name": {"type": "string", "minLength": 1, "maxLength": 100},
+                "expression": {"type": "string", "minLength": 1, "maxLength": 240}
+            },
+            "required": ["object_name", "property_name", "expression"],
+            "additionalProperties": False
+        },
+        "read_only": False
+    },
+    {
         "name": "add_sketch_line",
         "description": "Add a native line segment to a sketch in millimetres. Both endpoints are fixed by Sketcher constraints; use exact coordinates and don't infer dimensions.",
         "parameters": {
