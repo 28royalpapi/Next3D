@@ -81,6 +81,54 @@ TOOLS = [
         "read_only": False,
     },
     {
+        "name": "create_draft_circle",
+        "description": "Create a native 2D Draft circle at a position, with radius in millimetres.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "radius": {"type": "number", "exclusiveMinimum": 0},
+                "center": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "label": {"type": "string"},
+            },
+            "required": ["radius"],
+            "additionalProperties": False,
+        },
+        "read_only": False,
+    },
+    {
+        "name": "create_draft_text",
+        "description": "Place native Draft annotation text at a 3D position, with text height in millimetres.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "minLength": 1, "maxLength": 2000},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "height": {"type": "number", "default": 250},
+                "label": {"type": "string"},
+            },
+            "required": ["text"],
+            "additionalProperties": False,
+        },
+        "read_only": False,
+    },
+    {
+        "name": "create_arch_structure",
+        "description": "Create a parametric native Arch structural element from a rectangular cross-section; height determines column/beam proportions.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "length": {"type": "number", "exclusiveMinimum": 0},
+                "width": {"type": "number", "exclusiveMinimum": 0},
+                "height": {"type": "number", "exclusiveMinimum": 0},
+                "origin": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "label": {"type": "string"},
+            },
+            "required": ["length", "width", "height"],
+            "additionalProperties": False,
+        },
+        "read_only": False,
+    },
+    {
         "name": "activate_workbench",
         "description": "Switch to a workbench registered in this installation.",
         "parameters": {
