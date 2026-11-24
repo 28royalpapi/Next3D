@@ -55,4 +55,7 @@ python3 "$ROOT/scripts/install-nextcad-ai.py" "$FREECAD"
 
 # Contract tests and source checks run before native platform build/GUI acceptance.
 python3 -m unittest discover -s "$ROOT/tests/next-ai" -p 'test_*.py' -v
+if [[ -f "$ROOT/packaging/nextai/quantize-mmproj-q8.sh" ]]; then
+  bash -n "$ROOT/packaging/nextai/quantize-mmproj-q8.sh"
+fi
 python3 "$ROOT/scripts/verify-source-patches.py" "$FREECAD" "$BIMCRAFT"
