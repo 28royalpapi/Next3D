@@ -13,12 +13,13 @@ on:
       - "scripts/apply-source-patches.sh"
       - "scripts/apply-nextcad-branding.py"
       - "scripts/install-nextcad-ai.py"
+      - "scripts/apply-nextbim-assistant-workspace.py"
+      - "scripts/apply-nextbim-assistant-workspace.py"
       - "scripts/fix-nextbim-local-provider-type.py"
       - "scripts/verify-source-patches.py"
       - "scripts/verify_nextcad_roundtrip.py"
       - "scripts/verify_nextbim_roundtrip.py"
       - "scripts/smoke_native.py"
-      - "scripts/repair-nextai-overlay.py"
   pull_request:
     paths:
       - ".github/workflows/native-application-build.yml"
@@ -57,9 +58,6 @@ jobs:
       - name: Apply and verify Next 3D source changes
         shell: bash
         run: |
-          python3 scripts/repair-nextai-overlay.py --output /tmp/nextai-operator-overlay.patch --repair-in-place
-          git apply --check /tmp/nextai-operator-overlay.patch
-          git apply /tmp/nextai-operator-overlay.patch
           bash scripts/apply-source-patches.sh
 
   nextcad:
@@ -86,9 +84,6 @@ jobs:
       - name: Apply NextCAD branding and Next AI workspace
         shell: bash
         run: |
-          python3 scripts/repair-nextai-overlay.py --output /tmp/nextai-operator-overlay.patch --repair-in-place
-          git apply --check /tmp/nextai-operator-overlay.patch
-          git apply /tmp/nextai-operator-overlay.patch
           bash scripts/apply-source-patches.sh
 
       - name: Install the pinned FreeCAD build environment
@@ -200,9 +195,6 @@ jobs:
       - name: Apply Next BIM identity and Next AI workspace
         shell: bash
         run: |
-          python3 scripts/repair-nextai-overlay.py --output /tmp/nextai-operator-overlay.patch --repair-in-place
-          git apply --check /tmp/nextai-operator-overlay.patch
-          git apply /tmp/nextai-operator-overlay.patch
           bash scripts/apply-source-patches.sh
 
       - name: Linux graphics development libraries
