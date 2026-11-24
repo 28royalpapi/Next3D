@@ -85,7 +85,7 @@ def search(query: str, mod_root: Path | None = None, limit: int = 5):
     terms = _terms(query)
     if not terms:
         return []
-    root = Path(mod_root) if mod_root is not None else _mod_root()
+    root = (Path(mod_root) if mod_root is not None else _mod_root()).resolve()
     results = []
     for path in _candidate_files(root):
         try:
