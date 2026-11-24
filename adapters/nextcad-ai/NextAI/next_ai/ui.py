@@ -289,12 +289,12 @@ class NextAIWidget(QtWidgets.QWidget):
         history_text = user_text
         if image_names:
             history_text += "\n[Attached image data was supplied with this turn and is not retained in chat history.]"
-        self._messages.append({"role": "user", "content": history_text})
         request_messages = (
             [{"role": "system", "content": SYSTEM_PROMPT}]
             + self._messages[-8:]
             + [{"role": "user", "content": content}]
         )
+        self._messages.append({"role": "user", "content": history_text})
         self._pending_images = []
         self._refresh_attachments()
 
