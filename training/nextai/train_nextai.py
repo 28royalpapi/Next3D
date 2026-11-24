@@ -30,6 +30,8 @@ def main() -> int:
     parser.add_argument("--learning-rate", type=float, default=1.0e-4)
     parser.add_argument("--lora-rank", type=int, default=16)
     parser.add_argument("--skip-gguf", action="store_true")
+    parser.add_argument("--save-merged-model", action="store_true",
+                        help="Save a temporary merged 16-bit checkpoint for vision-projector Q8 export.")
     args = parser.parse_args()
 
     if args.max_steps < 1 or args.batch_size < 1 or args.gradient_accumulation < 1:
@@ -174,6 +176,13 @@ def main() -> int:
     model.save_pretrained(str(adapter_dir))
     tokenizer.save_pretrained(str(adapter_dir))
 
+    merged_dir = None
+    if args.save_merged_model:
+        merged_dir = output / "merged_16bit"
+        model.save_pretrained_merged(
+            str(merged_dir), tokenizer, save_method="merged_16bit"
+        )
+
     result = {
         "base_model": args.base_model,
         "method": "BF16 LoRA SFT",
@@ -190,6 +199,7 @@ def main() -> int:
         "held_out_test_metrics_by_domain": test_by_domain,
         "test_set_used_for_training": False,
         "adapter": str(adapter_dir),
+        "merged_16bit_checkpoint": str(merged_dir) if merged_dir else None,
         "gguf_export": "pending",
         "native_engine_benchmark": "pending",
         "package_size_validation": "pending",
