@@ -31,7 +31,7 @@ The trainer follows the Unsloth Qwen3.5-0.8B vision recipe with BF16/FP16 LoRA (
     pip install --upgrade transformers trl datasets peft accelerate bitsandbytes pillow
     python training/nextai/train_nextai.py --data-dir /workspace/nextai-corpus --output-dir /workspace/nextai-run-001 --max-steps 800
 
-The script saves the LoRA adapter and exports a Q4_K_M GGUF. The teacher weights are not required for this training script and are not bundled. The final merged quantised model is a new candidate; it must be independently benchmarked before replacing the current runtime baseline.
+The script saves the LoRA adapter, a temporary merged 16-bit checkpoint, and exports the main language model as Q4_K_M GGUF. The notebook then converts the separate multimodal vision projector to Q8_0 with the repository's `quantize-mmproj-q8.sh`, verifies its GGUF header and SHA-256, and replaces the full-precision projector only after the Q8 file is valid. The teacher weights are not required for this training script and are not bundled. The final merged quantised model is a new candidate; it must be independently benchmarked before replacing the current runtime baseline.
 
 ## Compare the untouched student and tuned candidate
 
@@ -58,4 +58,4 @@ The local execution container currently has no CUDA GPU. No actual model trainin
 
 Open [NextAI_Qwen35_Engineering_Student.ipynb](./NextAI_Qwen35_Engineering_Student.ipynb) in Google Colab, select a GPU runtime, and run the cells from top to bottom. It downloads only the bounded teaching sample, trains the single 0.8B student, evaluates the untouched test set, and reports the exported GGUF byte size. The notebook does not upload training data or model files into the Next3D application package.
 
-The notebook is a reproducible training entry point, not evidence that a training run has completed. Save its output and training report as the experiment artifact. Do not promote a candidate based on training loss alone.
+The notebook is a reproducible training entry point, not evidence that a training run has completed. The Qwen3.5 vision projector is a separate runtime artifact: public Q4_K_M examples list a roughly 564 MB language model plus a roughly 198 MB F16 projector, so both must be counted. Our Q8 projector export is intended to reduce this second component, but its actual bytes must be measured after export. <Cite refs={[]}/> Save its output and training report as the experiment artifact. Do not promote a candidate based on training loss alone.
