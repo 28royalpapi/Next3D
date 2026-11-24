@@ -57,6 +57,15 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertIn("6000", dimension_lesson["completion"])
         self.assertIn("mm", dimension_lesson["completion"])
 
+    def test_training_script_compiles_and_keeps_full_precision_lora(self):
+        trainer_path = SCRIPT.parents[0] / "train_nextai.py"
+        source = trainer_path.read_text(encoding="utf-8")
+        compile(source, str(trainer_path), "exec")
+        self.assertIn("load_in_4bit=False", source)
+        self.assertIn("finetune_vision_layers=False", source)
+        self.assertIn("held_out_test_metrics_by_domain", source)
+        self.assertIn("test_set_used_for_training", source)
+
     def test_sampler_uses_available_domains_and_respects_limit(self):
         groups = {
             "cad_visual": [{"domain": "cad_visual", "id": i} for i in range(30)],
