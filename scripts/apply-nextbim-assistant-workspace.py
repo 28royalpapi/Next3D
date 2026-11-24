@@ -39,7 +39,7 @@ def main() -> int:
     )
     replace_once(
         dock,
-        '            Palette::ALL.into_iter().find(|p| p.name() == name)',
+        '        Palette::ALL.into_iter().find(|p| p.name() == name)',
         '            if name == "Assistant" { return Some(Palette::Assistant); }\n'
         '            Palette::ALL.into_iter().find(|p| p.name() == name)',
         "Legacy palette-name compatibility",
