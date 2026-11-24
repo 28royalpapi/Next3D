@@ -132,12 +132,24 @@ def _image_data_uri(path):
     return "data:image/jpeg;base64," + base64.b64encode(raw).decode("ascii")
 
 
+class _RuntimeWorker(QtCore.QThread):
+    completed = QtCore.Signal(object)
+    failed = QtCore.Signal(str)
+
+    def run(self):
+        try:
+            self.completed.emit(provider.runtime_status())
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
 class NextAIWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("NextAIWidget")
         self._messages = []
         self._worker = None
+        self._runtime_worker = None
         self._turn_token = None
         self._pending_images = []
 
@@ -148,9 +160,14 @@ class NextAIWidget(QtWidgets.QWidget):
         heading.setFont(font)
         layout.addWidget(heading)
 
-        self.status = QtWidgets.QLabel("Local model: 127.0.0.1:11434")
+        status_row = QtWidgets.QHBoxLayout()
+        self.status = QtWidgets.QLabel("Local model: not checked")
         self.status.setWordWrap(True)
-        layout.addWidget(self.status)
+        status_row.addWidget(self.status, 1)
+        self.check_model_button = QtWidgets.QPushButton("Check local model")
+        self.check_model_button.clicked.connect(self.check_local_model)
+        status_row.addWidget(self.check_model_button)
+        layout.addLayout(status_row)
 
         self.transcript = QtWidgets.QTextEdit()
         self.transcript.setReadOnly(True)
@@ -200,6 +217,30 @@ class NextAIWidget(QtWidgets.QWidget):
         self.clear_attachments_button.setEnabled(
             self._worker is None and bool(self._pending_images)
         )
+
+    def check_local_model(self):
+        if self._runtime_worker is not None:
+            return
+        self.check_model_button.setEnabled(False)
+        self.status.setText("Checking local Ollama version and selected vision model…")
+        self._runtime_worker = _RuntimeWorker(self)
+        self._runtime_worker.completed.connect(self._on_runtime_status)
+        self._runtime_worker.failed.connect(self._on_runtime_error)
+        self._runtime_worker.finished.connect(self._runtime_check_finished)
+        self._runtime_worker.start()
+
+    def _on_runtime_status(self, result):
+        self.status.setText(str(result.get("message", "Local model status unavailable.")))
+
+    def _on_runtime_error(self, message):
+        self.status.setText("Local model check failed: " + str(message))
+
+    def _runtime_check_finished(self):
+        worker = self._runtime_worker
+        self._runtime_worker = None
+        self.check_model_button.setEnabled(True)
+        if worker is not None:
+            worker.deleteLater()
 
     def attach_images(self):
         if self._worker is not None:
