@@ -115,7 +115,7 @@ class NextAIWidget(QtWidgets.QWidget):
         if not question or self._worker is not None:
             return
         try:
-            context = tool_registry.read_context()
+            context = tool_registry.read_context(question)
         except Exception as exc:
             self.status.setText("Could not read this NextCAD session: " + str(exc))
             return
