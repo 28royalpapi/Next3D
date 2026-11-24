@@ -9,7 +9,7 @@
   "quantized_file_size_decimal_bytes_approx": 532000000,
   "quantization": "Q4_K_M",
   "format": "GGUF",
-  "ollama_model_id": "turintech/qwen3.5-0.8b-artemis:q4_k_m",
+  "ollama_model_id": "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M",\n  "minimum_ollama_version_for_vision": "0.40.11",
   "vision": {
     "enabled": true,
     "projector_repository": "turintech/Qwen3.5-0.8B-Artemis-GGUF",
