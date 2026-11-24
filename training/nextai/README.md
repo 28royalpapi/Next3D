@@ -5,7 +5,7 @@ The only runtime student is Qwen3.5-0.8B. The larger CAD and BIM teacher models 
 ## Data sources and admission
 
 - Autodesk Zero-to-CAD-100k (Apache-2.0): use bounded streaming samples from its train, validation and test splits. It includes eight rendered views and a structured construction-operation trace.
-- IFC BIM Alpaca 124K (MIT): admit only high-quality rows whose source metadata says validated=true and whose score is at least 4.5. This flag is treated as a source claim, not as actual IFC/BIMCraft validation.
+- IFC BIM Alpaca 124K (MIT): admit only high-quality rows with the published `source` label containing `validated` (for example `validated-synthetic`) or an explicit `metadata.validated=true` flag, and a score of at least 4.5. This remains a dataset provenance claim, not actual IFC/BIMCraft validation.
 - IFC BIM QA (CC-BY-4.0): preserve Dietmar2020 attribution and keep its test split held out.
 - Native NextCAD and Next BIM training records: admit only when they pass the native training-record schema, permissions/consent, application recompute, geometry/model validation and save/reopen round trip.
 - Cairn IFC BIM deduplicated data is excluded from positive training until its generated IFC has been independently validated; its own dataset card says its IFC output is unvalidated.
@@ -21,7 +21,7 @@ Prepare a bounded mixed corpus outside the app:
 
     python training/nextai/prepare_public_corpora.py --output-dir /workspace/nextai-corpus --max-cad-train 2500 --max-bim-train 30000 --max-mixed-train 24000
 
-The builder also adds a small Next3D-authored synthetic curriculum for 2D drafting, parametric sketches, 3D feature order, technical drawing documentation, BIM spatial concepts, IFC wall-opening-window relationships, BIM documentation and construction information workflows. These are neutral concepts and feature plans, not claims of native execution. Optional validated native trace files can be supplied with --nextcad-native and --nextbim-native. Training and validation are separate from the untouched test split. The manifest records source licences, counts, and domain mix.
+The builder streams the CAD dataset's published `train`, `validation` and `test` splits (not a guessed `val` split name), decodes its eight Hugging Face image views, and adds a small Next3D-authored synthetic curriculum for 2D drafting, parametric sketches, 3D feature order, technical drawing documentation, BIM spatial concepts, IFC wall-opening-window relationships, BIM documentation and construction information workflows. These are neutral concepts and feature plans, not claims of native execution. Optional validated native trace files can be supplied with --nextcad-native and --nextbim-native. Training and validation are separate from the untouched test split. The manifest records source licences, counts, and domain mix.
 
 ## Train
 
@@ -52,3 +52,10 @@ The evaluator reports JSON parse rate, expected-key recall, scalar matches and l
 - Measure the final GGUF and projector file sizes, then the full download and installed Next3D package for each OS. Never strip native FreeCAD workbenches or BIMCraft features to reach the 1.2 GB ceiling.
 
 The local execution container currently has no CUDA GPU. No actual model training is claimed by adding these scripts; an authorised GPU environment is required to run the training command.
+
+
+## One-click GPU notebook
+
+Open [NextAI_Qwen35_Engineering_Student.ipynb](./NextAI_Qwen35_Engineering_Student.ipynb) in Google Colab, select a GPU runtime, and run the cells from top to bottom. It downloads only the bounded teaching sample, trains the single 0.8B student, evaluates the untouched test set, and reports the exported GGUF byte size. The notebook does not upload training data or model files into the Next3D application package.
+
+The notebook is a reproducible training entry point, not evidence that a training run has completed. Save its output and training report as the experiment artifact. Do not promote a candidate based on training loss alone.
