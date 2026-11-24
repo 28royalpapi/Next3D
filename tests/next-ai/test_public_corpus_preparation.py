@@ -66,6 +66,27 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         row["score"] = 3.0
         self.assertIsNone(module.make_bim_record(row, "bim-3"))
 
+    def test_bim_admission_accepts_published_validated_source_label(self):
+        row = {
+            "instruction": "Explain IFC material layers.",
+            "input": "What is a material layer set?",
+            "output": "An IfcMaterialLayerSet describes ordered material layers.",
+            "source": "validated-synthetic",
+            "score": 4.8,
+            "metadata": None,
+        }
+        accepted = module.make_bim_record(row, "bim-published-example")
+        self.assertIsNotNone(accepted)
+        self.assertEqual(accepted["source_record_label"], "validated-synthetic")
+        row["source"] = "unreviewed"
+        self.assertIsNone(module.make_bim_record(row, "bim-unreviewed"))
+
+    def test_cad_validation_split_uses_published_split_name(self):
+        import inspect
+        source = inspect.getsource(module.prepare)
+        self.assertIn('("validation", args.max_cad_validation, "validation")', source)
+        self.assertNotIn('("val", args.max_cad_validation, "validation")', source)
+
     def test_bim_qa_has_attribution(self):
         row = {"question": "What is IfcRelVoidsElement?", "answer": "It relates an opening to an element."}
         result = module.make_bim_qa_record(row, "qa-1", "train")
