@@ -58,6 +58,8 @@ Teach terminology and workflow across architecture, civil, structural, geotechni
 
 Standards and law must be jurisdiction- and edition-aware. Maintain a source register with issuing body, jurisdiction, edition/date, scope, amendment status, access/licence and citation. Do not copy copyrighted standards such as British Standards into model weights or distribute their text without permission. Retrieval may point to licensed copies or official public sources. A model explanation is not a statutory compliance check or professional certification.
 
+For BIM/openBIM, use the official [buildingSMART Standards Server](https://standards.buildingsmart.org/) and the published [IFC 4.3.2.0 specification](https://standards.buildingsmart.org/IFC/RELEASE/IFC4_3/index.html) as canonical schema references. buildingSMART also publishes IDS, BCF, bSDD and openCDE specifications. Its formal IFC specification is published under CC BY-ND 4.0; preserve the exact version and licence conditions, and do not turn the full specification into a modified redistributed knowledge pack or training target without a legal review. Use schema files and validation tools to check generated IFC, not language-model confidence.
+
 ## How to specialise the compact model
 
 1. **Baseline first:** pin one candidate checkpoint and runtime; measure it on a held-out CAD/BIM benchmark before training.
