@@ -685,6 +685,10 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
         shell_depth = 10000 + (index % 3) * 1000
         mid_x = shell_width // 2
         south_depth = 4500 + (index % 3) * 250
+        north_depth = shell_depth - south_depth
+        x1, x2, x3 = shell_width * 2 // 7, shell_width * 4 // 7, shell_width * 5 // 7
+        upper_bath_y = shell_depth - north_depth // 3
+        ensuite_x = x3 + (shell_width - x3) // 2
         lessons.append({
             "domain": "bim_architectural_floorplan",
             "system": BIM_SYSTEM,
@@ -711,6 +715,28 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                     {"name": "Master ensuite", "zone": "inside master suite", "minimum_area_m2": 4},
                     {"name": "Hall and circulation", "zone": "central", "minimum_clear_width_mm": 1200},
                 ],
+                "room_rectangles": [
+                    {"name": "Living and dining", "bounds": [0, 0, mid_x, south_depth]},
+                    {"name": "Kitchen", "bounds": [mid_x, 0, shell_width, south_depth]},
+                    {"name": "Bedroom 2", "bounds": [0, south_depth, x1, shell_depth]},
+                    {"name": "Bedroom 3", "bounds": [x1, south_depth, x2, shell_depth]},
+                    {"name": "Hall and circulation", "bounds": [x2, south_depth, x3, upper_bath_y]},
+                    {"name": "Shared bathroom", "bounds": [x2, upper_bath_y, x3, shell_depth]},
+                    {"name": "Master bedroom", "bounds": [x3, south_depth, shell_width, upper_bath_y]},
+                    {"name": "Master ensuite", "bounds": [x3, upper_bath_y, ensuite_x, shell_depth]},
+                    {"name": "Master dressing", "bounds": [ensuite_x, upper_bath_y, shell_width, shell_depth]},
+                ],
+                "door_centres": [
+                    {"connects": ["entrance", "Living and dining"], "point": [mid_x, 0]},
+                    {"connects": ["Living and dining", "Bedroom 2"], "point": [x1 // 2, south_depth]},
+                    {"connects": ["Bedroom 3", "Hall and circulation"], "point": [x2, south_depth + (upper_bath_y - south_depth) // 2]},
+                    {"connects": ["Kitchen", "Hall and circulation"], "point": [(x2 + x3) // 2, south_depth]},
+                    {"connects": ["Hall and circulation", "Shared bathroom"], "point": [(x2 + x3) // 2, upper_bath_y]},
+                    {"connects": ["Kitchen", "Master bedroom"], "point": [(x3 + shell_width) // 2, south_depth]},
+                    {"connects": ["Master bedroom", "Master ensuite"], "point": [(x3 + ensuite_x) // 2, upper_bath_y]},
+                    {"connects": ["Master bedroom", "Master dressing"], "point": [(ensuite_x + shell_width) // 2, upper_bath_y]},
+                ],
+                "window_zones": ["living south facade", "kitchen east facade", "bedroom 2 west facade", "bedroom 3 north facade", "master east facade", "bathrooms with privacy glazing"],
                 "layout_rules": [
                     "all room boundaries remain within the external shell",
                     "room polygons must not overlap",
