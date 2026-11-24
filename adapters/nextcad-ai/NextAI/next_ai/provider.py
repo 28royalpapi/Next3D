@@ -1,4 +1,4 @@
-"""Local-only OpenAI-compatible client for the shared llama.cpp server."""
+"""Local-only OpenAI-compatible client for the shared Ollama service."""
 from __future__ import annotations
 
 import json
@@ -51,6 +51,7 @@ def chat(messages, model: str = DEFAULT_MODEL, endpoint: str = DEFAULT_ENDPOINT)
             "messages": messages,
             "temperature": 0.1,
             "max_tokens": 2048,
+            "response_format": {"type": "json_object"},
             "stream": False,
         },
         ensure_ascii=False,
