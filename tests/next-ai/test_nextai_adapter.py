@@ -67,7 +67,7 @@ class NativeToolSafetyTests(unittest.TestCase):
     def test_selected_shared_model_identifier(self):
         self.assertEqual(
             provider.DEFAULT_MODEL,
-            "turintech/qwen3.5-0.8b-artemis:q4_k_m",
+            "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M",
         )
 
     def test_model_manifest_requires_vision_and_records_size_gate(self):
