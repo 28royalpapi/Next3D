@@ -5,31 +5,32 @@
   "base_model": "Qwen/Qwen3.5-0.8B",
   "base_parameters": 873400000,
   "quantized_repository": "turintech/Qwen3.5-0.8B-Artemis-GGUF",
-  "quantized_file": "Qwen3.5-0.8B-Artemis-Q5_K_M.gguf",
-  "quantized_file_size_decimal_bytes_approx": 569000000,
-  "quantization": "Q5_K_M",
+  "quantized_file": "Qwen3.5-0.8B-Artemis-Q4_K_M.gguf",
+  "quantized_file_size_decimal_bytes": 532402496,
+  "quantization": "Q4_K_M",
   "format": "GGUF",
-  "ollama_model_id": "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q5_K_M",
+  "ollama_model_id": "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M",
   "minimum_ollama_version_for_vision": "0.40.11",
   "input_mode": "text_and_image",
   "vision": {
     "enabled": true,
     "projector_repository": "turintech/Qwen3.5-0.8B-Artemis-GGUF",
     "projector_file": "mmproj-F16.gguf",
-    "projector_file_size_decimal_bytes_approx": 205000000,
+    "projector_file_size_decimal_bytes": 204986976,
     "projector_required": true,
     "supports_image_input": true,
-    "notes": "Pull the Hugging Face Ollama model route so the projector is included. Verify a real image prompt before enabling drawing understanding."
+    "notes": "The model weights and vision projector are separate. The Ollama Hugging Face route should install both; a real image prompt must pass before drawing comprehension is advertised."
   },
   "shared_endpoint": "http://127.0.0.1:11434/v1/chat/completions",
   "license": "Apache-2.0",
   "runtime_validation": "pending",
   "tool_call_benchmark_validation": "pending",
   "engineering_benchmark_validation": "pending",
+  "fine_tuning_validation": "pending",
   "release_size_validation": "pending",
   "sha256": {
     "model": null,
     "vision_projector": null
   },
-  "notes": "Artemis is a quantized candidate, not a fine-tuned NextAI model. Its published BFCL/tool-call results are vendor-reported and must be independently retested on Next3D's actual CAD/BIM tasks. Model and projector sizes are approximate download sizes, not RAM requirements."
+  "notes": "Q4_K_M selected as the first compact multimodal baseline because the publisher reports stronger BFCL live_simple tool-call results than its Q5_K_M variant at a smaller file size. These vendor-reported general tool-use results are not NextCAD/Next BIM validation. This is not a fine-tuned NextAI model."
 }
