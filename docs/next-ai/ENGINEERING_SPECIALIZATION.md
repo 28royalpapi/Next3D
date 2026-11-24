@@ -23,13 +23,13 @@ The initial candidate is **Qwen3.5-0.8B Artemis Q4_K_M**:
 - Quantised weights: turintech/Qwen3.5-0.8B-Artemis-GGUF, Q4_K_M.
 - Model download size reported by the publisher: approximately 532 MB.
 - Vision projector: mmproj-F16.gguf, approximately 205 MB.
-- Runtime model ID: turintech/qwen3.5-0.8b-artemis:q4_k_m.
+- Runtime model ID: hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M.
 - Runtime: local Ollama-compatible endpoint on 127.0.0.1:11434.
 - License reported by the model repository: Apache-2.0.
 
 This is a **candidate selected for testing**, not an independently verified NextAI model. The publisher's evaluation reports tool-call results on BFCL tasks but also a weakness on MMLU-Pro. Those are vendor-reported results and must be independently checked on NextCAD and Next BIM tasks.
 
-The previously recorded axteam Q4 file is text-only: its own model card explicitly states that the vision encoder is not included. It is therefore not sufficient for the drawing-understanding requirement. The selected candidate includes a separate vision projector; both assets must be installed and verified before NextAI advertises image input.
+The previously recorded axteam Q4 file is text-only: its own model card explicitly states that the vision encoder is not included. It is therefore not sufficient for the drawing-understanding requirement. The selected candidate includes a separate vision projector. Its publisher's Ollama instructions require Ollama 0.40.11 or newer and pulling the Hugging Face model identifier above so that the projector is included. Both assets must be installed and verified before NextAI advertises image input.
 
 The two candidate assets total roughly 737 MB of model downloads before the applications, shared runtime, retrieval index and other release files. The 1.2 GB whole-product ceiling remains a hard release gate. Actual installed/download sizes must be measured per operating system; the approximate model-card figures are not a packaging proof.
 
