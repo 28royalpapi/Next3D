@@ -36,6 +36,8 @@ def main() -> int:
 
     train_rows = read_jsonl(args.data_dir / "train.jsonl")
     validation_rows = read_jsonl(args.data_dir / "validation.jsonl")
+    test_path = args.data_dir / "test.jsonl"
+    test_rows = read_jsonl(test_path) if test_path.is_file() else []
     if not train_rows or not validation_rows:
         raise RuntimeError("Training and validation JSONL must both be non-empty.")
 
@@ -144,6 +146,23 @@ def main() -> int:
     train_metrics = trainer.train()
     eval_metrics = trainer.evaluate()
 
+    def evaluate_by_domain(rows, prefix):
+        grouped = {}
+        domains = sorted({str(row.get("domain") or "unknown") for row in rows})
+        for domain in domains:
+            subset = [row for row in rows if str(row.get("domain") or "unknown") == domain]
+            if not subset:
+                continue
+            metrics = trainer.evaluate(
+                eval_dataset=ConversationDataset(subset),
+                metric_key_prefix=f"{prefix}_{domain}",
+            )
+            grouped[domain] = metrics
+        return grouped
+
+    validation_by_domain = evaluate_by_domain(validation_rows, "validation")
+    test_by_domain = evaluate_by_domain(test_rows, "test") if test_rows else {}
+
     adapter_dir = output / "adapter"
     model.save_pretrained(str(adapter_dir))
     tokenizer.save_pretrained(str(adapter_dir))
@@ -160,6 +179,9 @@ def main() -> int:
         "lora_rank": args.lora_rank,
         "training_metrics": train_metrics.metrics,
         "evaluation_metrics": eval_metrics,
+        "validation_metrics_by_domain": validation_by_domain,
+        "held_out_test_metrics_by_domain": test_by_domain,
+        "test_set_used_for_training": False,
         "adapter": str(adapter_dir),
         "gguf_export": "pending",
         "native_engine_benchmark": "pending",
