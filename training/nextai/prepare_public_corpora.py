@@ -287,14 +287,220 @@ def read_native(path: str | None, domain: str) -> list[dict[str, Any]]:
     return result
 
 
+def make_synthetic_curriculum() -> list[dict[str, Any]]:
+    """Small, original, unit-aware lessons that cover gaps in public corpora."""
+    lessons = [
+        {
+            "domain": "cad_2d_drafting",
+            "system": CAD_SYSTEM,
+            "prompt": "Create a neutral 2D drafting plan for a rectangular room 6000 mm by 4000 mm. Use the lower-left corner as origin, millimetres, a closed outline, four explicit dimensions, separate wall and dimension layers, and no invented doors or windows.",
+            "completion": {
+                "schema": "nextai.2d_drawing_plan.v1",
+                "units": "mm",
+                "origin": [0, 0],
+                "entities": [
+                    {"type": "line", "layer": "A-WALL", "start": [0, 0], "end": [6000, 0]},
+                    {"type": "line", "layer": "A-WALL", "start": [6000, 0], "end": [6000, 4000]},
+                    {"type": "line", "layer": "A-WALL", "start": [6000, 4000], "end": [0, 4000]},
+                    {"type": "line", "layer": "A-WALL", "start": [0, 4000], "end": [0, 0]},
+                ],
+                "dimensions": [
+                    {"axis": "x", "value": 6000, "unit": "mm"},
+                    {"axis": "y", "value": 4000, "unit": "mm"},
+                ],
+                "layers": ["A-WALL", "A-DIMS"],
+                "assumptions": [],
+                "validation": ["closed outline", "opposite sides parallel", "dimensions match user specification"],
+            },
+        },
+        {
+            "domain": "cad_2d_drafting",
+            "system": CAD_SYSTEM,
+            "prompt": "Explain how to organise a technical floor-plan drawing with layers, line types, dimensions, annotations and hatches. Return a concise structured drafting standard without assuming a particular CAD application's commands.",
+            "completion": {
+                "schema": "nextai.drafting_practice.v1",
+                "layers": {
+                    "A-WALL": "primary wall outlines",
+                    "A-DOOR": "door leaves and swing arcs",
+                    "A-WIND": "window frames and openings",
+                    "A-DIMS": "dimensions and extension lines",
+                    "A-TEXT": "room names and notes",
+                    "A-HATCH": "material poche and cut fills",
+                },
+                "rules": [
+                    "Use model geometry at full scale and set paper scale in the sheet/view.",
+                    "Keep annotation separate from model geometry.",
+                    "Use consistent lineweight hierarchy and readable text sizes.",
+                    "Dimension from stable datums and avoid duplicate dimensions.",
+                    "Use closed boundaries for hatch regions and verify no gaps.",
+                    "Preserve units and drawing coordinate origin.",
+                ],
+            },
+        },
+        {
+            "domain": "cad_parametric_sketch",
+            "system": CAD_SYSTEM,
+            "prompt": "Plan a fully constrained 2D sketch for a 120 mm by 80 mm rectangular plate with two 8 mm diameter holes on its horizontal centreline, each centre 25 mm from the nearest vertical edge. Describe geometric constraints and driving dimensions; do not generate application commands.",
+            "completion": {
+                "schema": "nextai.parametric_sketch_plan.v1",
+                "units": "mm",
+                "entities": ["four connected line segments", "two circles"],
+                "geometric_constraints": [
+                    "coincident endpoints at all four rectangle corners",
+                    "horizontal top and bottom edges",
+                    "vertical left and right edges",
+                    "equal opposite side lengths",
+                    "horizontal alignment of hole centres",
+                    "symmetric hole centres about the plate vertical centreline",
+                ],
+                "driving_dimensions": [
+                    {"name": "plate_width", "value": 120, "unit": "mm"},
+                    {"name": "plate_height", "value": 80, "unit": "mm"},
+                    {"name": "hole_diameter", "value": 8, "unit": "mm"},
+                    {"name": "hole_edge_offset", "value": 25, "unit": "mm"},
+                ],
+                "acceptance": ["zero remaining degrees of freedom", "no conflicting constraints", "all dimensions are user-specified"],
+            },
+        },
+        {
+            "domain": "cad_parametric_sketch",
+            "system": CAD_SYSTEM,
+            "prompt": "Explain the difference between geometric constraints, dimensional constraints and a fully constrained parametric sketch. Give examples and describe how a feature tree depends on the sketch.",
+            "completion": {
+                "schema": "nextai.parametric_cad_concepts.v1",
+                "geometric_constraints": ["coincident", "horizontal", "vertical", "parallel", "perpendicular", "tangent", "equal", "symmetric"],
+                "dimensional_constraints": ["length", "radius", "diameter", "distance", "angle"],
+                "fully_constrained": "The sketch has no remaining free degrees of freedom under its intended design constraints.",
+                "feature_dependency": "A pad or pocket references the sketch; changing driving dimensions recomputes dependent features in history order.",
+                "checks": ["avoid redundant constraints", "avoid conflicting constraints", "recompute after edits", "confirm the intended design intent"],
+            },
+        },
+        {
+            "domain": "cad_3d_modelling",
+            "system": CAD_SYSTEM,
+            "prompt": "Plan a parametric 3D plate from an explicitly dimensioned sketch: 120 mm by 80 mm, 10 mm thick, with two 8 mm through-holes and a 2 mm edge chamfer. Return an ordered neutral feature tree and validation requirements.",
+            "completion": {
+                "schema": "nextai.cad_feature_plan.v1",
+                "units": "mm",
+                "features": [
+                    {"sequence": 1, "type": "constrained_sketch", "profile": "rectangle", "width": 120, "height": 80},
+                    {"sequence": 2, "type": "pad", "length": 10, "source": 1},
+                    {"sequence": 3, "type": "hole_pattern", "diameter": 8, "count": 2, "through_all": True, "source": 1},
+                    {"sequence": 4, "type": "chamfer", "distance": 2, "target": "specified external edges"},
+                ],
+                "validation": ["valid solid", "hole axes and spacing match the sketch", "chamfer target edges identified", "recompute and save/reopen"],
+            },
+        },
+        {
+            "domain": "cad_documentation",
+            "system": CAD_SYSTEM,
+            "prompt": "Describe the minimum information needed to produce a manufacturing drawing from a parametric part: orthographic views, sections, dimensions, tolerances, material, scale, projection method and revision information.",
+            "completion": {
+                "schema": "nextai.technical_drawing_checklist.v1",
+                "views": ["front", "top", "side", "isometric reference", "section where internal geometry is hidden"],
+                "annotations": ["overall and functional dimensions", "tolerances", "surface finish where specified", "material", "part identifier"],
+                "sheet": ["units", "scale", "projection convention", "title block", "revision", "date", "author or responsible role"],
+                "quality_checks": ["no contradictory dimensions", "no missing critical dimensions", "views agree with the 3D model", "printable text and lineweights"],
+            },
+        },
+        {
+            "domain": "bim_concepts",
+            "system": BIM_SYSTEM,
+            "prompt": "Explain the difference between a BIM spatial hierarchy, a building element, an element type and an instance. Use a small building example and show how storeys, walls, doors and rooms relate.",
+            "completion": {
+                "schema": "nextai.bim_spatial_model.v1",
+                "hierarchy": ["project", "site", "building", "building storey", "space or room"],
+                "elements": [
+                    {"class": "wall", "role": "physical building element", "level": "Level 1"},
+                    {"class": "door", "role": "opening-filling element hosted by a wall opening", "level": "Level 1"},
+                    {"class": "room", "role": "spatial object bounded by building elements", "level": "Level 1"},
+                ],
+                "type_instance": "A type stores reusable characteristics; an instance is a placed occurrence with its own identity and placement.",
+                "checks": ["elements assigned to the correct storey", "host/opening relationships preserved", "room boundaries are closed and consistent"],
+            },
+        },
+        {
+            "domain": "bim_ifc_relationships",
+            "system": BIM_SYSTEM,
+            "prompt": "Describe the standard IFC relationship pattern for a wall with an opening filled by a window. State the entities and relationship direction in order.",
+            "completion": {
+                "schema": "nextai.ifc_relationship_lesson.v1",
+                "sequence": [
+                    {"entity": "IfcWall", "role": "host building element"},
+                    {"entity": "IfcOpeningElement", "role": "opening in the wall"},
+                    {"entity": "IfcWindow", "role": "element filling the opening"},
+                ],
+                "relationships": [
+                    {"entity": "IfcRelVoidsElement", "relating": "IfcWall", "related": "IfcOpeningElement"},
+                    {"entity": "IfcRelFillsElement", "relating": "IfcOpeningElement", "related": "IfcWindow"},
+                ],
+                "checks": ["opening is spatially contained by its host", "filling element uses the opening relationship", "geometry and placements are consistent"],
+            },
+        },
+        {
+            "domain": "bim_documentation",
+            "system": BIM_SYSTEM,
+            "prompt": "Plan a BIM documentation set for a two-storey residential building. Include views, sheets, schedules and model coordination information. Do not invent building dimensions.",
+            "completion": {
+                "schema": "nextai.bim_documentation_plan.v1",
+                "views": ["Level 1 floor plan", "Level 2 floor plan", "roof plan", "building elevations", "building sections", "overall 3D view"],
+                "schedules": ["doors", "windows", "rooms", "walls and material layers", "floors and roofs"],
+                "sheets": ["cover and general notes", "plans", "elevations", "sections", "schedules"],
+                "coordination": ["levels and grids consistent", "hosted openings coordinated", "view annotations legible", "model warnings reviewed", "IFC export checked"],
+            },
+        },
+        {
+            "domain": "construction_workflows",
+            "system": BIM_SYSTEM,
+            "prompt": "Describe a model-based construction information sequence from design development through coordination, issue resolution, documentation and handover. Distinguish a planned sequence from verified site progress.",
+            "completion": {
+                "schema": "nextai.construction_information_workflow.v1",
+                "stages": [
+                    "agree project coordinates, levels, grids and information requirements",
+                    "develop architectural, structural and MEP models",
+                    "coordinate model interfaces and identify clashes",
+                    "assign issues, owners, due dates and resolution evidence",
+                    "revise coordinated models and update drawings and schedules",
+                    "prepare approved exchange and handover deliverables",
+                ],
+                "rule": "A model sequence is not evidence that construction work happened. Site progress requires separately verified project records.",
+            },
+        },
+    ]
+    records = []
+    for index, lesson in enumerate(lessons):
+        completion = lesson["completion"]
+        if not isinstance(completion, str):
+            completion = json.dumps(completion, ensure_ascii=False)
+        records.append({
+            "record_id": f"next3d-synthetic-{index + 1:03d}",
+            "domain": lesson["domain"],
+            "system": lesson["system"],
+            "prompt": lesson["prompt"],
+            "completion": completion,
+            "images": [],
+            "source": "Next3D original synthetic curriculum",
+            "license": "project-authored",
+        })
+    return records
+
+
 def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: int) -> list[dict[str, Any]]:
     weights = {
-        "cad_visual": 0.20,
-        "cad_feature_trace": 0.20,
-        "bim_ifc_knowledge": 0.25,
-        "bim_ifc_qa": 0.10,
-        "nextcad_native": 0.125,
-        "nextbim_native": 0.125,
+        "cad_visual": 0.12,
+        "cad_feature_trace": 0.12,
+        "cad_2d_drafting": 0.12,
+        "cad_parametric_sketch": 0.12,
+        "cad_3d_modelling": 0.10,
+        "cad_documentation": 0.07,
+        "bim_ifc_knowledge": 0.12,
+        "bim_ifc_qa": 0.06,
+        "bim_concepts": 0.06,
+        "bim_ifc_relationships": 0.05,
+        "bim_documentation": 0.03,
+        "construction_workflows": 0.03,
+        "nextcad_native": 0.05,
+        "nextbim_native": 0.05,
     }
     available = {key: rows for key, rows in groups.items() if rows}
     if not available or limit <= 0:
@@ -326,8 +532,11 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     out = Path(args.output_dir).resolve()
     assets = out / "assets"
     groups = {
-        "cad_visual": [], "cad_feature_trace": [], "bim_ifc_knowledge": [],
-        "bim_ifc_qa": [], "nextcad_native": [], "nextbim_native": [],
+        "cad_visual": [], "cad_feature_trace": [], "cad_2d_drafting": [],
+        "cad_parametric_sketch": [], "cad_3d_modelling": [], "cad_documentation": [],
+        "bim_ifc_knowledge": [], "bim_ifc_qa": [], "bim_concepts": [],
+        "bim_ifc_relationships": [], "bim_documentation": [],
+        "construction_workflows": [], "nextcad_native": [], "nextbim_native": [],
     }
     validation, tests, quarantine = [], [], []
     counts = Counter()
@@ -378,6 +587,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
 
     groups["nextcad_native"] = read_native(args.nextcad_native, "nextcad_native")
     groups["nextbim_native"] = read_native(args.nextbim_native, "nextbim_native")
+    for lesson in make_synthetic_curriculum():
+        groups[lesson["domain"]].append(lesson)
     train = sample_balanced(groups, args.max_mixed_train, args.seed)
     random.Random(args.seed + 1).shuffle(validation)
     random.Random(args.seed + 2).shuffle(tests)
@@ -395,6 +606,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": CAD_DATASET, "license": "Apache-2.0", "purpose": "CAD visual feature recognition and construction sequence"},
             {"repo": BIM_DATASET, "license": "MIT", "purpose": "IFC/BIM instruction lessons; only metadata.validated=true and score >=4.5"},
             {"repo": BIM_QA_DATASET, "license": "CC-BY-4.0", "attribution": "Dietmar2020", "purpose": "IFC/BIM conceptual QA"},
+            {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, BIM concepts and construction workflows"},
         ],
         "source_counts": dict(counts),
         "train_records": len(train),
