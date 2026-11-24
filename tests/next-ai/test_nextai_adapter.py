@@ -138,6 +138,51 @@ class NativeToolSafetyTests(unittest.TestCase):
             self.assertIn("read_only", tool)
         self.assertTrue(any(not item["read_only"] for item in tool_registry.TOOLS))
 
+    def test_native_partdesign_tool_contract(self):
+        tools = {item["name"]: item for item in tool_registry.TOOLS}
+        expected = {
+            "create_partdesign_body",
+            "create_partdesign_sketch",
+            "add_sketch_line",
+            "add_sketch_circle",
+            "add_sketch_polygon",
+            "create_partdesign_pad",
+            "create_partdesign_pocket",
+        }
+        self.assertTrue(expected.issubset(tools))
+        for name in expected:
+            self.assertFalse(tools[name]["read_only"])
+            self.assertEqual(tools[name]["parameters"]["type"], "object")
+            self.assertFalse(tools[name]["parameters"]["additionalProperties"])
+        self.assertIn("length", tools["create_partdesign_pad"]["parameters"]["required"])
+        self.assertIn("sketch_name", tools["create_partdesign_pocket"]["parameters"]["required"])
+
+    def test_sketch_point_pinning_uses_native_dimensions(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        calls = []
+        sketch = SimpleNamespace(addConstraint=lambda constraint: calls.append(constraint))
+        fake_sketcher = SimpleNamespace(Constraint=lambda *args: args)
+        with patch.dict(sys.modules, {"Sketcher": fake_sketcher}):
+            freecad_tools._pin_sketch_point(sketch, 4, 1, 0.0, 0.0)
+            self.assertEqual(calls[-1], ("Coincident", 4, 1, -1, 1))
+
+            calls.clear()
+            freecad_tools._pin_sketch_point(sketch, 5, 2, 0.0, 120.0)
+            self.assertEqual(calls[0], ("PointOnObject", 5, 2, -2))
+            self.assertEqual(calls[1], ("DistanceY", -1, 1, 5, 2, 120.0))
+
+            calls.clear()
+            freecad_tools._pin_sketch_point(sketch, 6, 1, 300.0, 0.0)
+            self.assertEqual(calls[0], ("DistanceX", -1, 1, 6, 1, 300.0))
+            self.assertEqual(calls[1], ("PointOnObject", 6, 1, -1))
+
+            calls.clear()
+            freecad_tools._pin_sketch_point(sketch, 7, 1, 300.0, 120.0)
+            self.assertEqual(calls[0], ("DistanceX", -1, 1, 7, 1, 300.0))
+            self.assertEqual(calls[1], ("DistanceY", -1, 1, 7, 1, 120.0))
+
 
 if __name__ == "__main__":
     unittest.main()
