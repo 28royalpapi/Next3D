@@ -155,7 +155,7 @@ TOOLS = [
 
 def read_context(query: str = ""):
     return {
-        "capabilities": freecad_tools.discover_capabilities(),
+        "capabilities": freecad_tools.discover_capabilities(query),
         "document": freecad_tools.inspect_document(),
         "available_tools": TOOLS,
         "relevant_native_documentation": knowledge.search(query),
