@@ -677,6 +677,159 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
             },
         })
 
+    # Building-scale BIM curriculum: floor plans, structural systems, MEP,
+    # coordination and quantities. These are neutral information models,
+    # never claims of structural adequacy or statutory compliance.
+    for index in range(24):
+        shell_width = 14000 + (index % 4) * 1000
+        shell_depth = 10000 + (index % 3) * 1000
+        mid_x = shell_width // 2
+        south_depth = 4500 + (index % 3) * 250
+        lessons.append({
+            "domain": "bim_architectural_floorplan",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                f"Plan a single-storey three-bedroom, two-bathroom home in a "
+                f"{shell_width} mm by {shell_depth} mm rectangular shell. One "
+                "bathroom must be ensuite to the master bedroom. Return a "
+                "dimensioned room-program layout, room adjacency and door/window "
+                "relationships. Keep every room inside the shell, avoid overlap, "
+                "preserve the stated dimensions and list any design assumptions."
+            ),
+            "completion": {
+                "schema": "nextai.bim_floorplan_program.v1",
+                "units": "mm",
+                "shell": {"width": shell_width, "depth": shell_depth, "origin": [0, 0]},
+                "design_status": "conceptual layout proposal; verify access, local regulations and user preferences before issue",
+                "room_program": [
+                    {"name": "Living and dining", "zone": "south", "minimum_area_m2": 24},
+                    {"name": "Kitchen", "zone": "south-east", "minimum_area_m2": 12},
+                    {"name": "Bedroom 2", "zone": "north-west", "minimum_area_m2": 12},
+                    {"name": "Bedroom 3", "zone": "north-centre", "minimum_area_m2": 12},
+                    {"name": "Master bedroom", "zone": "north-east", "minimum_area_m2": 14},
+                    {"name": "Shared bathroom", "zone": "near hall", "minimum_area_m2": 4},
+                    {"name": "Master ensuite", "zone": "inside master suite", "minimum_area_m2": 4},
+                    {"name": "Hall and circulation", "zone": "central", "minimum_clear_width_mm": 1200},
+                ],
+                "layout_rules": [
+                    "all room boundaries remain within the external shell",
+                    "room polygons must not overlap",
+                    "all habitable rooms require an appropriate external opening",
+                    "each bathroom requires access and ventilation provision",
+                    "the master ensuite must connect to the master suite",
+                    "circulation must connect the entrance to the bedroom and shared spaces",
+                ],
+                "required_relationships": [
+                    {"from": "entrance", "to": "living and dining", "type": "door"},
+                    {"from": "living and dining", "to": "hall and circulation", "type": "door"},
+                    {"from": "hall and circulation", "to": "bedroom 2", "type": "door"},
+                    {"from": "hall and circulation", "to": "bedroom 3", "type": "door"},
+                    {"from": "hall and circulation", "to": "shared bathroom", "type": "door"},
+                    {"from": "hall and circulation", "to": "master bedroom", "type": "door"},
+                    {"from": "master bedroom", "to": "master ensuite", "type": "door"},
+                ],
+                "unresolved_inputs": ["site orientation", "setbacks", "wall thickness", "door and window sizes", "accessibility requirements", "local planning rules"],
+                "validation": ["shell dimensions exact", "no room overlap", "room adjacency graph connected", "door relationships valid", "areas and circulation checked"],
+            },
+        })
+
+        grid_x = [0, 6000, 12000]
+        grid_y = [0, 5000, 10000]
+        lessons.append({
+            "domain": "bim_structural_model",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Create a neutral structural BIM framing plan for a three-by-three "
+                "column grid with X gridlines A-C at 6000 mm spacing and Y gridlines "
+                "1-3 at 5000 mm spacing. Include columns, beams, floor slabs and "
+                "storey relationships. Do not size members or claim structural adequacy."
+            ),
+            "completion": {
+                "schema": "nextai.bim_structural_frame.v1",
+                "units": "mm",
+                "grid": {"x": [{"name": name, "coordinate": value} for name, value in zip(["A", "B", "C"], grid_x)],
+                         "y": [{"name": name, "coordinate": value} for name, value in zip(["1", "2", "3"], grid_y)]},
+                "storeys": [{"name": "Ground", "elevation": 0}, {"name": "Level 1", "elevation": 3000}],
+                "columns": [{"grid": f"{x}{y}", "from": "Ground", "to": "Level 1"} for x in ["A", "B", "C"] for y in ["1", "2", "3"]],
+                "beams": [{"grid_line": line, "direction": direction} for line in ["A", "B", "C", "1", "2", "3"] for direction in ["primary framing"]],
+                "slabs": [{"storey": "Level 1", "bounded_by": "beam grid bays"}],
+                "checks": ["column locations match grid intersections", "beam endpoints connect to intended supports", "slab boundaries align with framing bays", "levels and units consistent"],
+                "not_performed": ["member sizing", "load analysis", "reinforcement design", "code compliance"],
+            },
+        })
+
+        system_type = ["domestic cold water", "sanitary drainage", "HVAC supply air", "electrical containment"][index % 4]
+        lessons.append({
+            "domain": "bim_mep_systems",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                f"Plan a BIM information model for a {system_type} system in a "
+                "multi-room building. Identify equipment, terminals, distribution "
+                "segments, connectors, spaces and the required system relationships. "
+                "Do not invent pipe diameters, cable sizes, airflow, gradients or loads."
+            ),
+            "completion": {
+                "schema": "nextai.bim_mep_system_plan.v1",
+                "system_type": system_type,
+                "objects": ["source equipment or panel", "distribution segments", "connectors", "terminal devices", "served spaces"],
+                "relationships": ["segments connect through compatible ports", "terminals belong to the correct system", "equipment and terminals are assigned to relevant spaces"],
+                "required_properties": ["system identifier", "service type", "level", "location", "manufacturer data when supplied", "design flow or load only when specified"],
+                "missing_design_inputs": ["design criteria", "equipment capacities", "pipe/cable/duct sizes", "routing clearances", "applicable standard"],
+                "validation": ["connectivity graph has no unintended open ends", "system classification is consistent", "units and levels are valid"],
+            },
+        })
+
+        lessons.append({
+            "domain": "bim_coordination",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Review a coordination issue where an HVAC duct intersects a "
+                "structural beam. Explain how to classify the issue, record evidence, "
+                "assign responsibility and verify resolution without silently moving "
+                "either element."
+            ),
+            "completion": {
+                "schema": "nextai.bim_coordination_issue.v1",
+                "issue_type": "potential hard clash",
+                "participants": ["HVAC duct", "structural beam"],
+                "workflow": ["detect using model geometry", "confirm clash tolerance and clearance rules", "capture viewpoint and element identifiers", "assign responsible discipline", "propose alternatives", "obtain approval", "revise native model", "rerun coordination check", "close with evidence"],
+                "issue_fields": ["issue_id", "status", "priority", "responsible_party", "due_date", "element_ids", "viewpoint", "description", "resolution_evidence"],
+                "safety_rule": "Do not move structural or MEP elements automatically; preserve design intent and require approval.",
+            },
+        })
+
+        lessons.append({
+            "domain": "bim_quantities",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Prepare a BIM quantity schedule for walls, doors, windows, floors "
+                "and rooms. Explain which quantities should be read from native model "
+                "properties and how missing or unclassified elements should be reported."
+            ),
+            "completion": {
+                "schema": "nextai.bim_quantity_schedule.v1",
+                "schedule_fields": ["element_id", "ifc_class", "type_mark", "storey", "material", "count", "length", "area", "volume", "unit", "source_property"],
+                "rules": ["read quantities from validated native geometry and properties", "state measurement rules and units", "exclude voids only according to the selected measurement rule", "report missing classifications instead of guessing", "keep type and instance quantities distinct"],
+                "validation": ["schedule totals reconcile with selected model elements", "units are consistent", "duplicate element identifiers are rejected", "unclassified elements appear in an exceptions list"],
+            },
+        })
+
+        lessons.append({
+            "domain": "construction_information",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Create a construction information handover checklist from a "
+                "coordinated BIM model. Include asset data, spaces, systems, "
+                "maintainable equipment, document links and issue status."
+            ),
+            "completion": {
+                "schema": "nextai.construction_handover.v1",
+                "deliverables": ["approved native model", "validated IFC exchange", "asset register", "space register", "equipment and system schedules", "operation and maintenance document references", "closed/open issue register", "revision and approval history"],
+                "checks": ["required asset fields complete", "unique identifiers preserved", "document links resolve", "open issues clearly disclosed", "exchange model validates against agreed requirements"],
+                "rule": "A design model is not an as-built record unless field changes and approvals have been verified.",
+            },
+        })
+
     records = []
     for index, lesson in enumerate(lessons):
         completion = lesson["completion"]
@@ -709,6 +862,12 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "bim_ifc_relationships": 0.05,
         "bim_documentation": 0.03,
         "construction_workflows": 0.03,
+        "bim_architectural_floorplan": 0.08,
+        "bim_structural_model": 0.08,
+        "bim_mep_systems": 0.07,
+        "bim_coordination": 0.06,
+        "bim_quantities": 0.04,
+        "construction_information": 0.04,
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
@@ -764,7 +923,10 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "cad_parametric_sketch": [], "cad_3d_modelling": [], "cad_documentation": [],
         "bim_ifc_knowledge": [], "bim_ifc_qa": [], "bim_concepts": [],
         "bim_ifc_relationships": [], "bim_documentation": [],
-        "construction_workflows": [], "nextcad_native": [], "nextbim_native": [],
+        "construction_workflows": [], "bim_architectural_floorplan": [],
+        "bim_structural_model": [], "bim_mep_systems": [], "bim_coordination": [],
+        "bim_quantities": [], "construction_information": [],
+        "nextcad_native": [], "nextbim_native": [],
     }
     validation, tests, quarantine = [], [], []
     counts = Counter()
