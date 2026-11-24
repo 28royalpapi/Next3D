@@ -187,6 +187,129 @@ class NativeToolSafetyTests(unittest.TestCase):
             self.assertEqual(calls[0], ("DistanceX", -1, 1, 7, 1, 300.0))
             self.assertEqual(calls[1], ("DistanceY", -1, 1, 7, 1, 120.0))
 
+    def test_parametric_variable_creation_uses_unit_aware_native_types(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        class FakeVarSet:
+            def __init__(self, name):
+                object.__setattr__(self, "Name", name)
+                object.__setattr__(self, "TypeId", "App::VarSet")
+                object.__setattr__(self, "PropertiesList", [])
+                object.__setattr__(self, "_types", {})
+                object.__setattr__(self, "_groups", {})
+                object.__setattr__(self, "_values", {})
+            def addProperty(self, property_type, name, group, description):
+                self.PropertiesList.append(name)
+                self._types[name] = property_type
+                self._groups[name] = group
+            def getGroupOfProperty(self, name):
+                return self._groups.get(name, "Base")
+            def getTypeIdOfProperty(self, name):
+                return self._types[name]
+            def __setattr__(self, name, value):
+                if name in {"Name", "TypeId", "PropertiesList", "_types", "_groups", "_values"}:
+                    object.__setattr__(self, name, value)
+                else:
+                    self._values[name] = value
+            def __getattr__(self, name):
+                if name in self._values:
+                    return self._values[name]
+                raise AttributeError(name)
+
+        class FakeDoc:
+            def __init__(self):
+                self.objects = {}
+                self.recompute_count = 0
+            def getObject(self, name):
+                return self.objects.get(name)
+            def addObject(self, type_id, name):
+                obj = FakeVarSet(name)
+                self.objects[name] = obj
+                return obj
+            def recompute(self):
+                self.recompute_count += 1
+
+        doc = FakeDoc()
+        with patch.object(freecad_tools, "_apps", return_value=(SimpleNamespace(), None)):
+            result = freecad_tools._partdesign_step(doc, "create_parametric_variables", {
+                "name": "Vars",
+                "variables": [
+                    {"name": "OverallLength", "value": 6000, "type": "App::PropertyLength"},
+                    {"name": "StoreyCount", "value": 2, "type": "App::PropertyInteger"},
+                    {"name": "UseBasement", "value": False, "type": "App::PropertyBool"},
+                ],
+            })
+        self.assertEqual(result["expression_paths"]["OverallLength"], "Vars.OverallLength")
+        self.assertEqual(doc.objects["Vars"].OverallLength, 6000.0)
+        self.assertEqual(doc.objects["Vars"].StoreyCount, 2)
+        self.assertFalse(doc.objects["Vars"].UseBasement)
+        self.assertGreaterEqual(doc.recompute_count, 2)
+
+    def test_parametric_variable_rejects_unapproved_property_types(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        class FakeDoc:
+            def getObject(self, name):
+                return None
+            def addObject(self, type_id, name):
+                return SimpleNamespace(Name=name, TypeId=type_id)
+            def recompute(self):
+                pass
+
+        with patch.object(freecad_tools, "_apps", return_value=(SimpleNamespace(), None)):
+            with self.assertRaises(ValueError):
+                freecad_tools._partdesign_step(FakeDoc(), "create_parametric_variables", {
+                    "variables": [{"name": "Bad", "value": 1, "type": "App::PropertyPythonObject"}]
+                })
+
+    def test_parametric_expression_checks_before_binding(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        class FakeObject:
+            Name = "Pad"
+            TypeId = "PartDesign::Pad"
+            PropertiesList = ["Length"]
+            State = []
+            Constraints = []
+            def __init__(self):
+                self.bound = None
+            def evalExpression(self, expression):
+                if expression == "Vars.Width":
+                    return 4000.0
+                raise ValueError("unknown variable")
+            def setExpression(self, target, expression):
+                self.bound = (target, expression)
+
+        class FakeDoc:
+            def __init__(self, obj):
+                self.obj = obj
+            def getObject(self, name):
+                return self.obj if name == "Pad" else None
+            def recompute(self):
+                pass
+
+        obj = FakeObject()
+        with patch.object(freecad_tools, "_apps", return_value=(SimpleNamespace(), None)):
+            result = freecad_tools._partdesign_step(FakeDoc(obj), "bind_parametric_expression", {
+                "object_name": "Pad",
+                "property_name": "Length",
+                "expression": "Vars.Width",
+            })
+            self.assertEqual(result["evaluated_value"], "4000.0")
+            self.assertEqual(obj.bound, ("Length", "Vars.Width"))
+
+            obj.bound = None
+            with self.assertRaises(ValueError):
+                freecad_tools._partdesign_step(FakeDoc(obj), "bind_parametric_expression", {
+                    "object_name": "Pad",
+                    "property_name": "Length",
+                    "expression": "Vars.Missing",
+                })
+            self.assertIsNone(obj.bound)
+
 
 if __name__ == "__main__":
     unittest.main()
