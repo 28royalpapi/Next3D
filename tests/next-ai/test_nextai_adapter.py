@@ -15,7 +15,7 @@ class ProviderBoundaryTests(unittest.TestCase):
     def test_endpoint_is_fixed_loopback(self):
         self.assertEqual(
             provider._validated_endpoint(),
-            "http://127.0.0.1:8080/v1/chat/completions",
+            "http://127.0.0.1:11434/v1/chat/completions",
         )
 
     def test_remote_endpoint_is_rejected(self):
@@ -23,8 +23,8 @@ class ProviderBoundaryTests(unittest.TestCase):
             "https://example.com/v1/chat/completions",
             "http://localhost:8080/v1/chat/completions",
             "http://192.168.1.10:8080/v1/chat/completions",
-            "http://127.0.0.1:11434/v1/chat/completions",
-            "http://127.0.0.1:8080/redirect",
+            "http://127.0.0.1:8080/v1/chat/completions",
+            "http://127.0.0.1:11434/redirect",
         ):
             with self.subTest(endpoint=endpoint):
                 with self.assertRaises(provider.ProviderError):
