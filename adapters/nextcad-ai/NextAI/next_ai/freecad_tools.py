@@ -384,6 +384,8 @@ def _create_step(doc, tool, args):
     if tool in {
         "create_partdesign_body",
         "create_partdesign_sketch",
+        "create_parametric_variables",
+        "bind_parametric_expression",
         "add_sketch_line",
         "add_sketch_circle",
         "add_sketch_polygon",
