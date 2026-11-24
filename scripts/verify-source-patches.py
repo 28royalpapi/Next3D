@@ -20,6 +20,7 @@ def main() -> int:
     if len(sys.argv) != 3:
         raise SystemExit("usage: verify-source-patches.py <FreeCAD root> <BIMCraft root>")
     freecad, bimcraft = Path(sys.argv[1]), Path(sys.argv[2])
+    root = Path(__file__).resolve().parents[1]
 
     # The full applications remain the source of truth; this is not a reduced model editor.
     need((freecad / ".git").exists(), "FreeCAD must remain a native upstream git submodule")
