@@ -9,7 +9,10 @@ except ImportError:
         from PySide6 import QtCore, QtWidgets
 
 import FreeCADGui as Gui
-from NextAI.next_ai.ui import NextAIWidget
+try:
+    from next_ai.ui import NextAIWidget
+except ImportError:
+    from NextAI.next_ai.ui import NextAIWidget
 
 
 def _attach_next_ai_workspace():
