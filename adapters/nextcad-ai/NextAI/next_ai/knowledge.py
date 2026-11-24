@@ -1,8 +1,7 @@
-"""Small, dependency-free retrieval over the documentation shipped with FreeCAD.
+"""Compact local retrieval over native FreeCAD manuals and NextAI skill packs.
 
-This is deliberately lexical rather than an additional embedding model: the Qwen
-weights remain the only model, and the native application's own manuals remain
-the source of truth.
+The knowledge files are references, not a second CAD/BIM engine. They add no model
+weights and are searched locally; native APIs and validators remain authoritative.
 """
 from __future__ import annotations
 
@@ -15,7 +14,7 @@ IGNORED_PARTS = {
     ".git", "build", "dist", "tests", "test", "examples", "translations",
     "vendor", "thirdparty", "third_party", "node_modules", "__pycache__",
 }
-MAX_FILES = 650
+MAX_FILES_PER_ROOT = 650
 MAX_FILE_BYTES = 350_000
 MAX_PASSAGE_CHARS = 1400
 TOKEN_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9_+-]{1,}")
@@ -28,6 +27,11 @@ def _terms(query: str) -> list[str]:
 def _mod_root() -> Path:
     # Installed layout: FreeCAD/Mod/NextAI/next_ai/knowledge.py
     return Path(__file__).resolve().parents[2]
+
+
+def _skill_pack_root() -> Path:
+    # Installed layout: FreeCAD/Mod/NextAI/knowledge_packs/
+    return Path(__file__).resolve().parents[1] / "knowledge_packs"
 
 
 def _candidate_files(mod_root: Path):
@@ -61,14 +65,34 @@ def _candidate_files(mod_root: Path):
                 seen.add(resolved)
                 yield resolved
                 count += 1
-                if count >= MAX_FILES:
+                if count >= MAX_FILES_PER_ROOT:
                     return
             except OSError:
                 continue
 
 
+def _skill_files(root: Path):
+    if not root.is_dir():
+        return
+    count = 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+            continue
+        if any(part.lower() in IGNORED_PARTS for part in path.parts):
+            continue
+        try:
+            if path.stat().st_size > MAX_FILE_BYTES:
+                continue
+            yield path
+            count += 1
+            if count >= MAX_FILES_PER_ROOT:
+                return
+        except OSError:
+            continue
+
+
 def _passages(text: str):
-    # Keep paragraphs and code examples together; long sections are split safely.
+    # Keep paragraphs and code examples together; split long sections safely.
     for paragraph in re.split(r"\n\s*\n", text):
         paragraph = paragraph.strip()
         if not paragraph:
@@ -80,38 +104,45 @@ def _passages(text: str):
                 yield paragraph[offset:offset + MAX_PASSAGE_CHARS]
 
 
-def search(query: str, mod_root: Path | None = None, limit: int = 5):
-    """Return the best matching local manual sections, with exact source paths."""
+def search(query: str, mod_root: Path | None = None, limit: int = 6):
+    """Return matching excerpts from the live native manuals and bundled skill packs."""
     terms = _terms(query)
     if not terms:
         return []
-    root = (Path(mod_root) if mod_root is not None else _mod_root()).absolute()
+
+    native_root = (Path(mod_root) if mod_root is not None else _mod_root()).absolute()
+    roots = [
+        ("native", native_root, _candidate_files(native_root)),
+        ("nextai", _skill_pack_root(), _skill_files(_skill_pack_root())),
+    ]
     results = []
-    for path in _candidate_files(root):
-        try:
-            text = path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
+    for label, root, paths in roots:
+        if not root.is_dir():
             continue
-        file_hits = sum(text.lower().count(term) for term in terms)
-        if file_hits == 0:
-            continue
-        best = None
-        for passage in _passages(text):
-            lower = passage.lower()
-            hit_count = sum(lower.count(term) for term in terms)
-            if hit_count == 0:
+        for path in paths:
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
                 continue
-            coverage = sum(1 for term in terms if term in lower)
-            score = hit_count + coverage * 2
-            if best is None or score > best[0]:
-                best = (score, passage)
-        if best is not None:
-            results.append(
-                {
+            best = None
+            for passage in _passages(text):
+                lower = passage.lower()
+                hit_count = sum(lower.count(term) for term in terms)
+                if hit_count == 0:
+                    continue
+                coverage = sum(1 for term in terms if term in lower)
+                score = hit_count + coverage * 2
+                if best is None or score > best[0]:
+                    best = (score, passage)
+            if best is not None:
+                try:
+                    relative = str(path.relative_to(root))
+                except ValueError:
+                    relative = path.name
+                results.append({
                     "score": best[0],
-                    "source": str(path.relative_to(root)),
+                    "source": f"{label}/{relative}",
                     "excerpt": best[1],
-                }
-            )
+                })
     results.sort(key=lambda item: (-item["score"], item["source"]))
-    return results[:max(1, min(int(limit), 8))]
+    return results[:max(1, min(int(limit), 10))]
