@@ -172,6 +172,47 @@ def _create_step(doc, tool, args):
             obj.Label = str(args["label"])[:120]
         return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
 
+    if tool == "create_draft_circle":
+        import Draft
+        radius = _number(args.get("radius"), "radius", 0.001, 1_000_000.0)
+        center = App.Vector(*_point(args.get("center", [0, 0, 0]), "center"))
+        placement = App.Placement(center, App.Rotation())
+        obj = Draft.make_circle(radius, placement=placement, face=False)
+        if obj is None:
+            raise RuntimeError("FreeCAD did not create the Draft circle.")
+        if args.get("label"):
+            obj.Label = str(args["label"])[:120]
+        return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
+
+    if tool == "create_draft_text":
+        import Draft
+        text_value = args.get("text")
+        if not isinstance(text_value, str) or not text_value.strip() or len(text_value) > 2000:
+            raise ValueError("Text must contain between 1 and 2,000 characters.")
+        position = App.Vector(*_point(args.get("position", [0, 0, 0]), "position"))
+        height = _number(args.get("height", 250), "height", 1.0, 10_000.0)
+        obj = Draft.make_text(text_value.splitlines(), placement=position, height=height)
+        if obj is None:
+            raise RuntimeError("FreeCAD did not create the Draft text.")
+        if args.get("label"):
+            obj.Label = str(args["label"])[:120]
+        return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
+
+    if tool == "create_arch_structure":
+        import Arch
+        length = _number(args.get("length"), "length", 25.0, 20_000.0)
+        width = _number(args.get("width"), "width", 25.0, 20_000.0)
+        height = _number(args.get("height"), "height", 25.0, 100_000.0)
+        obj = Arch.makeStructure(length=length, width=width, height=height,
+                                 name=str(args.get("label", "NextAI Structure"))[:120])
+        if obj is None:
+            raise RuntimeError("FreeCAD did not create the Arch structural element.")
+        obj.Placement = App.Placement(
+            App.Vector(*_point(args.get("origin", [0, 0, 0]), "origin")),
+            App.Rotation(),
+        )
+        return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
+
     if tool == "activate_workbench":
         workbench_id = args.get("workbench_id")
         available = discover_capabilities()["workbenches"]
