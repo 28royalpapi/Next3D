@@ -32,23 +32,122 @@ def _point(value, name="point"):
     return coords
 
 
-def _doc_summary(doc):
-    objects = []
-    for obj in list(doc.Objects)[:100]:
-        objects.append(
-            {
-                "name": str(obj.Name),
-                "label": str(obj.Label),
-                "type": str(obj.TypeId),
+def _summary_point(point):
+    return [
+        round(float(point.x), 4),
+        round(float(point.y), 4),
+        round(float(point.z), 4),
+    ]
+
+
+def _object_summary(obj):
+    result = {
+        "name": str(obj.Name),
+        "label": str(obj.Label),
+        "type": str(obj.TypeId),
+    }
+
+    # Include useful native parameters without serialising arbitrary Python objects.
+    parameters = {}
+    for prop in (
+        "Length", "Width", "Height", "Radius", "Angle", "Reversed",
+        "Type", "SideType", "Refine", "Placement",
+    ):
+        if not hasattr(obj, prop):
+            continue
+        try:
+            value = getattr(obj, prop)
+            if prop == "Placement":
+                parameters[prop] = {
+                    "base": _summary_point(value.Base),
+                    "rotation_axis": _summary_point(value.Rotation.Axis),
+                    "rotation_degrees": round(float(value.Rotation.Angle) * 180.0 / math.pi, 4),
+                }
+            elif isinstance(value, (str, bool, int, float)):
+                parameters[prop] = round(float(value), 6) if isinstance(value, float) else value
+        except Exception:
+            continue
+    if parameters:
+        result["parameters"] = parameters
+
+    if obj.TypeId == "PartDesign::Body":
+        tip = getattr(obj, "Tip", None)
+        result["body_tip"] = getattr(tip, "Name", None)
+        result["feature_names"] = [
+            str(item.Name) for item in list(getattr(obj, "Group", []) or [])[:80]
+        ]
+
+    if obj.TypeId == "Sketcher::SketchObject":
+        try:
+            constraints = []
+            for item in list(getattr(obj, "Constraints", []))[:60]:
+                entry = {
+                    "type": str(getattr(item, "Type", "")),
+                    "name": str(getattr(item, "Name", "") or ""),
+                }
+                value = getattr(item, "Value", None)
+                if isinstance(value, (int, float)):
+                    entry["value"] = round(float(value), 6)
+                constraints.append(entry)
+            geometry = []
+            for index, item in enumerate(list(getattr(obj, "Geometry", []))[:60]):
+                entry = {
+                    "index": index,
+                    "type": type(item).__name__,
+                    "construction": bool(getattr(item, "Construction", False)),
+                }
+                if hasattr(item, "StartPoint") and hasattr(item, "EndPoint"):
+                    entry["start"] = _summary_point(item.StartPoint)
+                    entry["end"] = _summary_point(item.EndPoint)
+                if hasattr(item, "Center") and hasattr(item, "Radius"):
+                    entry["center"] = _summary_point(item.Center)
+                    entry["radius_mm"] = round(float(item.Radius), 4)
+                geometry.append(entry)
+            try:
+                dof = int(obj.DoF)
+            except Exception:
+                dof = None
+            result["sketch"] = {
+                "geometry_count": len(getattr(obj, "Geometry", [])),
+                "constraint_count": int(getattr(obj, "ConstraintCount", 0)),
+                "degrees_of_freedom": dof,
+                "fully_constrained": dof == 0,
+                "geometry_truncated": len(getattr(obj, "Geometry", [])) > len(geometry),
+                "geometry": geometry,
+                "constraints": constraints,
             }
-        )
+        except Exception as exc:
+            result["sketch_summary_error"] = str(exc)[:160]
+
+    try:
+        shape = getattr(obj, "Shape", None)
+        if shape is not None and not shape.isNull():
+            box = shape.BoundBox
+            result["shape"] = {
+                "valid": bool(shape.isValid()),
+                "volume_mm3": round(float(shape.Volume), 6),
+                "solids": len(shape.Solids),
+                "bounding_box_mm": {
+                    "length_x": round(float(box.XLength), 4),
+                    "length_y": round(float(box.YLength), 4),
+                    "length_z": round(float(box.ZLength), 4),
+                },
+            }
+    except Exception as exc:
+        result["shape_summary_error"] = str(exc)[:160]
+    return result
+
+
+def _doc_summary(doc):
+    all_objects = list(doc.Objects)
+    objects = [_object_summary(obj) for obj in all_objects[:60]]
     return {
         "name": str(doc.Name),
         "label": str(doc.Label),
         "file": str(getattr(doc, "FileName", "")),
-        "object_count": len(doc.Objects),
+        "object_count": len(all_objects),
         "objects": objects,
-        "objects_truncated": len(doc.Objects) > len(objects),
+        "objects_truncated": len(all_objects) > len(objects),
     }
 
 
