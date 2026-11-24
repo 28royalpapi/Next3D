@@ -17,11 +17,11 @@ The product must distinguish modelling support from engineering calculation, des
 
 ## 2. Selected compact multimodal model candidate
 
-The initial candidate is **Qwen3.5-0.8B Artemis Q4_K_M**:
+The initial candidate is **Qwen3.5-0.8B Artemis Q5_K_M**:
 
 - Base model: Qwen/Qwen3.5-0.8B (approximately 873 million parameters).
-- Quantised weights: turintech/Qwen3.5-0.8B-Artemis-GGUF, Q4_K_M.
-- Model download size reported by the publisher: approximately 532 MB.
+- Quantised weights: turintech/Qwen3.5-0.8B-Artemis-GGUF, Q5_K_M.
+- Model download size reported by the publisher: approximately 569 MB.
 - Vision projector: mmproj-F16.gguf, approximately 205 MB.
 - Runtime model ID: hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M.
 - Runtime: local Ollama-compatible endpoint on 127.0.0.1:11434.
