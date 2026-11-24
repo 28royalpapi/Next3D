@@ -26,6 +26,31 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertEqual(plan["ordered_features"][1]["parameters"]["diameter"], "4.0")
         self.assertEqual(plan["geometry_metadata"]["reference_face_count"], 72)
 
+    def test_hugging_face_decoded_pil_images_are_saved(self):
+        from PIL import Image
+        import io
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            image = Image.new("RGB", (12, 9), (120, 40, 20))
+            pil_path = root / "pil.jpg"
+            module._save_image(image, pil_path)
+            self.assertTrue(pil_path.is_file())
+            with Image.open(pil_path) as saved:
+                self.assertEqual(saved.size, (12, 9))
+
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            payload = buffer.getvalue()
+            bytes_path = root / "bytes.jpg"
+            module._save_image(payload, bytes_path)
+            self.assertTrue(bytes_path.is_file())
+
+            mapping_path = root / "mapping.jpg"
+            module._save_image({"bytes": payload, "path": None}, mapping_path)
+            self.assertTrue(mapping_path.is_file())
+
     def test_bim_admission_filters_unvalidated_and_low_score_rows(self):
         row = {
             "instruction": "Explain IFC material layers.",
