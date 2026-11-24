@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "product": "Next3D NextAI",
+  "status": "selected_for_runtime_validation",
+  "base_model": "Qwen/Qwen3.5-0.8B",
+  "base_parameters": 873400000,
+  "quantized_repository": "axteam/Qwen3.5-0.8B-GGUF",
+  "quantized_file": "Qwen3.5-0.8B-Q4_K_M.gguf",
+  "quantized_file_bytes": 541903360,
+  "quantization": "Q4_K_M",
+  "format": "GGUF",
+  "ollama_model_id": "hf.co/axteam/Qwen3.5-0.8B-GGUF:Q4_K_M",
+  "shared_endpoint": "http://127.0.0.1:11434/v1/chat/completions",
+  "input_mode": "text_only",
+  "vision_projector_included": false,
+  "license": "Apache-2.0",
+  "runtime_validation": "pending",
+  "release_size_validation": "pending",
+  "sha256": null,
+  "notes": "Third-party GGUF conversion. Record and pin the file SHA-256 during the first successful controlled download before release."
+n}
