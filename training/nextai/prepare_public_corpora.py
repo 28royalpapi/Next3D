@@ -255,7 +255,14 @@ def make_bim_record(row: dict[str, Any], record_id: str) -> dict[str, Any] | Non
     except (TypeError, ValueError):
         return None
     metadata = parse_metadata(row.get("metadata"))
-    if metadata.get("validated") is not True or score < 4.5:
+    source_label = str(row.get("source") or "").strip()
+    # The published dataset example uses source="validated-synthetic" and
+    # often has no metadata.validated field. Accept that explicit provenance
+    # label (or an explicit metadata flag), but do not treat every row as
+    # independently verified by NextAI.
+    source_claims_validation = "validated" in source_label.lower()
+    metadata_claims_validation = metadata.get("validated") is True
+    if not (source_claims_validation or metadata_claims_validation) or score < 4.5:
         return None
     instruction = str(row.get("instruction") or "").strip()
     extra = str(row.get("input") or "").strip()
@@ -270,6 +277,7 @@ def make_bim_record(row: dict[str, Any], record_id: str) -> dict[str, Any] | Non
         "completion": answer,
         "images": [],
         "source": BIM_DATASET,
+        "source_record_label": source_label,
         "license": "MIT",
         "source_validated_claim": True,
         "source_score": score,
@@ -763,7 +771,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
 
     cad_limits = [
         ("train", args.max_cad_train, "train"),
-        ("val", args.max_cad_validation, "validation"),
+        ("validation", args.max_cad_validation, "validation"),
         ("test", args.max_cad_test, "test"),
     ]
     for source_split, maximum, target_split in cad_limits:
