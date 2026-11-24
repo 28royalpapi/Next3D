@@ -287,10 +287,10 @@ TOOLS = [
                 "radius": {"type": "number", "exclusiveMinimum": 0},
                 "center": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
                 "label": {"type": "string"},
-                "construction": {"type": "boolean", "default": false}
+                "construction": {"type": "boolean", "default": False}
             },
             "required": ["sketch_name", "radius"],
-            "additionalProperties": false,
+            "additionalProperties": False,
         },
         "read_only": False,
     },
@@ -304,7 +304,7 @@ TOOLS = [
                 "points": {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3}, "minItems": 3, "maxItems": 80}
             },
             "required": ["sketch_name", "points"],
-            "additionalProperties": false,
+            "additionalProperties": False,
         },
         "read_only": False,
     },
@@ -318,12 +318,12 @@ TOOLS = [
                 "sketch_name": {"type": "string"},
                 "length": {"type": "number", "exclusiveMinimum": 0},
                 "name": {"type": "string", "maxLength": 120},
-                "symmetric": {"type": "boolean", "default": false}
+                "symmetric": {"type": "boolean", "default": False}
             },
             "required": ["body_name", "sketch_name", "length"],
-            "additionalProperties": false,
+            "additionalProperties": False,
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "create_partdesign_pocket",
@@ -335,13 +335,13 @@ TOOLS = [
                 "sketch_name": {"type": "string"},
                 "length": {"type": "number", "exclusiveMinimum": 0},
                 "name": {"type": "string", "maxLength": 120},
-                "reversed": {"type": "boolean", "default": true},
-                "through_all": {"type": "boolean", "default": false}
+                "reversed": {"type": "boolean", "default": True},
+                "through_all": {"type": "boolean", "default": False}
             },
             "required": ["body_name", "sketch_name", "length"],
-            "additionalProperties": false,
+            "additionalProperties": False,
         },
-        "read_only": false,
+        "read_only": False,
     },
 ]
 
