@@ -72,6 +72,9 @@ class NativeToolSafetyTests(unittest.TestCase):
         self.assertNotIn("run_python", names)
         self.assertIn("create_draft_line", names)
         self.assertIn("create_arch_wall", names)
+        self.assertIn("create_draft_wire", names)
+        self.assertIn("create_draft_dimension", names)
+        self.assertIn("create_arch_structure", names)
 
     def test_write_tools_are_typed_and_approval_gated(self):
         for tool in tool_registry.TOOLS:
