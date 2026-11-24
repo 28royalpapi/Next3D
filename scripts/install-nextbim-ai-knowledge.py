@@ -151,7 +151,7 @@ def main() -> int:
         "mechanical, geotechnical, water, electrical or construction tasks, use next_ai_knowledge "
         "to retrieve relevant workflow guidance, then use inspect_model and list_commands to verify "
         "the exact native capabilities and current project state. Knowledge guidance never proves "
-        "a command exists or a design is safe.;"
+        "a command exists or a design is safe.\";"
     )
     replace_once(lib, prompt_marker, prompt_addition, "NextAI engineering system guidance")
 
