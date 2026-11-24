@@ -87,7 +87,7 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "points": {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3}, "minItems": 2, "maxItems": 200},
-                "closed": {"type": "boolean", "default": false},
+                "closed": {"type": "boolean", "default": False},
                 "label": {"type": "string"},
             },
             "required": ["points"],
