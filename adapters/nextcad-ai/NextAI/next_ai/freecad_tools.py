@@ -709,6 +709,126 @@ def _partdesign_step(doc, tool, args):
             "state": _verify_sketch_solved(sketch),
         }
 
+    if tool == "create_parametric_variables":
+        name = str(args.get("name", "Vars")).strip() or "Vars"
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", name):
+            raise ValueError("Variable-set name must be a simple identifier.")
+        varset = doc.getObject(name)
+        if varset is None:
+            varset = doc.addObject("App::VarSet", name)
+            doc.recompute()
+        elif varset.TypeId != "App::VarSet":
+            raise ValueError(
+                f"'{name}' already exists and is {varset.TypeId}, not an App::VarSet."
+            )
+
+        allowed_types = {
+            "App::PropertyLength",
+            "App::PropertyFloat",
+            "App::PropertyInteger",
+            "App::PropertyAngle",
+            "App::PropertyString",
+            "App::PropertyBool",
+        }
+        paths = {}
+        for entry in args.get("variables", []):
+            variable_name = str(entry.get("name", "")).strip()
+            value = entry.get("value")
+            property_type = str(entry.get("type", "App::PropertyLength"))
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", variable_name):
+                raise ValueError(f"Invalid parameter name: {variable_name!r}.")
+            if property_type not in allowed_types:
+                raise ValueError(
+                    f"Unsupported parameter type '{property_type}'. "
+                    f"Allowed: {sorted(allowed_types)}."
+                )
+            if property_type in {"App::PropertyLength", "App::PropertyFloat", "App::PropertyAngle"}:
+                value = _number(value, variable_name, -1_000_000.0, 1_000_000.0)
+            elif property_type == "App::PropertyInteger":
+                if isinstance(value, bool) or not isinstance(value, int):
+                    raise ValueError(f"{variable_name} must be an integer.")
+            elif property_type == "App::PropertyString":
+                if not isinstance(value, str) or len(value) > 200:
+                    raise ValueError(f"{variable_name} must be a string of at most 200 characters.")
+            elif property_type == "App::PropertyBool":
+                if not isinstance(value, bool):
+                    raise ValueError(f"{variable_name} must be true or false.")
+
+            if variable_name in varset.PropertiesList:
+                if varset.getGroupOfProperty(variable_name) == "Base":
+                    raise ValueError(
+                        f"'{variable_name}' is a built-in VarSet property, not a parameter."
+                    )
+                actual_type = varset.getTypeIdOfProperty(variable_name)
+                if actual_type != property_type:
+                    raise ValueError(
+                        f"Parameter '{variable_name}' already exists as {actual_type}; "
+                        f"it cannot be silently changed to {property_type}."
+                    )
+            else:
+                varset.addProperty(
+                    property_type,
+                    variable_name,
+                    "Parameters",
+                    str(entry.get("description", "NextAI project parameter"))[:240],
+                )
+            setattr(varset, variable_name, value)
+            paths[variable_name] = f"{varset.Name}.{variable_name}"
+
+        doc.recompute()
+        values = {
+            variable_name: str(getattr(varset, variable_name))
+            for variable_name in paths
+        }
+        return {
+            "varset": varset.Name,
+            "parameters": values,
+            "expression_paths": paths,
+        }
+
+    if tool == "bind_parametric_expression":
+        target = _partdesign_object(doc, args.get("object_name"))
+        property_name = str(args.get("property_name", "")).strip()
+        expression = str(args.get("expression", "")).strip()
+        if not property_name or len(property_name) > 100:
+            raise ValueError("A valid native property or named sketch constraint is required.")
+        if not expression or len(expression) > 240:
+            raise ValueError("Expression must contain 1 to 240 characters.")
+        constraint_names = [
+            str(getattr(item, "Name", "") or "")
+            for item in list(getattr(target, "Constraints", []))
+        ]
+        if property_name in constraint_names:
+            expression_target = f"Constraints.{property_name}"
+        elif property_name in list(getattr(target, "PropertiesList", [])):
+            expression_target = property_name
+        else:
+            named = [item for item in constraint_names if item]
+            raise ValueError(
+                f"'{property_name}' is not a property or named constraint on '{target.Name}'. "
+                f"Named constraints: {named[:30]}."
+            )
+        was_invalid = "Invalid" in list(getattr(target, "State", []))
+        try:
+            value = target.evalExpression(expression)
+        except Exception as exc:
+            raise ValueError(
+                f"Expression '{expression}' did not resolve in FreeCAD: {str(exc)[:200]}"
+            ) from None
+        target.setExpression(expression_target, expression)
+        doc.recompute()
+        if not was_invalid and "Invalid" in list(getattr(target, "State", [])):
+            raise RuntimeError(
+                f"Binding {target.Name}.{expression_target} to '{expression}' made the object invalid."
+            )
+        return {
+            "object": target.Name,
+            "property": expression_target,
+            "expression": expression,
+            "evaluated_value": str(value),
+            "state": str(list(getattr(target, "State", []))),
+        }
+
     if tool in {"create_partdesign_pad", "create_partdesign_pocket"}:
         body = _partdesign_object(doc, args.get("body_name"), "PartDesign::Body")
         sketch = _partdesign_object(
