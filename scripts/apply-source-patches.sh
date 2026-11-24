@@ -47,6 +47,9 @@ if ! grep -q 'pub mod local;' "$BIMCRAFT/crates/assistant/src/lib.rs"; then
 fi
 python3 "$ROOT/scripts/fix-nextbim-local-provider-type.py" "$BIMCRAFT"
 
+# Bundle the same versioned engineering guidance into the native BIMCraft Assistant.
+python3 "$ROOT/scripts/install-nextbim-ai-knowledge.py" "$BIMCRAFT"
+
 # Install NextAI into FreeCAD's native module tree. All original workbenches remain present.
 python3 "$ROOT/scripts/install-nextcad-ai.py" "$FREECAD"
 
