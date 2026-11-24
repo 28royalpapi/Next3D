@@ -81,6 +81,37 @@ TOOLS = [
         "read_only": False,
     },
     {
+        "name": "create_draft_wire",
+        "description": "Create a native Draft polyline or closed plan outline from 2D/3D points in millimetres.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "points": {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3}, "minItems": 2, "maxItems": 200},
+                "closed": {"type": "boolean", "default": false},
+                "label": {"type": "string"},
+            },
+            "required": ["points"],
+            "additionalProperties": False,
+        },
+        "read_only": False,
+    },
+    {
+        "name": "create_draft_dimension",
+        "description": "Create a native Draft dimension between two points, placed through a third point.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "start": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "end": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "dimension_line_point": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "label": {"type": "string"},
+            },
+            "required": ["start", "end", "dimension_line_point"],
+            "additionalProperties": False,
+        },
+        "read_only": False,
+    },
+    {
         "name": "create_draft_circle",
         "description": "Create a native 2D Draft circle at a position, with radius in millimetres.",
         "parameters": {
