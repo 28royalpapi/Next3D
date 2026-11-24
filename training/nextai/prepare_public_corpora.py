@@ -123,31 +123,69 @@ def cad_plan(raw_ops: Any, num_faces: Any = None) -> dict[str, Any]:
     }
 
 
-def _bytes_image(value: Any) -> bytes:
-    if isinstance(value, bytes):
-        return value
-    if isinstance(value, bytearray):
-        return bytes(value)
-    if isinstance(value, str):
-        return base64.b64decode(value, validate=True)
-    raise ValueError("dataset image is not bytes")
+def _save_image(value: Any, destination: Path) -> None:
+    """Save a Hugging Face Image feature without assuming it is raw bytes.
+
+    datasets.Image normally decodes rows to PIL images. Depending on the
+    dataset/viewer version it may instead yield a {bytes, path} mapping.
+    Support both forms and raw encoded payloads.
+    """
+    import io
+    from PIL import Image
+
+    source = value
+    if isinstance(value, dict):
+        if value.get("bytes") is not None:
+            source = value["bytes"]
+        elif value.get("path"):
+            source = Path(value["path"])
+        else:
+            raise ValueError("dataset image mapping has neither bytes nor path")
+    if isinstance(source, Image.Image):
+        image = source
+        image.load()
+        image.convert("RGB").save(destination, "JPEG", quality=92)
+        return
+    if isinstance(source, (bytes, bytearray)):
+        payload = bytes(source)
+        with Image.open(io.BytesIO(payload)) as image:
+            image.verify()
+        with Image.open(io.BytesIO(payload)) as image:
+            image.convert("RGB").save(destination, "JPEG", quality=92)
+        return
+    if isinstance(source, Path):
+        if not source.is_file():
+            raise ValueError(f"dataset image path does not exist: {source}")
+        with Image.open(source) as image:
+            image.verify()
+        with Image.open(source) as image:
+            image.convert("RGB").save(destination, "JPEG", quality=92)
+        return
+    if isinstance(source, str):
+        candidate = Path(source)
+        if candidate.is_file():
+            _save_image(candidate, destination)
+            return
+        try:
+            payload = base64.b64decode(source, validate=True)
+        except Exception as exc:
+            raise ValueError("dataset image string is neither a path nor valid base64") from exc
+        _save_image(payload, destination)
+        return
+    raise ValueError(f"unsupported dataset image value: {type(value).__name__}")
 
 
 def make_cad_records(row: dict[str, Any], asset_root: Path, split: str, index: int) -> list[dict[str, Any]]:
-    from PIL import Image
-    import io
-
     plan = cad_plan(row.get("cadquery_ops_json"), row.get("num_faces"))
     uuid = re.sub(r"[^A-Za-z0-9_-]", "_", str(row.get("uuid") or index))[:72]
     folder = asset_root / "cad" / split / uuid
     folder.mkdir(parents=True, exist_ok=True)
     paths = []
-    # The Autodesk teacher was trained on eight views. Preserve all views.
+    # The dataset's eight-view representation is preserved for visual learning.
     for view_index in range(8):
-        payload = _bytes_image(row.get(f"image_{view_index}"))
-        with Image.open(io.BytesIO(payload)) as image:
-            image.convert("RGB").save(folder / f"view_{view_index}.jpg", "JPEG", quality=92)
-        paths.append(str(folder / f"view_{view_index}.jpg"))
+        destination = folder / f"view_{view_index}.jpg"
+        _save_image(row.get(f"image_{view_index}"), destination)
+        paths.append(str(destination))
 
     feature_families = []
     for operation in plan["ordered_features"]:
