@@ -65,7 +65,13 @@ def main() -> int:
         def __getitem__(self, index):
             row = self.rows[index]
             if isinstance(row.get("messages"), list):
-                return {"messages": row["messages"]}
+                normalized = []
+                for message in row["messages"]:
+                    item = dict(message)
+                    if isinstance(item.get("content"), str):
+                        item["content"] = [{"type": "text", "text": item["content"]}]
+                    normalized.append(item)
+                return {"messages": normalized}
             content = []
             for image_path in row.get("images") or []:
                 with Image.open(image_path) as image:
@@ -83,7 +89,7 @@ def main() -> int:
                 messages.append({"role": "system", "content": system})
             messages.extend([
                 {"role": "user", "content": user_content},
-                {"role": "assistant", "content": completion},
+                {"role": "assistant", "content": [{"type": "text", "text": completion}]},
             ])
             return {"messages": messages}
 
