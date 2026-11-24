@@ -12,7 +12,7 @@ from urllib.request import (
 from urllib.parse import urlsplit
 
 DEFAULT_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions"
-DEFAULT_MODEL = "turintech/qwen3.5-0.8b-artemis:q4_k_m"
+DEFAULT_MODEL = "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q4_K_M"
 MAX_REQUEST_BYTES = 12_000_000
 MAX_RESPONSE_BYTES = 2_000_000
 
