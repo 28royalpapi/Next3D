@@ -21,7 +21,7 @@ Prepare a bounded mixed corpus outside the app:
 
     python training/nextai/prepare_public_corpora.py --output-dir /workspace/nextai-corpus --max-cad-train 2500 --max-bim-train 30000 --max-mixed-train 24000
 
-Optional validated native trace files can be supplied with --nextcad-native and --nextbim-native. Training and validation are separate from the untouched test split. The manifest records source licences, counts, and domain mix.
+The builder also adds a small Next3D-authored synthetic curriculum for 2D drafting, parametric sketches, 3D feature order, technical drawing documentation, BIM spatial concepts, IFC wall-opening-window relationships, BIM documentation and construction information workflows. These are neutral concepts and feature plans, not claims of native execution. Optional validated native trace files can be supplied with --nextcad-native and --nextbim-native. Training and validation are separate from the untouched test split. The manifest records source licences, counts, and domain mix.
 
 ## Train
 
