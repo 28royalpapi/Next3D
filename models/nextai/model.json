@@ -9,14 +9,17 @@
   "quantized_file_size_decimal_bytes_approx": 569000000,
   "quantization": "Q5_K_M",
   "format": "GGUF",
-  "ollama_model_id": "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q5_K_M",\n  "minimum_ollama_version_for_vision": "0.40.11",
+  "ollama_model_id": "hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q5_K_M",
+  "minimum_ollama_version_for_vision": "0.40.11",
+  "input_mode": "text_and_image",
   "vision": {
     "enabled": true,
     "projector_repository": "turintech/Qwen3.5-0.8B-Artemis-GGUF",
     "projector_file": "mmproj-F16.gguf",
     "projector_file_size_decimal_bytes_approx": 205000000,
+    "projector_required": true,
     "supports_image_input": true,
-    "notes": "The projector is a separate required asset for image input. The runtime must verify both files before advertising drawing understanding."
+    "notes": "Pull the Hugging Face Ollama model route so the projector is included. Verify a real image prompt before enabling drawing understanding."
   },
   "shared_endpoint": "http://127.0.0.1:11434/v1/chat/completions",
   "license": "Apache-2.0",
