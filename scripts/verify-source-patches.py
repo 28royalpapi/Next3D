@@ -99,6 +99,9 @@ def main() -> int:
     assistant_ui = read(bimcraft / "crates/ui-egui/src/assistant.rs")
     chat = read(bimcraft / "crates/assistant/src/chat.rs")
     commands = read(bimcraft / "crates/core/src/commands.rs")
+    bim_assistant_tools = read(bimcraft / "crates/assistant/src/tools.rs")
+    bim_knowledge = read(bimcraft / "crates/assistant/src/knowledge.rs")
+    bim_knowledge_pack = read(bimcraft / "crates/assistant/src/next_ai_knowledge.md")
 
     need('"com.next3d.nextbim"' in bim_main, "Next BIM desktop app identity is missing")
     need('.with_title("Next BIM")' in bim_main and 'run_native("Next BIM"' in bim_main,
@@ -110,6 +113,14 @@ def main() -> int:
          "A duplicate placeholder AI panel must not be created beside the native Assistant")
     need('Profile::BimCraft => "Next BIM"' in bim_style, "Next BIM profile name is missing")
     need("pub mod local;" in assistant and "Provider::Local" in assistant, "Next BIM local provider is missing")
+    need("pub mod knowledge;" in assistant and "next_ai_knowledge" in assistant,
+         "Next BIM assistant is not instructed to use engineering knowledge retrieval")
+    need("next_ai_knowledge" in bim_assistant_tools and "crate::knowledge::search" in bim_assistant_tools,
+         "Next BIM native knowledge retrieval tool is missing")
+    need('include_str!("next_ai_knowledge.md")' in bim_knowledge,
+         "Next BIM local knowledge is not embedded in the Assistant")
+    need("engineering/geotechnical.md" in bim_knowledge_pack and "cad/parametric-cad.md" in bim_knowledge_pack,
+         "Next BIM shared CAD and engineering knowledge pack is incomplete")
     need("http://127.0.0.1:11434/v1/chat/completions" in local_provider, "Next BIM local provider endpoint is missing")
     need("allowed_local" in net and 'host == "127.0.0.1"' in net, "Next BIM provider loopback boundary is missing")
     need("Local model mode is available only in this window" in chat, "Next BIM local mode must not leak to Co-Work")
