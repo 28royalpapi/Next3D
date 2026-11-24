@@ -38,6 +38,23 @@ class ProviderBoundaryTests(unittest.TestCase):
         self.assertIn("ProxyHandler({})", source)
         self.assertIn("_NoRedirect()", source)
 
+    def test_local_runtime_requires_multimodal_ollama_version(self):
+        from unittest.mock import patch
+        with patch.object(provider, "_local_get", return_value={"version": "0.40.10"}):
+            status = provider.runtime_status()
+        self.assertFalse(status["ready"])
+        self.assertIn("0.40.11", status["message"])
+
+    def test_local_runtime_checks_selected_model_installation(self):
+        from unittest.mock import patch
+        with patch.object(provider, "_local_get", side_effect=[
+            {"version": "0.40.11"},
+            {"models": [{"name": provider.DEFAULT_MODEL}]},
+        ]):
+            status = provider.runtime_status()
+        self.assertTrue(status["ready"])
+        self.assertEqual(status["model"], provider.DEFAULT_MODEL)
+
     def test_multimodal_payload_preserves_local_image(self):
         image_uri = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/"
         messages = [{
@@ -76,6 +93,7 @@ class NativeToolSafetyTests(unittest.TestCase):
         self.assertEqual(manifest["quantization"], "Q4_K_M")
         self.assertTrue(manifest["vision"]["enabled"])
         self.assertTrue(manifest["vision"]["supports_image_input"])
+        self.assertEqual(manifest["minimum_ollama_version_for_vision"], "0.40.11")
         self.assertEqual(manifest["runtime_validation"], "pending")
         self.assertEqual(manifest["release_size_validation"], "pending")
 
