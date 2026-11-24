@@ -14,6 +14,7 @@ def main() -> int:
     source = repo / "adapters/nextcad-ai/NextAI"
     destination = Path(sys.argv[1]).resolve() / "src/Mod/NextAI"
     required = (
+        source / "__init__.py",
         source / "Init.py",
         source / "InitGui.py",
         source / "next_ai/__init__.py",
