@@ -15,6 +15,7 @@ import hashlib
 from pathlib import Path
 import string
 import sys
+import zlib
 
 ALPHABET = string.ascii_letters + string.digits + "+/"
 
@@ -23,7 +24,7 @@ def decode_patch(encoded: str) -> bytes | None:
     try:
         compressed = base64.b64decode(encoded, validate=True)
         patch = gzip.decompress(compressed)
-    except (ValueError, OSError):
+    except (ValueError, OSError, EOFError, zlib.error):
         return None
     if not patch.startswith(b"diff --git "):
         return None
