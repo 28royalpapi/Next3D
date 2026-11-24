@@ -49,8 +49,42 @@ def main() -> int:
          "NextCAD runtime capability discovery is missing")
     need("create_draft_line" in tools and "openTransaction" in tools and "abortTransaction" in tools,
          "NextCAD first native write is not transaction-protected")
+    for operation in (
+        "create_partdesign_body", "create_partdesign_sketch", "add_sketch_line",
+        "add_sketch_circle", "add_sketch_polygon", "create_partdesign_pad",
+        "create_partdesign_pocket",
+    ):
+        need(operation in tools, "NextCAD native PartDesign operation is missing: " + operation)
+    need("ConflictingConstraints" in tools and "RedundantConstraints" in tools,
+         "NextCAD sketch solver validation is missing")
+    need("body.Tip = feature" in tools and "before_volume" in tools and "after_volume" in tools,
+         "NextCAD PartDesign feature-history or volume verification is missing")
+    need("image_url" in provider and "MINIMUM_OLLAMA_VERSION" in provider,
+         "NextCAD local multimodal provider or runtime-version gate is missing")
     need("execute_code" not in registry and "run_python" not in registry,
          "NextCAD default typed registry must not expose arbitrary code execution")
+
+    model = json.loads((root / "models/nextai/model.json").read_text(encoding="utf-8"))
+    need(model.get("quantization") == "Q5_K_M", "Shared NextAI model must be the selected Q5 candidate")
+    need(model.get("input_mode") == "text_and_image", "Shared NextAI model must declare image input")
+    need(model.get("minimum_ollama_version_for_vision") == "0.40.11",
+         "Shared NextAI model must declare the multimodal Ollama minimum")
+    need(model.get("vision", {}).get("projector_required") is True,
+         "Shared NextAI vision projector requirement is missing")
+    for relative in (
+        "cad/parametric-cad.md",
+        "aec/bim-construction.md",
+        "engineering/design-validation.md",
+        "engineering/mechanical-design.md",
+        "engineering/civil-structural.md",
+        "engineering/geotechnical.md",
+        "engineering/water-hydraulics.md",
+        "engineering/electrical-mep.md",
+        "drawing-intake.md",
+        "construction/construction-delivery.md",
+    ):
+        need((root / "adapters/nextcad-ai/NextAI/knowledge_packs" / relative).is_file(),
+             "NextAI engineering knowledge pack is missing: " + relative)
     need("NATIVE PLAN" in ui and "QMessageBox.question" in ui, "NextCAD mutation approval UI is missing")
     need("begin_turn" in tools and "document changed during" in tools, "NextCAD stale-document protection is missing")
 
