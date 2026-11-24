@@ -11,8 +11,8 @@ from urllib.request import (
 )
 from urllib.parse import urlsplit
 
-DEFAULT_ENDPOINT = "http://127.0.0.1:8080/v1/chat/completions"
-DEFAULT_MODEL = "qwen3.5-0.8b"
+DEFAULT_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions"
+DEFAULT_MODEL = "hf.co/axteam/Qwen3.5-0.8B-GGUF:Q4_K_M"
 MAX_REQUEST_BYTES = 1_000_000
 MAX_RESPONSE_BYTES = 1_000_000
 
@@ -31,14 +31,14 @@ def _validated_endpoint(endpoint: str = DEFAULT_ENDPOINT) -> str:
     if (
         parts.scheme != "http"
         or parts.hostname != "127.0.0.1"
-        or parts.port != 8080
+        or parts.port != 11434
         or parts.path != "/v1/chat/completions"
         or parts.username
         or parts.password
         or parts.query
         or parts.fragment
     ):
-        raise ProviderError("NextAI only connects to the local model at 127.0.0.1:8080.")
+        raise ProviderError("NextAI only connects to the local model at 127.0.0.1:11434.")
     return endpoint
 
 
@@ -70,7 +70,7 @@ def chat(messages, model: str = DEFAULT_MODEL, endpoint: str = DEFAULT_ENDPOINT)
             raw = response.read(MAX_RESPONSE_BYTES + 1)
     except (HTTPError, URLError, OSError) as exc:
         raise ProviderError(
-            "The local NextAI model is not responding. Start the bundled local model service and try again."
+            "The local NextAI model is not responding. Start the local Ollama model service and try again."
         ) from exc
     if len(raw) > MAX_RESPONSE_BYTES:
         raise ProviderError("The local model response exceeded the safety limit.")
