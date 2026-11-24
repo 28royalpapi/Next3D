@@ -134,7 +134,7 @@ def prompt_for(row: dict[str, Any]) -> tuple[str, str, list[str]]:
                         for part in content
                         if isinstance(part, dict) and part.get("type") == "text"
                     )
-    images = [str(path) for path in row.get("images", []) if path]
+    images = [str(path) for path in (row.get("images") or []) if path]
     return system, prompt, images
 
 
@@ -174,10 +174,6 @@ def main() -> int:
     for index, row in enumerate(rows):
         system, prompt, image_paths = prompt_for(row)
         expected = str(row.get("completion") or "")
-        if isinstance(row.get("messages"), list):
-            _, _, _ = prompt_for(row)
-            if not expected:
-                expected = str(row.get("messages", [{}])[-1].get("content") or "")
         user_content = []
         images = []
         for image_path in image_paths:
