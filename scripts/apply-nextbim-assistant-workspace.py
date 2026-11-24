@@ -40,17 +40,16 @@ def main() -> int:
     replace_once(
         dock,
         '        Palette::ALL.into_iter().find(|p| p.name() == name)',
-        '        if name == "Assistant" { return Some(Palette::Assistant); }\n'
+        '        if name == "Assistant" {\n'
+        '            return Some(Palette::Assistant);\n'
+        '        }\n'
         '        Palette::ALL.into_iter().find(|p| p.name() == name)',
         "Legacy palette-name compatibility",
     )
     replace_once(
         dock,
         '            right: vec![Stack::of(Palette::Properties), Stack::of(Palette::Browser)],',
-        '            right: vec![\n'
-        '                Stack::of(Palette::Properties),\n'
-        '                Stack { tabs: vec![Palette::Browser, Palette::Assistant], active: 1 },\n'
-        '            ],',
+        '            right: vec![Stack::of(Palette::Properties), Stack { tabs: vec![Palette::Browser, Palette::Assistant], active: 1 }],',
         "Default Next AI workspace layout",
     )
 
