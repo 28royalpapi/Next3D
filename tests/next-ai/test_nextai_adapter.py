@@ -263,6 +263,52 @@ class NativeToolSafetyTests(unittest.TestCase):
                 })
         self.assertEqual(len(doc.created), 1)
 
+    def test_native_sphere_and_cone_creation_preserve_approved_geometry(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        import math
+
+        class Vector:
+            def __init__(self, *values):
+                self.values = values
+                self.Length = math.sqrt(sum(value * value for value in values))
+        class Rotation:
+            def __init__(self, *values):
+                self.values = values
+        class Placement:
+            def __init__(self, base, rotation):
+                self.Base, self.Rotation = base, rotation
+        class FakeObject:
+            Label = ""
+            TypeId = ""
+            Name = ""
+        class FakeDoc:
+            def __init__(self):
+                self.objects = []
+            def addObject(self, type_id, name):
+                obj = FakeObject()
+                obj.TypeId, obj.Name = type_id, name
+                self.objects.append(obj)
+                return obj
+
+        app = SimpleNamespace(Vector=Vector, Rotation=Rotation, Placement=Placement)
+        doc = FakeDoc()
+        with patch.object(freecad_tools, "_apps", return_value=(app, None)):
+            sphere = freecad_tools._create_step(doc, "create_part_sphere", {
+                "radius": 35, "center": [10,20,30], "label": "KN01"
+            })
+            cone = freecad_tools._create_step(doc, "create_part_cone", {
+                "radius1": 40, "radius2": 10, "height": 120,
+                "origin": [0,0,0], "axis": [0,0,1], "label": "NZ01"
+            })
+        self.assertEqual(sphere["type"], "Part::Sphere")
+        self.assertEqual(doc.objects[0].Radius, 35.0)
+        self.assertEqual(doc.objects[0].Placement.Base.values, (10.0,20.0,30.0))
+        self.assertEqual(cone["type"], "Part::Cone")
+        self.assertEqual(doc.objects[1].Radius1, 40.0)
+        self.assertEqual(doc.objects[1].Radius2, 10.0)
+        self.assertEqual(doc.objects[1].Height, 120.0)
+
     def test_write_tools_are_typed_and_approval_gated(self):
         for tool in tool_registry.TOOLS:
             self.assertIn("parameters", tool)
