@@ -2152,12 +2152,334 @@ def make_design_execution_curriculum() -> list[dict[str, Any]]:
         }}],
     )
 
+
+    # Three-dimensional architectural shell: these are actual native Arch
+    # walls, not merely closed 2D room-zone outlines.
+    shell_plan = []
+    for mark, points in [
+        ("W01 — south external wall", [[0,0],[10000,0]]),
+        ("W02 — east external wall", [[10000,0],[10000,8000]]),
+        ("W03 — north external wall", [[10000,8000],[0,8000]]),
+        ("W04 — west external wall", [[0,8000],[0,0]]),
+        ("W05 — main internal partition", [[4000,0],[4000,8000]]),
+        ("W06 — secondary internal partition", [[7000,0],[7000,4000]]),
+        ("W07 — lower room partition", [[4000,4000],[10000,4000]]),
+    ]:
+        shell_plan.append({"tool": "create_arch_wall", "args": {
+            "points": points, "height": 3000, "width": 200, "label": mark
+        }})
+    shell_plan.extend([
+        {"tool": "create_draft_text", "args": {
+            "text": "ROOM A — 4.0 × 8.0 m", "position": [500,4200], "height": 220,
+            "label": "Room A annotation"
+        }},
+        {"tool": "create_draft_text", "args": {
+            "text": "ROOM B — 3.0 × 4.0 m", "position": [4300,6000], "height": 180,
+            "label": "Room B annotation"
+        }},
+        {"tool": "create_draft_text", "args": {
+            "text": "ROOM C — 3.0 × 4.0 m", "position": [7300,6000], "height": 180,
+            "label": "Room C annotation"
+        }},
+        {"tool": "create_draft_text", "args": {
+            "text": "ROOM D — 6.0 × 4.0 m", "position": [4300,1500], "height": 220,
+            "label": "Room D annotation"
+        }},
+        {"tool": "create_draft_dimension", "args": {
+            "start": [0,0], "end": [10000,0], "dimension_line_point": [5000,-700],
+            "label": "External width — 10000 mm"
+        }},
+        {"tool": "create_draft_dimension", "args": {
+            "start": [0,0], "end": [0,8000], "dimension_line_point": [-700,4000],
+            "label": "External depth — 8000 mm"
+        }},
+        {"tool": "create_draft_text", "args": {
+            "text": "3D ARCHITECTURAL WALL SHELL — CONCEPT ONLY\n"
+                    "Native Arch wall objects, each separately named and editable.\n"
+                    "Wall height 3000 mm and thickness 200 mm are approved concept inputs.\n"
+                    "Door/window openings, wall joins, room objects, lintels, services, "
+                    "setbacks and local approval checks are not included.",
+            "position": [10300,0], "height": 150, "label": "3D shell scope and assumptions"
+        }},
+    ])
+    add(
+        "design_execution_3d_architectural_wall_shell",
+        "The user approved a simple 3D architectural shell in NextCAD, 10000×8000 mm overall, 3000 mm wall height and 200 mm wall thickness. The room zoning is: Room A on the west side; Rooms B and C in the north-east half; Room D in the south-east half. Build four separate exterior Arch walls and three separate internal Arch partitions using the exact supplied coordinates. Add room labels and two overall dimensions. Do not claim doors, windows, spaces or wall openings have been created.",
+        "I will create seven separate native Arch wall objects, each with its own editable label, then add room annotations and overall dimensions. This is a 3D wall-shell concept, not just a picture or a set of 2D room outlines. Doors, windows, openings, wall joins and room/space objects are not yet included or verified.",
+        shell_plan,
+    )
+
+    # Enclosure modelling: separate body, cover, mounting feet and cable
+    # entry envelopes so later changes do not destroy the component identities.
+    enclosure_plan = [
+        {"tool": "create_part_box", "args": {
+            "length": 600, "width": 400, "height": 500, "origin": [0,0,0],
+            "label": "ENC01 — cabinet external envelope 600×400×500 mm — concept"
+        }},
+        {"tool": "create_part_box", "args": {
+            "length": 620, "width": 420, "height": 40, "origin": [-10,-10,500],
+            "label": "COV01 — removable cover envelope 620×420×40 mm — concept"
+        }},
+    ]
+    for mark, x, y in (
+        ("FT01", 30, 30), ("FT02", 530, 30), ("FT03", 30, 330), ("FT04", 530, 330),
+    ):
+        enclosure_plan.append({"tool": "create_part_box", "args": {
+            "length": 40, "width": 40, "height": 60, "origin": [x,y,-60],
+            "label": f"{mark} — mounting foot envelope 40×40×60 mm"
+        }})
+    for mark, x, y in (("CG01", 150, 0), ("CG02", 300, 0), ("CG03", 450, 0)):
+        enclosure_plan.append({"tool": "create_part_cylinder", "args": {
+            "radius": 15, "height": 30, "origin": [x,y,200], "axis": [0,1,0],
+            "label": f"{mark} — cable-entry envelope Ø30 mm"
+        }})
+    enclosure_plan.append({"tool": "create_draft_text", "args": {
+        "text": "ELECTRICAL CABINET CONCEPT — EXTERNAL ENVELOPES ONLY\n"
+                "ENC01 cabinet; COV01 cover; FT01-FT04 feet; CG01-CG03 cable-entry envelopes.\n"
+                "Internal rails, component clearances, ventilation, earthing, IP rating, "
+                "electrical separation and thermal performance are not modelled or verified.",
+        "position": [700,0,0], "height": 100, "label": "Cabinet component schedule and exclusions"
+    }})
+    add(
+        "design_execution_electrical_cabinet",
+        "Create an editable visual concept for an electrical cabinet in NextCAD. Approved external envelope is 600×400×500 mm. Add a separate 620×420×40 mm cover, four 40×40×60 mm mounting feet, and three Ø30 mm cable-entry envelopes. Keep every component separately named and editable. Do not claim the enclosure is hollow, IP-rated, electrically safe, thermally adequate or ready for fabrication.",
+        "I will create separately editable cabinet, cover, mounting-foot and cable-entry envelope objects, then add a component schedule. The current toolset creates external primitive envelopes; it does not hollow the cabinet or verify internal electrical clearances, ventilation, earthing, ingress protection or thermal performance.",
+        enclosure_plan,
+    )
+
+    # Annular PartDesign sketch and Pad demonstrate a genuinely hollow tube,
+    # unlike overlaying two primitive cylinders.
+    tube_plan = [
+        {"tool": "create_partdesign_body", "args": {"name": "TubeBody"}},
+        {"tool": "create_partdesign_sketch", "args": {"body_name": "TubeBody", "name": "TubeSection", "plane": "XY_Plane", "offset": 0}},
+        {"tool": "add_sketch_circle", "args": {"sketch_name": "TubeSection", "center": [0,0], "radius": 25, "label": "Tube outside radius"}},
+        {"tool": "add_sketch_circle", "args": {"sketch_name": "TubeSection", "center": [0,0], "radius": 20, "label": "Tube inside radius"}},
+        {"tool": "create_partdesign_pad", "args": {"body_name": "TubeBody", "sketch_name": "TubeSection", "length": 500, "name": "TubeExtrusion"}},
+    ]
+    add(
+        "design_execution_parametric_hollow_tube",
+        "Create an editable hollow tube in NextCAD using native PartDesign. Approved dimensions: outside diameter 50 mm, inside diameter 40 mm, length 500 mm. Use one annular sketch with two concentric circles, then Pad the ring profile. Do not substitute overlapping solid cylinders, and do not infer material, pressure rating or flow capacity.",
+        "I will create a PartDesign body, sketch the two concentric circles (radii 25 and 20 mm), and pad the annular profile 500 mm. This creates one editable hollow tube feature rather than two overlapping primitive solids. Material, wall-pressure rating, flow capacity and manufacturing tolerances remain unspecified.",
+        tube_plan,
+    )
+
+    # Pump package: identify each native component by mark, but leave the
+    # internal impeller, seals, shaft clearances and performance unresolved.
+    pump_plan = [
+        {"tool": "create_part_cylinder", "args": {
+            "radius": 100, "height": 180, "origin": [0,0,0], "axis": [0,0,1],
+            "label": "PC01 — pump casing external envelope Ø200×180 mm — concept"
+        }},
+        {"tool": "create_part_cylinder", "args": {
+            "radius": 20, "height": 260, "origin": [0,0,-40], "axis": [0,0,1],
+            "label": "SH01 — shaft envelope Ø40×260 mm — concept"
+        }},
+        {"tool": "create_part_cylinder", "args": {
+            "radius": 80, "height": 20, "origin": [0,0,60], "axis": [0,0,1],
+            "label": "IM01 — impeller disc envelope Ø160×20 mm — concept only"
+        }},
+        {"tool": "create_part_box", "args": {
+            "length": 300, "width": 180, "height": 25, "origin": [-150,-90,-25],
+            "label": "PB01 — pump mounting base envelope 300×180×25 mm"
+        }},
+        {"tool": "create_draft_text", "args": {
+            "text": "PUMP PACKAGE CONCEPT\nPC01 casing envelope; SH01 shaft envelope; IM01 impeller disc envelope; PB01 base.\n"
+                    "Flow path, internal volute, clearances, seals, bearings, materials, pressure "
+                    "rating, duty point and hydraulic performance are not modelled or validated.",
+            "position": [350,0,0], "height": 100, "label": "Pump component schedule and scope"
+        }},
+    ]
+    add(
+        "design_execution_pump_package",
+        "Create an editable pump package concept with approved envelope inputs: casing Ø200×180 mm, shaft Ø40×260 mm, impeller-disc envelope Ø160×20 mm and mounting base 300×180×25 mm. Build each as a separately labelled native object. This is a package arrangement only: do not claim that the internal volute, sealing, bearing arrangement, flow path or hydraulic performance is designed.",
+        "I will place separately editable casing, shaft, impeller-envelope and mounting-base components. The plan labels each part so it can be inspected and revised independently. Internal hydraulic geometry, seals, bearings, material, pressure rating and pump duty are not established by these envelope shapes.",
+        pump_plan,
+    )
+
+    return lessons
+
+
+def make_bim_execution_curriculum() -> list[dict[str, Any]]:
+    """Teach BIMCraft's live command-discovery and staged model-editing protocol."""
+    lessons: list[dict[str, Any]] = []
+    operator_system = (
+        BIM_SYSTEM + " You are also a BIMCraft native project operator. The only assistant tools are "
+        "inspect_model, query_elements, list_commands, execute and todo_write. A command's actual "
+        "identifier and parameter schema must be obtained from list_commands at runtime. Never guess "
+        "command IDs, fields, enum values or defaults. Call execute only after the exact command and "
+        "schema are visible. After each coherent stage, inspect_model or query_elements must confirm "
+        "the project state. Edit existing elements by their returned six-digit IDs with modify; do not "
+        "delete and recreate to simulate an edit. File open/save/export is performed by the user."
+    )
+
+    def add(domain: str, prompt: str, workflow: list[dict[str, Any]], message: str, checks: list[str]) -> None:
+        lessons.append({
+            "domain": domain,
+            "system": operator_system,
+            "prompt": prompt,
+            "completion": json.dumps({
+                "message": message,
+                "workflow": workflow,
+                "checks": checks,
+                "command_execution_rule": (
+                    "The workflow lists approved assistant-tool decisions. For every execute step, "
+                    "first retrieve the live command catalogue and use only the exact command ID and "
+                    "parameter schema returned by list_commands. Do not invent the command or its parameters."
+                ),
+            }, ensure_ascii=False),
+        })
+
+    add(
+        "bim_execution_new_build",
+        "The user approved a two-storey residential BIM concept. Project survey, coordinate reference and storey heights are supplied in the open brief. Build architecture and prepare the coordinated project without guessing command IDs or schema fields.",
+        [
+            {"tool": "inspect_model", "args": {}, "stage": "preflight"},
+            {"tool": "todo_write", "args": {"todos": [
+                {"content": "Inspect project levels, units and existing elements", "status": "in_progress"},
+                {"content": "Discover native level and grid commands", "status": "pending"},
+                {"content": "Create the agreed storey and grid structure", "status": "pending"},
+                {"content": "Discover and model walls, floors and openings", "status": "pending"},
+                {"content": "Create rooms and verify boundaries", "status": "pending"},
+                {"content": "Inspect counts, relationships and warnings", "status": "pending"},
+            ]}},
+            {"tool": "list_commands", "args": {"filter": "level"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "grid"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "wall"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "floor"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "door"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "window"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "room"}, "stage": "discover"},
+            {"tool": "query_elements", "args": {"limit": 200}, "stage": "baseline"},
+            {"tool": "inspect_model", "args": {}, "stage": "verify"},
+        ],
+        "I will start by inspecting the live project and its existing levels/elements. Then I will retrieve the exact native command schemas for levels, grids, walls, floors, doors, windows and rooms. I will build in short stages, updating the checklist and inspecting the project between stages. I will not invent BIMCraft command parameters or claim a room is valid until its boundaries are checked.",
+        ["Storeys and grids match the supplied survey/project brief", "Wall/floor/opening commands are confirmed from the live catalogue", "Door/window hosting is verified", "Room boundaries and areas are inspected", "Project warnings and element counts are reported"],
+    )
+
+    add(
+        "bim_execution_watchtower",
+        "Create a BIM coordination model for an approved two-occupant guard watchtower concept. The user supplied steel-intent placeholders, support footprint, platform level, cabin dimensions and roof. Do not size the structure or infer code compliance.",
+        [
+            {"tool": "inspect_model", "args": {}, "stage": "preflight"},
+            {"tool": "list_commands", "args": {"filter": "level"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "column"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "beam"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "floor"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "wall"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "stair"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "railing"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "schedule"}, "stage": "discover"},
+            {"tool": "inspect_model", "args": {}, "stage": "verify"},
+        ],
+        "I will discover the exact BIMCraft commands for levels, columns, beams, floors, walls, stairs, railings and schedules. I will then create the conceptual BIM elements only where their returned schemas support the agreed properties. Member sections remain placeholders, not engineered sizes; the model must record missing material, connection, foundation and site data as open items.",
+        ["Column and beam marks remain separately identifiable", "Elements are assigned to the correct level", "Cabin and platform spaces are bounded", "Stair and railing elements are reported as modelled or not modelled", "No structural adequacy is inferred from BIM geometry"],
+    )
+
+    add(
+        "bim_execution_mep_coordination",
+        "Coordinate plumbing, electrical and HVAC for a confirmed small building. The user has supplied equipment locations and service requirements, but pipe/cable/duct sizing and design loads are not yet approved.",
+        [
+            {"tool": "inspect_model", "args": {}, "stage": "preflight"},
+            {"tool": "list_commands", "args": {"filter": "pipe"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "plumbing"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "electrical"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "duct"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "connector"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "system"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "schedule"}, "stage": "discover"},
+            {"tool": "query_elements", "args": {"limit": 200}, "stage": "baseline"},
+            {"tool": "inspect_model", "args": {}, "stage": "verify"},
+        ],
+        "I will inspect the project and discover the live pipe, plumbing, electrical, duct, connector, system and schedule commands. I can coordinate the supplied equipment locations and routes where supported. I will not invent pipe diameters, cable sizes, airflow, circuit loads or pressure ratings. I will check connectors and system membership after each discipline stage.",
+        ["Each route is linked to the correct system where native support exists", "Connector endpoints and open ends are checked", "Equipment and terminal relationships are inspected", "Unspecified design sizes/loads remain open", "Schedules and warnings are reviewed"],
+    )
+
+    add(
+        "bim_execution_edit_existing_element",
+        "The user asks to move an existing BIM wall. The current model is open. Find the exact wall and change its approved location without creating a duplicate or losing its identity, host relationships or attached openings.",
+        [
+            {"tool": "inspect_model", "args": {}, "stage": "preflight"},
+            {"tool": "query_elements", "args": {"category": "wall", "limit": 200}, "stage": "identify"},
+            {"tool": "list_commands", "args": {"filter": "modify"}, "stage": "discover"},
+            {"tool": "query_elements", "args": {"category": "door", "limit": 200}, "stage": "dependencies"},
+            {"tool": "query_elements", "args": {"category": "window", "limit": 200}, "stage": "dependencies"},
+            {"tool": "inspect_model", "args": {}, "stage": "verify"},
+        ],
+        "I will query existing walls and identify the exact six-digit element ID. I will inspect the door/window dependencies and retrieve the live modify command schema. Only then will I call execute with that ID and approved fields. I will query the same ID again and compare its before/after values; I will not delete and recreate the wall.",
+        ["The same element ID remains after editing", "Hosted doors/windows remain connected or exceptions are reported", "The modified position matches the approved values", "No duplicate wall was created", "The model is re-inspected after the edit"],
+    )
+
+    add(
+        "bim_execution_quantity_schedule",
+        "Prepare a quantity schedule for a confirmed building model. The user needs element counts and geometry-derived areas/lengths/volumes, not guessed quantities or prices.",
+        [
+            {"tool": "inspect_model", "args": {}, "stage": "preflight"},
+            {"tool": "list_commands", "args": {"filter": "schedule"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "quantity"}, "stage": "discover"},
+            {"tool": "query_elements", "args": {"category": "wall", "limit": 200}, "stage": "query"},
+            {"tool": "query_elements", "args": {"category": "floor", "limit": 200}, "stage": "query"},
+            {"tool": "query_elements", "args": {"category": "door", "limit": 200}, "stage": "query"},
+            {"tool": "query_elements", "args": {"category": "window", "limit": 200}, "stage": "query"},
+            {"tool": "inspect_model", "args": {}, "stage": "verify"},
+        ],
+        "I will discover native schedule/quantity commands and query the relevant element categories. I will use geometry-derived values returned by the model, keep units visible and report missing or unclassified elements. I will not invent material prices, waste percentages or labour costs.",
+        ["Element counts reconcile with queried model records", "Area/length/volume units are explicit", "Duplicates and unclassified elements are reported", "No prices or allowances are invented"],
+    )
+
+    add(
+        "bim_execution_renovation_existing_conditions",
+        "Prepare a renovation BIM workflow. The project includes an old PDF plan and photographs, but their dimensions are not verified. A measured survey will be commissioned before any existing wall is moved.",
+        [
+            {"tool": "inspect_model", "args": {}, "stage": "preflight"},
+            {"tool": "query_elements", "args": {"limit": 200}, "stage": "baseline"},
+            {"tool": "list_commands", "args": {"filter": "phase"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "property"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "issue"}, "stage": "discover"},
+            {"tool": "inspect_model", "args": {}, "stage": "verify"},
+        ],
+        "I will record the existing model state and discover the available phase/property/issue commands. Old drawings and photographs will be stored as unverified reference evidence, not treated as exact as-built geometry. I will not move, delete or resize existing elements until the measured survey and protected-element list are approved.",
+        ["Existing-condition confidence and source are recorded", "Protected elements are identified", "Unverified dimensions are flagged", "No destructive edit occurs before survey approval", "Open issues remain visible"],
+    )
+
+    add(
+        "bim_execution_ifc_exchange_readiness",
+        "Prepare the BIM model for an agreed IFC exchange. The user has not yet supplied final IFC schema/version or the employer information requirements. Do not export a file or claim conformance from the assistant.",
+        [
+            {"tool": "inspect_model", "args": {}, "stage": "preflight"},
+            {"tool": "list_commands", "args": {"filter": "ifc"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "property"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "classification"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "validate"}, "stage": "discover"},
+            {"tool": "query_elements", "args": {"limit": 200}, "stage": "audit"},
+            {"tool": "inspect_model", "args": {}, "stage": "verify"},
+        ],
+        "I will check available IFC, property, classification and validation commands, then audit model elements and missing information. The IFC schema and information requirements must be confirmed first. This assistant cannot perform file exports; the user controls file export in the native application. I will not claim IFC/IDS conformance without checking the actual exported file.",
+        ["IFC schema/version and information requirements are confirmed", "Missing properties and classifications are listed", "Spatial hierarchy, types and relationships are reviewed", "File export remains user-controlled", "Round-trip validation is not claimed until performed"],
+    )
+
+    add(
+        "bim_execution_structural_coordination",
+        "Prepare a coordinated structural BIM frame for a building with an approved grid and levels. The user has not supplied structural analysis results or final member sizes.",
+        [
+            {"tool": "inspect_model", "args": {}, "stage": "preflight"},
+            {"tool": "list_commands", "args": {"filter": "grid"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "column"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "beam"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "brace"}, "stage": "discover"},
+            {"tool": "list_commands", "args": {"filter": "slab"}, "stage": "discover"},
+            {"tool": "query_elements", "args": {"limit": 200}, "stage": "baseline"},
+            {"tool": "inspect_model", "args": {}, "stage": "verify"},
+        ],
+        "I will inspect the model and discover the live grid, column, beam, brace and slab commands. I will map member placements to the approved grid and levels, use only supplied/proposed placeholder sections where the user has approved them, and keep the analysis status clearly separate from BIM geometry. I will not claim member capacity or structural compliance.",
+        ["Grid and element alignments are inspected", "Members have stable marks and level assignment", "Connectivity is checked where supported", "Member sizes are not presented as engineered without calculations", "Analysis and approval status are disclosed"],
+    )
+
     return lessons
 
 
 def make_synthetic_curriculum() -> list[dict[str, Any]]:
     """Small, original, unit-aware lessons that cover gaps in public corpora."""
-    lessons = make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_design_execution_curriculum() + [
+    lessons = (make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_design_execution_curriculum() + make_bim_execution_curriculum()) + [
         {
             "domain": "cad_2d_drafting",
             "system": CAD_SYSTEM,
