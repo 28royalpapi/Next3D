@@ -1,0 +1,166 @@
+# -*- coding: utf-8 -*-
+"""Read-only NextCAD runtime capability census. Run inside the FreeCAD GUI."""
+from __future__ import annotations
+import json
+import os
+from pathlib import Path
+import time
+import FreeCAD as App
+import FreeCADGui as Gui
+
+
+def safe_text(value):
+    try:
+        return None if value is None else str(value)
+    except Exception:
+        return None
+
+
+def read_member(obj, name):
+    try:
+        value = getattr(obj, name, None)
+        return safe_text(value() if callable(value) else value)
+    except Exception:
+        return None
+
+
+def read_bool(obj, name):
+    try:
+        value = getattr(obj, name, None)
+        return bool(value() if callable(value) else value) if value is not None else None
+    except Exception:
+        return None
+
+
+def as_list(value):
+    try:
+        return list(value or [])
+    except Exception:
+        return []
+
+
+def toolbar_commands(workbench):
+    found = []
+    try:
+        groups = workbench.getToolbarItems()
+    except Exception:
+        groups = []
+    for group in as_list(groups):
+        if not isinstance(group, (tuple, list)) or len(group) < 2:
+            continue
+        toolbar = safe_text(group[0]) or "toolbar"
+        for command in as_list(group[1]):
+            command_id = safe_text(command)
+            if command_id and command_id not in ("Separator", "-----"):
+                found.append((command_id, "toolbar:" + toolbar))
+    return found
+
+
+output = os.environ.get("NEXT3D_CAPABILITY_REPORT", "").strip()
+source_commit = os.environ.get("NEXT3D_NEXTCAD_SOURCE_COMMIT", "").strip()
+if not output or not source_commit:
+    raise RuntimeError("Set NEXT3D_CAPABILITY_REPORT and NEXT3D_NEXTCAD_SOURCE_COMMIT before launch")
+
+output_path = Path(output).expanduser().resolve()
+output_path.parent.mkdir(parents=True, exist_ok=True)
+
+# FreeCAD's pinned GUI initialisation exposes the entire registered command manager
+# through Gui.listCommands; this is intentionally different from the smaller AI tool list.
+command_ids = sorted(set(str(item) for item in Gui.listCommands() if item))
+if not command_ids:
+    raise RuntimeError("The live global command registry returned no commands")
+
+try:
+    initial_workbench = str(Gui.activeWorkbench())
+except Exception:
+    initial_workbench = None
+
+workbench_ids = sorted(set(str(item) for item in Gui.listWorkbenches() if item))
+workbenches = []
+membership = {}
+ui_contexts = {}
+diagnostics = []
+
+for workbench_id in workbench_ids:
+    status = "listed"
+    menu_names = []
+    command_set = set()
+    try:
+        Gui.activateWorkbench(workbench_id)
+        Gui.updateGui()
+        status = "activated_for_read_only_census"
+    except Exception as exc:
+        diagnostics.append({"workbench": workbench_id, "kind": "activation_failed", "message": safe_text(exc)})
+    try:
+        wb = Gui.getWorkbench(workbench_id)
+        menu_names = [safe_text(x) for x in as_list(wb.listMenus()) if safe_text(x)]
+        for command_id, context in toolbar_commands(wb):
+            command_set.add(command_id)
+            membership.setdefault(command_id, set()).add(workbench_id)
+            ui_contexts.setdefault(command_id, set()).add(context)
+        display_name = safe_text(getattr(wb, "MenuText", None)) or workbench_id
+    except Exception as exc:
+        display_name = workbench_id
+        diagnostics.append({"workbench": workbench_id, "kind": "lookup_failed", "message": safe_text(exc)})
+    workbenches.append({
+        "id": workbench_id,
+        "display_name": display_name,
+        "activation_status": status,
+        "menus": menu_names,
+        "command_ids": sorted(command_set)
+    })
+
+commands = []
+for command_id in command_ids:
+    try:
+        command = Gui.Command.get(command_id)
+    except Exception as exc:
+        command = None
+        diagnostics.append({"command": command_id, "kind": "metadata_lookup_failed", "message": safe_text(exc)})
+    commands.append({
+        "id": command_id,
+        "menu_text": read_member(command, "getMenuText"),
+        "tooltip": read_member(command, "getToolTipText"),
+        "status_tip": read_member(command, "getStatusTip"),
+        "whats_this": read_member(command, "getWhatsThis"),
+        "accelerator": read_member(command, "getAccel"),
+        "icon": read_member(command, "getPixmap"),
+        "command_class": read_member(command, "className"),
+        "is_checkable": read_bool(command, "isCheckable"),
+        "is_active_at_census": read_bool(command, "isActive"),
+        "workbenches": sorted(membership.get(command_id, set())),
+        "ui_contexts": sorted(ui_contexts.get(command_id, set()))
+    })
+
+if initial_workbench:
+    try:
+        Gui.activateWorkbench(initial_workbench)
+        Gui.updateGui()
+    except Exception as exc:
+        diagnostics.append({"kind": "restore_initial_workbench_failed", "message": safe_text(exc)})
+
+try:
+    app_version = ".".join(str(x) for x in App.Version())
+except Exception:
+    app_version = safe_text(getattr(App, "Version", None))
+
+report = {
+    "schema_version": "1.0.0",
+    "application": "nextcad",
+    "application_version": app_version,
+    "upstream_commit": source_commit,
+    "captured_at_unix": int(time.time()),
+    "runtime_inventory": {
+        "global_command_registry_enumerated": True,
+        "global_command_count": len(commands),
+        "workbenches": workbenches,
+        "commands": commands
+    },
+    "diagnostics": diagnostics
+}
+temporary = output_path.with_suffix(output_path.suffix + ".tmp")
+temporary.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+temporary.replace(output_path)
+print("NEXTCAD CAPABILITY CENSUS PASS: {} commands across {} workbenches -> {}".format(
+    len(commands), len(workbenches), output_path
+))
