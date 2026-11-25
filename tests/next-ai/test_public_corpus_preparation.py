@@ -200,6 +200,18 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             "construction_project_controls",
             "construction_cost_and_quantities",
             "construction_quality_and_safety",
+            "cad_geometry_topology",
+            "cad_sketch_constraint_diagnosis",
+            "cad_boolean_feature_planning",
+            "cad_surface_modelling",
+            "cad_mesh_quality",
+            "cad_fem_preprocessing",
+            "cad_cam_preprocessing",
+            "bim_room_boundaries",
+            "bim_asset_handover",
+            "bim_revision_change_impact",
+            "construction_4d_sequence",
+            "civil_site_coordination",
         }
         self.assertTrue(required.issubset(domains), sorted(required - domains))
         self.assertGreaterEqual(len(lessons), 200)
