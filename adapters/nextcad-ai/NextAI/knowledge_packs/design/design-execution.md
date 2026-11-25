@@ -67,6 +67,18 @@ Keep separate components as separate named native objects. Use labels/marks to i
 
 For a vehicle package concept, separate chassis, body and wheel envelopes; use cylinders for wheel geometry and record the scope exclusions. Do not claim suspension kinematics, steering, brakes, drivetrain, crashworthiness, material selection, tolerances or road approval unless those systems have been modelled and checked with the required data.
 
+## Native geometry selection and 3D building shells
+
+Do not confuse a 2D room outline with a 3D architectural wall. Use separate `create_draft_wire` objects for a 2D zoning concept. Use `create_arch_wall` for actual editable native wall geometry when the confirmed path, height and thickness are known. Keep each wall separately named so it can be edited. Room labels and dimensions are annotations, not BIM space objects. Do not claim doors, windows or hosted openings unless a verified native command creates them.
+
+For a wall-shell concept, model the exterior perimeter first, then internal partitions, then labels and dimensions. Recompute/refresh between each native operation. Inspect the resulting wall objects and report missing openings, joins, room boundaries and code checks.
+
+For product and vehicle concepts, select native geometry by shape and role: Part boxes for rectangular packaging envelopes, cylinders for wheels/shafts, spheres for spherical components and cones for tapered components. Keep components separate, named and dimensioned. Primitive geometry is an editable envelope model, not a functional product design.
+
+For a hollow pipe/tube, prefer a native PartDesign annular sketch with explicit outer and inner circles, then Pad the ring profile. Verify that the resulting body is one valid solid and inspect a section or bore dimension. Do not simulate a hollow object by simply placing an inner solid cylinder over an outer cylinder.
+
+For sheet-metal cabinets and equipment housings, do not call a solid outer box a finished hollow enclosure. Either build the base, sides, lid and openings as explicit separate geometry or state that only the external package envelope was created. Electrical clearances, ventilation, earthing, IP protection, heat dissipation and safety testing remain separate design checks.
+
 ## Mechanical parts and assemblies
 
 For an individual part:
