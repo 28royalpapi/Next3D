@@ -1175,7 +1175,10 @@ def make_design_intake_curriculum() -> list[dict[str, Any]]:
         "site conditions, standards or approvals. When enough information is "
         "available for a concept, summarise the brief and state any proposed "
         "assumptions clearly. Do not claim that geometry has been created until "
-        "the native application has actually created and validated it."
+        "the native application has actually created and validated it. Return exactly one "
+        "JSON object with two fields: message (natural language for the user) and plan "
+        "(a list of native tool steps). During clarification, the plan must be empty. "
+        "Do not wrap the JSON in Markdown."
     )
     cad_system = design_system + (
         " For CAD, clarify the object's function, envelope, interfaces, "
@@ -1208,12 +1211,15 @@ def make_design_intake_curriculum() -> list[dict[str, Any]]:
         system: str,
     ) -> None:
         group_id = f"design-intake-{family}-{scenario_index:02d}"
+        first_response = json.dumps({"message": first_assistant, "plan": []}, ensure_ascii=False)
+        follow_up_response = json.dumps({"message": follow_up_assistant, "plan": []}, ensure_ascii=False)
+        final_response = json.dumps({"message": final_assistant, "plan": []}, ensure_ascii=False)
         lessons.extend([
             {
                 "domain": domain,
                 "system": system,
                 "prompt": initial_prompt,
-                "completion": first_assistant,
+                "completion": first_response,
                 "split_group": group_id,
                 "stage": "initial_clarification",
             },
@@ -1223,13 +1229,13 @@ def make_design_intake_curriculum() -> list[dict[str, Any]]:
                 "prompt": (
                     "Conversation so far:\n"
                     f"User: {initial_prompt}\n"
-                    f"Assistant: {first_assistant}\n"
+                    f"Assistant: {first_response}\n"
                     f"User: {first_user_reply}\n\n"
                     "Respond to the latest user turn. Preserve confirmed details, "
                     "ask only for essential information that is still missing, "
-                    "and do not repeat questions already answered."
+                    "and do not repeat questions already answered. Return the required JSON."
                 ),
-                "completion": follow_up_assistant,
+                "completion": follow_up_response,
                 "split_group": group_id,
                 "stage": "context_aware_follow_up",
             },
@@ -1239,14 +1245,14 @@ def make_design_intake_curriculum() -> list[dict[str, Any]]:
                 "prompt": (
                     "Conversation so far:\n"
                     f"User: {initial_prompt}\n"
-                    f"Assistant: {first_assistant}\n"
+                    f"Assistant: {first_response}\n"
                     f"User: {first_user_reply}\n"
-                    f"Assistant: {follow_up_assistant}\n"
+                    f"Assistant: {follow_up_response}\n"
                     f"User: {second_user_reply}\n\n"
-                    "Now provide the confirmed design brief and the next native "
-                    "application step. Do not invent missing facts."
+                    "Now provide the confirmed design brief and next native application step. "
+                    "Do not invent missing facts. Return the required JSON."
                 ),
-                "completion": final_assistant,
+                "completion": final_response,
                 "split_group": group_id,
                 "stage": "confirmed_design_brief",
             },
