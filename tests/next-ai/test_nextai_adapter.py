@@ -190,6 +190,70 @@ class NativeToolSafetyTests(unittest.TestCase):
         self.assertIn("create_draft_wire", names)
         self.assertIn("create_draft_dimension", names)
         self.assertIn("create_arch_structure", names)
+        self.assertIn("create_part_cylinder", names)
+        self.assertIn("create_part_sphere", names)
+        self.assertIn("create_part_cone", names)
+
+    def test_native_primitive_tools_have_explicit_geometry_schemas(self):
+        tools = {item["name"]: item for item in tool_registry.TOOLS}
+        self.assertEqual(set(tools["create_part_cylinder"]["parameters"]["required"]), {"radius", "height"})
+        self.assertIn("axis", tools["create_part_cylinder"]["parameters"]["properties"])
+        self.assertEqual(set(tools["create_part_sphere"]["parameters"]["required"]), {"radius"})
+        self.assertEqual(set(tools["create_part_cone"]["parameters"]["required"]), {"radius1", "radius2", "height"})
+        for name in ("create_part_cylinder", "create_part_sphere", "create_part_cone"):
+            self.assertFalse(tools[name]["read_only"])
+            self.assertFalse(tools[name]["parameters"]["additionalProperties"])
+
+    def test_native_cylinder_creation_uses_supplied_axis_and_dimensions(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        import math
+
+        class Vector:
+            def __init__(self, *values):
+                self.values = values
+                self.Length = math.sqrt(sum(value * value for value in values))
+
+        class Rotation:
+            def __init__(self, *values):
+                self.values = values
+
+        class Placement:
+            def __init__(self, base, rotation):
+                self.Base, self.Rotation = base, rotation
+
+        class FakeObject:
+            Name = "NextAICylinder"
+            Label = "Cylinder"
+            TypeId = "Part::Cylinder"
+
+        class FakeDoc:
+            def __init__(self):
+                self.created = []
+            def addObject(self, type_id, name):
+                obj = FakeObject()
+                obj.TypeId = type_id
+                obj.Name = name
+                self.created.append(obj)
+                return obj
+
+        app = SimpleNamespace(Vector=Vector, Rotation=Rotation, Placement=Placement)
+        doc = FakeDoc()
+        with patch.object(freecad_tools, "_apps", return_value=(app, None)):
+            result = freecad_tools._create_step(doc, "create_part_cylinder", {
+                "radius": 350, "height": 220, "origin": [700, -220, 350],
+                "axis": [0, 1, 0], "label": "WH01 — wheel envelope"
+            })
+            self.assertEqual(result["type"], "Part::Cylinder")
+            self.assertEqual(doc.created[0].Radius, 350.0)
+            self.assertEqual(doc.created[0].Height, 220.0)
+            self.assertEqual(doc.created[0].Placement.Base.values, (700.0, -220.0, 350.0))
+            self.assertEqual(doc.created[0].Placement.Rotation.values[1].values, (0.0, 1.0, 0.0))
+            with self.assertRaises(ValueError):
+                freecad_tools._create_step(doc, "create_part_cylinder", {
+                    "radius": 350, "height": 220, "axis": [0, 0, 0]
+                })
+        self.assertEqual(len(doc.created), 1)
 
     def test_write_tools_are_typed_and_approval_gated(self):
         for tool in tool_registry.TOOLS:
