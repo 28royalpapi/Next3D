@@ -2632,7 +2632,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": BIM_QA_DATASET, "license": "CC-BY-4.0", "attribution": "Dietmar2020", "purpose": "IFC/BIM conceptual QA"},
             {"repo": "Swiss Dwellings v3.0.0", "doi": "10.5281/zenodo.7788422", "license": "CC-BY-4.0", "attribution": "Standfest et al., Archilyse AG", "purpose": "Image-grounded architectural floor-plan geometry, room typology and shared-boundary relationships; optional training-only corpus"},
             {"repo": "optional IFC model corpus", "license": "manifest-declared", "purpose": "Parsed IFC2x3/IFC4 model hierarchy, element classes, safe properties, materials and relationships; no original GlobalIds or free-text personal metadata"},
-            {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, BIM concepts and construction workflows"},
+            {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, multi-turn CAD/BIM design intake, BIM concepts and construction workflows"},
         ],
         "source_counts": dict(counts),
         "train_records": len(train),
@@ -2651,6 +2651,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "Swiss Dwellings images and vector labels are a training-only optional corpus; the 931.9 MB source archive is not part of the runtime package.",
             "Swiss Dwellings floors from the same building are kept in one data split to prevent train/test leakage.",
             "Optional IFC model records are split by source model or paired project team; free-text names and original GlobalIds are excluded.",
+            "Guided design-intake dialogue stages remain grouped together in one split; confirmed answers are carried forward and missing requirements are asked without repetition.",
         ],
     }
     if ifc_model_manifest:
