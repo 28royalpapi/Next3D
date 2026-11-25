@@ -78,6 +78,16 @@ def split_group_for_file(path: Path, root: Path) -> str:
 
 
 def _safe_scalar(name: str, value: Any) -> int | float | bool | str | None:
+    key = name.casefold().replace(" ", "").replace("_", "")
+    # Deny personal/project identifiers before checking the value type, so
+    # even numeric student IDs, phone numbers or addresses cannot slip through.
+    denied = (
+        "name", "email", "phone", "address", "author", "student",
+        "owner", "contact", "person", "projectnumber", "guid", "globalid",
+        "userid", "username", "company", "organisation", "organization",
+    )
+    if any(marker in key for marker in denied):
+        return None
     if isinstance(value, bool):
         return value
     if isinstance(value, int):
@@ -85,7 +95,6 @@ def _safe_scalar(name: str, value: Any) -> int | float | bool | str | None:
     if isinstance(value, float):
         return round(value, 6)
     if isinstance(value, str):
-        key = name.casefold().replace(" ", "")
         clean = value.strip()
         unsafe_markers = ("@", "/", "\\\\", "email", "phone", "address", "author", "student", "projectnumber")
         lowered = clean.casefold()
