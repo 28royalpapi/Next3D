@@ -127,6 +127,59 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertIn("6000", dimension_lesson["completion"])
         self.assertIn("mm", dimension_lesson["completion"])
 
+    def test_advanced_curriculum_covers_cad_bim_and_engineering_disciplines(self):
+        lessons = module.make_advanced_engineering_curriculum()
+        domains = {lesson["domain"] for lesson in lessons}
+        required = {
+            "cad_2d_entity_semantics",
+            "cad_coordinate_transforms",
+            "cad_parametric_features",
+            "cad_assembly_design",
+            "cad_technical_documentation",
+            "cad_interoperability",
+            "bim_spatial_hierarchy",
+            "bim_type_instance_data",
+            "bim_material_properties",
+            "bim_ifc_exchange_requirements",
+            "bim_georeferencing",
+            "bim_phasing_revisions",
+            "engineering_structural_workflow",
+            "engineering_reinforced_concrete_workflow",
+            "engineering_geotechnical_workflow",
+            "engineering_water_and_drainage",
+            "engineering_survey_and_setting_out",
+            "engineering_standards_and_regulations",
+            "construction_project_controls",
+            "construction_cost_and_quantities",
+            "construction_quality_and_safety",
+        }
+        self.assertTrue(required.issubset(domains), sorted(required - domains))
+        self.assertGreaterEqual(len(lessons), 200)
+        for lesson in lessons:
+            self.assertTrue(lesson["prompt"].strip())
+            self.assertIsInstance(lesson["completion"], dict)
+            self.assertIn("schema", lesson["completion"])
+
+    def test_advanced_cad_lesson_preserves_dimensions_and_feature_order(self):
+        lessons = module.make_advanced_engineering_curriculum()
+        plate = next(row for row in lessons if row["domain"] == "cad_parametric_features")
+        plan = plate["completion"]
+        features = plan["features"]
+        self.assertEqual([item["order"] for item in features], [1, 2, 3, 4])
+        self.assertEqual(features[0]["width"], 100)
+        self.assertEqual(features[1]["length"], 8)
+        self.assertEqual(features[2]["termination"], "through_all")
+
+    def test_standards_lesson_requires_jurisdiction_and_edition(self):
+        lessons = module.make_advanced_engineering_curriculum()
+        lesson = next(row for row in lessons if row["domain"] == "engineering_standards_and_regulations")
+        required = lesson["completion"]["required_context"]
+        self.assertIn("jurisdiction", required)
+        self.assertIn("edition and amendments", required)
+        rules = " ".join(lesson["completion"]["rules"]).lower()
+        self.assertIn("never assume", rules)
+        self.assertIn("copyrighted", rules)
+
     def test_training_script_compiles_and_keeps_full_precision_lora(self):
         trainer_path = SCRIPT.parents[0] / "train_nextai.py"
         source = trainer_path.read_text(encoding="utf-8")
