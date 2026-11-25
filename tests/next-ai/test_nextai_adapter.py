@@ -138,6 +138,10 @@ class NativeToolSafetyTests(unittest.TestCase):
             "watchtower member schedule inspect modify existing BIM element", limit=10
         )
         self.assertTrue(any(item["source"].endswith("design/design-execution.md") for item in execution))
+        bim_native = knowledge.search(
+            "BIMCraft list_commands execute inspect_model query_elements todo_write structural_column beam footing", limit=10
+        )
+        self.assertTrue(any(item["source"].endswith("bim/native-command-playbook.md") for item in bim_native))
 
     def test_nextcad_runtime_prompt_requires_context_aware_design_clarification(self):
         ui_source = (ROOT / "adapters/nextcad-ai/NextAI/next_ai/ui.py").read_text(encoding="utf-8")
