@@ -81,6 +81,56 @@ TOOLS = [
         "read_only": False,
     },
     {
+        "name": "create_part_cylinder",
+        "description": "Create an editable native Part cylinder with a chosen axis, radius and height in millimetres; useful for shafts, pins, columns and wheel-envelope concepts.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "radius": {"type": "number", "exclusiveMinimum": 0},
+                "height": {"type": "number", "exclusiveMinimum": 0},
+                "origin": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "axis": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "label": {"type": "string"}
+            },
+            "required": ["radius", "height"],
+            "additionalProperties": False
+        },
+        "read_only": False
+    },
+    {
+        "name": "create_part_sphere",
+        "description": "Create an editable native Part sphere centred at a specified point, with radius in millimetres.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "radius": {"type": "number", "exclusiveMinimum": 0},
+                "center": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "label": {"type": "string"}
+            },
+            "required": ["radius"],
+            "additionalProperties": False
+        },
+        "read_only": False
+    },
+    {
+        "name": "create_part_cone",
+        "description": "Create an editable native Part cone or frustum with two end radii, height and axis in millimetres.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "radius1": {"type": "number", "minimum": 0},
+                "radius2": {"type": "number", "minimum": 0},
+                "height": {"type": "number", "exclusiveMinimum": 0},
+                "origin": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "axis": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 3},
+                "label": {"type": "string"}
+            },
+            "required": ["radius1", "radius2", "height"],
+            "additionalProperties": False
+        },
+        "read_only": False
+    },
+    {
         "name": "create_draft_wire",
         "description": "Create a native Draft polyline or closed plan outline from 2D/3D points in millimetres.",
         "parameters": {
