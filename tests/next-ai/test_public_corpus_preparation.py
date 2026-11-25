@@ -201,6 +201,32 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertIn("never assume", rules)
         self.assertIn("copyrighted", rules)
 
+    def test_swiss_dwellings_directory_admits_only_matching_building_split_records(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "assets.png").write_bytes(b"test-image")
+            base = {
+                "domain": "swiss_dwellings_floorplan",
+                "source_doi": "10.5281/zenodo.7788422",
+                "license": "CC-BY-4.0",
+                "source_split": "train",
+                "images": [str(root / "assets.png")],
+                "completion": "{\"schema\":\"nextai.swiss_dwellings_floorplan.v1\"}",
+            }
+            for split in ("train", "validation", "test"):
+                row = dict(base, source_split=split)
+                (root / f"{split}.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+            rows = module.read_swiss_dwellings_directory(root)
+            self.assertEqual({key: len(value) for key, value in rows.items()},
+                             {"train": 1, "validation": 1, "test": 1})
+
+            bad = dict(base, source_split="train", license="unknown")
+            (root / "validation.jsonl").write_text(json.dumps(bad) + "\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                module.read_swiss_dwellings_directory(root)
+
     def test_training_script_compiles_and_keeps_full_precision_lora(self):
         trainer_path = SCRIPT.parents[0] / "train_nextai.py"
         source = trainer_path.read_text(encoding="utf-8")
