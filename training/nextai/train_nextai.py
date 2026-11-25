@@ -23,7 +23,9 @@ def main() -> int:
     parser.add_argument("--data-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--base-model", default="Qwen/Qwen3.5-0.8B")
-    parser.add_argument("--max-steps", type=int, default=800)
+    parser.add_argument("--max-steps", type=int, default=-1,
+                        help="Set -1 to train for complete epochs; a positive value runs a bounded smoke/debug pass.")
+    parser.add_argument("--num-train-epochs", type=float, default=1.0)
     parser.add_argument("--max-seq-length", type=int, default=2048)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--gradient-accumulation", type=int, default=8)
@@ -34,8 +36,10 @@ def main() -> int:
                         help="Save a temporary merged 16-bit checkpoint for vision-projector Q8 export.")
     args = parser.parse_args()
 
-    if args.max_steps < 1 or args.batch_size < 1 or args.gradient_accumulation < 1:
-        parser.error("steps and batch sizes must be positive")
+    if args.max_steps == 0 or args.max_steps < -1 or args.num_train_epochs <= 0:
+        parser.error("max-steps must be -1 or positive, and epochs must be positive")
+    if args.batch_size < 1 or args.gradient_accumulation < 1:
+        parser.error("batch size and gradient accumulation must be positive")
 
     train_rows = read_jsonl(args.data_dir / "train.jsonl")
     validation_rows = read_jsonl(args.data_dir / "validation.jsonl")
@@ -125,9 +129,14 @@ def main() -> int:
 
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
+    use_bf16 = bool(torch.cuda.is_bf16_supported())
     config = SFTConfig(
         output_dir=str(output / "checkpoints"),
         max_length=args.max_seq_length,
+        max_steps=args.max_steps,
+        num_train_epochs=args.num_train_epochs,
+        bf16=use_bf16,
+        fp16=not use_bf16,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
         max_steps=args.max_steps,
@@ -194,6 +203,8 @@ def main() -> int:
         "train_records": len(train_rows),
         "validation_records": len(validation_rows),
         "max_steps": args.max_steps,
+        "num_train_epochs": args.num_train_epochs,
+        "precision": "bf16" if use_bf16 else "fp16",
         "max_seq_length": args.max_seq_length,
         "lora_rank": args.lora_rank,
         "training_metrics": train_metrics.metrics,
