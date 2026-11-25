@@ -121,8 +121,8 @@ class SwissDwellingsPipelineTests(unittest.TestCase):
 
     def test_building_split_is_stable_for_all_floors(self):
         building = self._building_for_split("train")
-        first = swiss.building_split("same-site", building)
-        second = swiss.building_split("same-site", building)
+        first = swiss.building_split("site-test", building)
+        second = swiss.building_split("site-test", building)
         self.assertEqual(first, second)
         self.assertEqual(first, "train")
 
