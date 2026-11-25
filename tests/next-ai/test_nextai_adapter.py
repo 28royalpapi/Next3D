@@ -126,6 +126,10 @@ class NativeToolSafetyTests(unittest.TestCase):
             "BIM project coordinate reference IFC schema LOD asset information requirements"
         )
         self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in bim))
+        cam = knowledge.search(
+            "CNC machine controller stock workholding cutting tools postprocessor toolpath"
+        )
+        self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in cam))
 
     def test_nextcad_runtime_prompt_requires_context_aware_design_clarification(self):
         ui_source = (ROOT / "adapters/nextcad-ai/NextAI/next_ai/ui.py").read_text(encoding="utf-8")
