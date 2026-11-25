@@ -139,7 +139,6 @@ def main() -> int:
         fp16=not use_bf16,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
-        max_steps=args.max_steps,
         learning_rate=args.learning_rate,
         warmup_steps=20,
         logging_steps=10,
