@@ -159,6 +159,20 @@ class NativeToolSafetyTests(unittest.TestCase):
             self.assertIn(term, installer)
         compile(installer, "install-nextbim-ai-knowledge.py", "exec")
 
+    def test_nextbim_installer_teaches_staged_model_creation_and_in_place_editing(self):
+        installer = (ROOT / "scripts/install-nextbim-ai-knowledge.py").read_text(encoding="utf-8")
+        for term in (
+            "visible native stages",
+            "filter list_commands",
+            "update todo_write",
+            "query_elements",
+            "use modify on that same element",
+            "do not create a duplicate",
+            "visual member envelopes as concept placeholders",
+        ):
+            self.assertIn(term, installer)
+        self.assertIn("design-execution.md", installer)
+
     def test_coordinate_validation(self):
         self.assertEqual(freecad_tools._point([10, 20]), [10.0, 20.0, 0.0])
         with self.assertRaises(ValueError):
