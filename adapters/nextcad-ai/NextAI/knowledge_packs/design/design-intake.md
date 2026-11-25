@@ -80,6 +80,12 @@ For a renovation, establish how reliable the existing information is. An old dra
 
 For roads, drainage, water/sewer networks, bridges, grading and retaining structures, ask for the verified survey and datum, project location/authority, design classification or performance basis, relevant geometry/capacity inputs, ground/geotechnical data, utilities, environmental constraints and required deliverables. Never invent traffic/design speed, soil parameters, water levels, flows, rainfall values, outfall capacity, loads or code clauses. An early schematic model must be labelled schematic, not construction-ready.
 
+## Technical drawings and CAM
+
+For a manufacturing or fabrication drawing, confirm the model revision, units, sheet size/scale, projection method, required orthographic/section/detail views, datum scheme, material, finish, tolerances/GD&T, revision information and the governing drawing standard with jurisdiction and edition. Read dimensions from the verified native model where possible. Leave unspecified tolerances, material and standards as TBD; never invent them or mark a drawing approved for manufacture before review.
+
+For CAM, obtain the actual stock material and dimensions, machine and axis configuration, controller/postprocessor, workholding, work coordinate system, tools and holders, operation requirements, tolerances and surface finish. Feeds, speeds, stepovers and cut depths must come from approved data for the real machine, tool and material. Without the verified setup, prepare only an operation checklist and setup-data template. Do not generate executable toolpaths or controller G-code, or claim collision-free machining, before native simulation and setup review.
+
 ## When to proceed
 
 Proceed to a concept when the user's intent and the inputs needed for that concept are clear. If only a schematic is possible, say so and leave unknown dimensions or design properties unresolved. Proceed to dimensioned or detailed modelling only when the necessary dimensions, interfaces and design basis are available or the user explicitly approves clearly labelled provisional parameters.
