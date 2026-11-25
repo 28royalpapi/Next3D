@@ -87,6 +87,11 @@ class PrepareNativeSftTests(unittest.TestCase):
             target = json.loads(example["messages"][2]["content"])
             self.assertEqual(target["steps"][0]["tool"], "create_box")
             self.assertEqual(target["steps"][0]["arguments"]["length"], 100)
+            self.assertEqual(example["split"], "train")
+            self.assertEqual(example["source"]["license"], "Apache-2.0")
+            self.assertTrue(example["source"]["terms_reviewed"])
+            self.assertEqual(example["privacy"]["redaction_status"], "not_needed")
+            self.assertEqual(len(example["source"]["source_group_sha256"]), 64)
 
     def test_failed_native_validation_is_quarantined(self):
         item = make_record()
