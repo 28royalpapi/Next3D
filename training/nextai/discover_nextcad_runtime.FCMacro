@@ -68,7 +68,8 @@ output_path.parent.mkdir(parents=True, exist_ok=True)
 # FreeCAD's pinned GUI initialisation exposes the entire registered command manager
 # through Gui.listCommands; this is intentionally different from the smaller AI tool list.
 try:
-    initial_workbench = str(Gui.activeWorkbench())
+    active_workbench = Gui.activeWorkbench()
+    initial_workbench = read_member(active_workbench, "name") or safe_text(active_workbench)
 except Exception:
     initial_workbench = None
 
@@ -104,7 +105,8 @@ for workbench_id in workbench_ids:
         "display_name": display_name,
         "activation_status": status,
         "menus": menu_names,
-        "command_ids": sorted(command_set)
+        "toolbar_command_ids": sorted(command_set),
+        "menu_command_mapping": "not_exposed_by_pinned_python_workbench_wrapper"
     })
 
 # Python workbenches may register commands only when activated.
@@ -130,7 +132,7 @@ for command_id in command_ids:
         "command_class": read_member(command, "className"),
         "is_checkable": read_bool(command, "isCheckable"),
         "is_active_at_census": read_bool(command, "isActive"),
-        "workbenches": sorted(membership.get(command_id, set())),
+        "toolbar_workbenches": sorted(membership.get(command_id, set())),
         "ui_contexts": sorted(ui_contexts.get(command_id, set()))
     })
 

@@ -78,11 +78,17 @@ def load_bim_catalog(path: Path, expected_commit: str | None = None):
             "registration_kind": row["registration_kind"],
             "aliases": row.get("aliases") or [],
             "parameter_contract": row.get("parameters") or "",
+            "parameter_contract_kind": "human_readable_registration_description_not_json_schema",
             "undoable": row.get("undoable"),
             "file_effect": row.get("file_effect") or "none",
             "menu": row.get("menu"),
             "runtime_status": "registered_in_pinned_source",
-            "assistant_surface": "list_commands_and_execute"
+            "assistant_surface": "list_commands_discovery",
+            "assistant_execution_status": (
+                "blocked_no_image_output" if row["id"] == "render"
+                else "user_operated_file_command" if (row.get("file_effect") or "none") != "none"
+                else "native_execution_candidate_subject_to_bridge_policy"
+            )
         })
     return data, capabilities
 
@@ -147,7 +153,7 @@ def load_nextcad_runtime(path: Path, expected_commit: str):
             "source_commit": expected_commit,
             "application_version": data.get("application_version"),
             "runtime_status": "discovered_in_running_application",
-            "workbenches": workbench_ids,
+            "toolbar_workbenches": workbench_ids,
             "menu_text": row.get("menu_text"),
             "tooltip": row.get("tooltip"),
             "status_tip": row.get("status_tip"),
@@ -228,15 +234,26 @@ def build_census(bim_path: Path, cad_index_path: Path,
                     "undoable": capability.get("undoable"),
                     "file_effect": capability.get("file_effect")
                 })
-                if capability.get("file_effect") != "none":
+                if capability.get("assistant_execution_status") == "blocked_no_image_output":
                     item["special_rule"] = (
-                        "Teach command discovery and user-led file exchange. Preserve the native "
-                        "assistant file-access policy; do not train the model to bypass it."
+                        "The native assistant explicitly blocks render/image output. Teach the "
+                        "command's purpose and parameters as native software knowledge, but do not "
+                        "train the assistant to invoke this command through its current image-blind tool surface."
+                    )
+                elif capability.get("assistant_execution_status") == "user_operated_file_command":
+                    item["special_rule"] = (
+                        "Teach command discovery and user-led file exchange. The native assistant "
+                        "does not read or write user files; do not train it to bypass this policy."
+                    )
+                else:
+                    item["special_rule"] = (
+                        "Native command execution still passes through the permissioned BIMCraft "
+                        "bridge. Confirm the current access mode and inspect the native result."
                     )
             else:
                 item["workbenches"] = capability.get("workbenches") or []
                 item["special_rule"] = (
-                    "A discovered GUI command is not automatically a safe, typed AI tool. "
+                    "A discovered GUI command or public API member is not automatically a safe, typed AI tool. "
                     "Enable execution only through a reviewed native adapter."
                 )
             obligations.append(item)

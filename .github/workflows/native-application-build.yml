@@ -10,6 +10,12 @@ on:
       - "adapters/nextcad-ai/**"
       - "tests/next-ai/**"
       - "training/nextai/**"
+      - "docs/next-ai/catalogs/**"
+      - "training/nextai/COMPLETE_NATIVE_CAPABILITY_STANDARD.md"
+      - "scripts/run_nextcad_capability_census.py"
+      - "docs/next-ai/catalogs/**"
+      - "training/nextai/COMPLETE_NATIVE_CAPABILITY_STANDARD.md"
+      - "scripts/run_nextcad_capability_census.py"
       - "packaging/nextai/**"
       - "patches/**"
       - "scripts/apply-source-patches.sh"
@@ -138,6 +144,14 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force ../../artifacts | Out-Null
           pixi run python ../../scripts/run_nextcad_capability_census.py --executable build/relWithDebInfo/bin/FreeCAD.exe --macro ../../training/nextai/discover_nextcad_runtime.FCMacro --output ../../artifacts/nextcad-runtime.json --census-output ../../artifacts/capability-census --nextcad-commit 00cb280454069966a2fb0a8e7dc184c46e7b38b3 --nextbim-commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b
+      - name: Upload NextCAD Windows capability census
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextcad-windows-capability-census
+          path: artifacts/capability-census/
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Launch NextCAD on macOS
         if: runner.os == 'macOS'
@@ -150,6 +164,14 @@ jobs:
         run: |
           mkdir -p ../../artifacts
           pixi run python ../../scripts/run_nextcad_capability_census.py --executable build/relWithDebInfo/bin/FreeCAD --macro ../../training/nextai/discover_nextcad_runtime.FCMacro --output ../../artifacts/nextcad-runtime.json --census-output ../../artifacts/capability-census --nextcad-commit 00cb280454069966a2fb0a8e7dc184c46e7b38b3 --nextbim-commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b
+      - name: Upload NextCAD macOS capability census
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextcad-macos-capability-census
+          path: artifacts/capability-census/
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Install NextCAD for GUI smoke test
         if: runner.os == 'Linux'

@@ -15,7 +15,7 @@ A complete inventory has separate layers. No one layer is a substitute for anoth
 ### NextCAD
 
 1. **Source modules and workbenches.** Start from the pinned source index. Record every module, workbench, source path, source revision and external dependency.
-2. **Live GUI command registry.** Run the discovery macro inside the actual NextCAD GUI. It uses the native global command registry and records every registered GUI command, command metadata, workbench membership, menu and toolbar context.
+2. **Live GUI command registry.** Run the discovery macro inside the actual NextCAD GUI. It uses the native global command registry and records every registered GUI command and its metadata. It also records workbench menu labels and the toolbar commands that the pinned Python workbench wrapper exposes. The wrapper does not expose a menu-label-to-command-ID mapping, so the census must not pretend that it knows every command's menu membership.
 3. **Public Python API.** Record the APIs exposed by the installed modules and their public classes, functions, properties and documentation. This is a separate layer from GUI commands: a callable API method may have no toolbar button.
 4. **Native object model.** Inventory object types, property schemas, units, links, placements, constraints, feature history, dependencies, supported file formats and import/export behaviour.
 5. **Optional integrations.** Inventory add-ons, solvers, post-processors, libraries and external programmes separately, with their versions, availability, licences and tests.
@@ -29,7 +29,7 @@ The live census must be taken after the pinned application starts and its workbe
 2. **Runtime command discovery.** Preserve the in-app `list_commands` pathway as the live discovery source. The student must read the exact current command description before constructing an `execute` call.
 3. **Native model schema.** Inventory element types, families, type and instance parameters, host/level relationships, geometry, classifications, quantities, materials and IFC mapping.
 4. **Project operations.** Include view, schedule, sheet, coordinate, phasing, library, plugin, open/save/export and recovery operations with their user-permission boundaries.
-5. **AI operation surface.** Map every native registration to the assistant's read/write tools and the current file-access policy. A native command can exist while intentionally being disallowed to the assistant.
+5. **AI operation surface.** Map every native registration to the assistant's read/write tools and the current file-access policy. The native assistant blocks file-reading/writing commands and its image-rendering command; other commands remain subject to the bridge's access rules. A native command can exist while intentionally being disallowed to the assistant.
 
 The pinned baseline contains 214 command registrations. That number is a source inventory count, not 214 proven operator skills.
 
@@ -48,7 +48,7 @@ For every native command (and, separately, every callable API operation), the st
 9. Composition: use in compound workflows and complete projects, including combinations not explicitly shown in one lesson.
 10. Limitations: unsupported functions, unavailable dependencies, incomplete exchange and engineering claims the application cannot prove.
 
-The new census generator creates these as **skill obligations**, not as fake supervised examples. A command is not mastered because a row was generated for it.
+The new census generator creates these as **skill obligations**, not as fake supervised examples. For Next BIM, a parameter contract is a human-readable command-registration description, not a formal JSON Schema; live command discovery and the native engine remain authoritative for argument acceptance. A command is not mastered because a row was generated for it.
 
 ## 3. The scenario grammar
 

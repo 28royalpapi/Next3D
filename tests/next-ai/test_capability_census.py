@@ -58,7 +58,7 @@ class CapabilityCensusTests(unittest.TestCase):
             census, obligations = module.build_census(BIM, CAD, path, CAD_COMMIT, BIM_COMMIT)
             found = next(x for x in census["capabilities"] if x["capability_type"] == "native_gui_command")
             self.assertEqual(found["native_id"], "Part_Box")
-            self.assertEqual(found["workbenches"], [wb])
+            self.assertEqual(found["toolbar_workbenches"], [wb])
             self.assertEqual(census["counts"]["nextcad_runtime_api_members"], 2)
             self.assertEqual(len([x for x in obligations if x["application"] == "nextcad"]), 30)
             self.assertEqual(
@@ -106,6 +106,20 @@ class CapabilityCensusTests(unittest.TestCase):
         self.assertTrue(all(x["record_type"] == "skill_obligation_not_training_example" for x in obligations))
         self.assertTrue(all(x["mastery_status"] == "not_assessed" for x in obligations))
 
+    def test_bim_assistant_policy_distinguishes_render_file_and_normal_commands(self):
+        census, obligations = module.build_census(BIM, CAD)
+        commands = {x["native_id"]: x for x in census["capabilities"]
+                    if x["application"] == "nextbim"}
+        self.assertEqual(commands["render"]["assistant_execution_status"], "blocked_no_image_output")
+        self.assertEqual(commands["save"]["assistant_execution_status"], "user_operated_file_command")
+        self.assertEqual(commands["wall"]["assistant_execution_status"],
+                         "native_execution_candidate_subject_to_bridge_policy")
+        render_obligations = [x for x in obligations
+                              if x["application"] == "nextbim" and x["native_id"] == "render"]
+        self.assertTrue(all("image-blind" in x.get("special_rule", "") for x in render_obligations))
+        self.assertEqual(commands["wall"]["parameter_contract_kind"],
+                         "human_readable_registration_description_not_json_schema")
+
     def test_file_effect_commands_have_a_policy_boundary(self):
         census, obligations = module.build_census(BIM, CAD)
         file_ids = {x["native_id"] for x in census["capabilities"]
@@ -125,6 +139,9 @@ class RuntimeMacroSafetyTests(unittest.TestCase):
         self.assertIn("getToolbarItems()", source)
         self.assertIn("python_api_modules", source)
         self.assertIn("sys.modules", source)
+        self.assertIn('read_member(active_workbench, "name")', source)
+        self.assertIn("toolbar_workbenches", source)
+        self.assertIn("menu_command_mapping", source)
         self.assertNotIn("Gui.runCommand(", source)
         self.assertNotIn("App.newDocument(", source)
         self.assertNotIn("doc.save(", source)
