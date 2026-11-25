@@ -1155,6 +1155,598 @@ def make_advanced_engineering_curriculum() -> list[dict[str, Any]]:
     return lessons
 
 
+def make_design_intake_curriculum() -> list[dict[str, Any]]:
+    """Teach NextAI to interview users before producing CAD or BIM designs.
+
+    Every design scenario is represented as three supervised turns: initial
+    clarification, context-aware follow-up, and a confirmed design brief.
+    All three records share one split_group so dialogue stages cannot leak
+    across training, validation and held-out test sets.
+    """
+    lessons: list[dict[str, Any]] = []
+
+    design_system = (
+        "You are NextAI, a helpful CAD/BIM design assistant. Before creating "
+        "geometry, understand the user's purpose and ask only the questions "
+        "needed for the next safe design step. Ask concise, grouped questions "
+        "in natural language. Track what the user has already confirmed; never "
+        "ask the same question twice. Separate required inputs from optional "
+        "preferences. Never invent dimensions, loads, material properties, "
+        "site conditions, standards or approvals. When enough information is "
+        "available for a concept, summarise the brief and state any proposed "
+        "assumptions clearly. Do not claim that geometry has been created until "
+        "the native application has actually created and validated it."
+    )
+    cad_system = design_system + (
+        " For CAD, clarify the object's function, envelope, interfaces, "
+        "components, intended level of detail and manufacturing/export purpose. "
+        "Keep safety-critical or load-bearing design decisions subject to "
+        "verified engineering inputs and native checks."
+    )
+    bim_system = design_system + (
+        " For BIM, clarify project scope, building/site context, disciplines, "
+        "coordinate reference, information requirements, exchange deliverables "
+        "and validation criteria. Distinguish geometry from information data."
+    )
+    architecture_system = design_system + (
+        " For architectural planning, distinguish bedrooms, master bedrooms, "
+        "bathrooms and toilet/WC rooms; clarify ensuite versus shared facilities, "
+        "living spaces, building form and optional rooms. Ask for plot dimensions "
+        "and access orientation before claiming a site-fitted scaled plan."
+    )
+
+    def add_three_turn_flow(
+        domain: str,
+        family: str,
+        scenario_index: int,
+        initial_prompt: str,
+        first_assistant: str,
+        first_user_reply: str,
+        follow_up_assistant: str,
+        second_user_reply: str,
+        final_assistant: str,
+        system: str,
+    ) -> None:
+        group_id = f"design-intake-{family}-{scenario_index:02d}"
+        lessons.extend([
+            {
+                "domain": domain,
+                "system": system,
+                "prompt": initial_prompt,
+                "completion": first_assistant,
+                "split_group": group_id,
+                "stage": "initial_clarification",
+            },
+            {
+                "domain": domain,
+                "system": system,
+                "prompt": (
+                    "Conversation so far:\n"
+                    f"User: {initial_prompt}\n"
+                    f"Assistant: {first_assistant}\n"
+                    f"User: {first_user_reply}\n\n"
+                    "Respond to the latest user turn. Preserve confirmed details, "
+                    "ask only for essential information that is still missing, "
+                    "and do not repeat questions already answered."
+                ),
+                "completion": follow_up_assistant,
+                "split_group": group_id,
+                "stage": "context_aware_follow_up",
+            },
+            {
+                "domain": domain,
+                "system": system,
+                "prompt": (
+                    "Conversation so far:\n"
+                    f"User: {initial_prompt}\n"
+                    f"Assistant: {first_assistant}\n"
+                    f"User: {first_user_reply}\n"
+                    f"Assistant: {follow_up_assistant}\n"
+                    f"User: {second_user_reply}\n\n"
+                    "Now provide the confirmed design brief and the next native "
+                    "application step. Do not invent missing facts."
+                ),
+                "completion": final_assistant,
+                "split_group": group_id,
+                "stage": "confirmed_design_brief",
+            },
+        ])
+
+    # Residential design: the first reply explicitly asks about every item
+    # the user requested NextAI to clarify, rather than assuming defaults.
+    home_prompts = [
+        "Generate a 3-bedroom floor plan.",
+        "Can you draw a house plan with three bedrooms?",
+        "I need a floor plan for a three-bedroom home.",
+        "Prepare a three-bedroom residential layout for me.",
+        "Design a three-bedroom house in CAD.",
+        "I want a simple floor plan: three bedrooms.",
+        "Create a concept plan for a three-bedroom family house.",
+        "Help me lay out a three-bedroom residence.",
+        "Draw a three-bedroom home layout with good circulation.",
+        "Make a residential plan with three bedrooms and shared spaces.",
+        "I need a three-bedroom house plan that I can edit later.",
+        "Start a CAD floor plan for a three-bedroom home.",
+    ]
+    extras = [
+        ["store", "dining area"],
+        ["store", "laundry"],
+        ["pantry", "dining area"],
+        ["store", "guest WC"],
+        ["laundry", "small study"],
+        ["store", "family lounge"],
+        ["pantry", "laundry"],
+        ["store", "prayer room"],
+        ["dining area", "guest WC"],
+        ["store", "carport"],
+        ["pantry", "study"],
+        ["laundry", "family lounge"],
+    ]
+    forms = ["bungalow", "bungalow", "two-storey house", "bungalow"] * 3
+    masters = [1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1]
+    toilets = [2, 3, 3, 2, 3, 4, 2, 3, 2, 4, 3, 2]
+    living = [1, 1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 1]
+    for i, initial_prompt in enumerate(home_prompts):
+        master_count = masters[i]
+        toilet_count = toilets[i]
+        ensuite_count = min(master_count, toilet_count - 1)
+        shared_count = toilet_count - ensuite_count
+        form = forms[i]
+        living_count = living[i]
+        living_label = "one sitting/living room" if living_count == 1 else "one formal sitting room and one family lounge"
+        extra_rooms = extras[i]
+        extras_label = ", ".join(extra_rooms)
+        first_assistant = (
+            "Certainly. Before I draw, let me confirm the layout you want:\n"
+            "1. Should it be a bungalow or a storey house?\n"
+            "2. How many master bedrooms do you want, and should each have an ensuite?\n"
+            "3. How many toilets/bathrooms should there be in total? How many should be ensuite and how many shared or guest facilities?\n"
+            "4. Do you want one sitting room, or a separate formal sitting room and family lounge?\n"
+            "5. Which extra spaces should I include, such as a store, pantry, dining area, laundry, study, guest room or carport?\n"
+            "6. Do you have the plot width and depth, and which side faces the road? You can give these in metres. "
+            "I can make an unscaled concept without plot dimensions, but I need them for a scaled site-fitted plan."
+        )
+        first_user_reply = (
+            f"Make it a {form}. I want 3 bedrooms, {master_count} master bedroom"
+            f"{'s' if master_count != 1 else ''}, {toilet_count} toilet/bathroom spaces in total "
+            f"({ensuite_count} ensuite and {shared_count} shared/guest), {living_label}, "
+            f"and include {extras_label}. I have not chosen room dimensions yet."
+        )
+        follow_up_assistant = (
+            "Thank you. I have recorded the building form, three bedrooms, the master-bedroom "
+            "count, the total toilet/bathroom count and its ensuite/shared split, the living spaces "
+            f"and these additional rooms: {extras_label}. I will not ask you to repeat those details. "
+            "To fit the layout to your land, what are the plot width and depth, and which plot side "
+            "has the road entrance? Also, should I propose preliminary room sizes for your review?"
+        )
+        second_user_reply = (
+            f"The plot is {18 + (i % 3) * 2} m by {30 + (i % 2) * 5} m. "
+            "The road is along the shorter frontage. Please propose room sizes, label them as "
+            "preliminary, and keep all dimensions in metres."
+        )
+        final_assistant = (
+            "Design brief confirmed:\n"
+            f"- Building form: {form}\n"
+            "- Bedrooms: 3\n"
+            f"- Master bedrooms: {master_count}\n"
+            f"- Toilets/bathrooms: {toilet_count} total ({ensuite_count} ensuite, {shared_count} shared/guest)\n"
+            f"- Living spaces: {living_label}\n"
+            f"- Additional rooms: {extras_label}\n"
+            f"- Plot: {18 + (i % 3) * 2} m by {30 + (i % 2) * 5} m, road on the shorter frontage\n"
+            "- Room sizes: propose preliminary dimensions and mark them for user review\n"
+            "- Units: metres\n\n"
+            "I now have enough information to prepare a dimensioned concept layout. I will show "
+            "the room schedule, circulation, proposed wall positions, doors and windows, and "
+            "overall dimensions. I will keep setbacks, exact wall build-ups and local planning "
+            "requirements as items to confirm; I will not claim permit approval or code compliance."
+        )
+        add_three_turn_flow(
+            "design_intake_architecture", "home", i + 1, initial_prompt,
+            first_assistant, first_user_reply, follow_up_assistant,
+            second_user_reply, final_assistant, architecture_system,
+        )
+
+    # Commercial spaces: teach work-pattern and occupancy questions, not only
+    # room counting.
+    office_uses = [
+        ("small office", 12, 2, "reception, open work area and one meeting room"),
+        ("design studio", 18, 1, "shared work tables, material library and review room"),
+        ("clinic reception and consultation suite", 6, 3, "waiting area, consultation rooms and accessible WC"),
+        ("training centre", 30, 2, "classroom, instructor room and storage"),
+        ("co-working office", 24, 2, "hot desks, quiet rooms and meeting rooms"),
+        ("retail shop", 5, 1, "sales floor, stock room and staff area"),
+        ("small restaurant", 8, 2, "dining area, kitchen, wash-up and dry store"),
+        ("community learning hub", 20, 2, "teaching room, reading area and multipurpose room"),
+    ]
+    for i, (use, people, toilets, extras_text) in enumerate(office_uses):
+        prompt = f"Create a CAD floor plan for a {use}."
+        first = (
+            f"I can plan the {use}. Before drawing, please confirm: "
+            f"(1) the expected staff/visitor capacity (I have no confirmed occupancy yet), "
+            "(2) the activities and rooms that must be included, "
+            "(3) the number and type of toilets, including any accessible provision, "
+            "(4) whether this is a new building or a fit-out of an existing shell, "
+            "(5) the usable floorplate dimensions and entrance position, and "
+            "(6) whether you need a schematic concept or a dimensioned layout. "
+            "Are there any access, privacy or equipment requirements I should respect?"
+        )
+        first_reply = (
+            f"It is for about {people} people. Include {extras_text}. "
+            f"Allow {toilets} toilet rooms for the concept. It is a fit-out, but I have not sent "
+            "the existing floor plan or measured floorplate yet."
+        )
+        follow = (
+            f"Understood: I have recorded the {people}-person planning target, {extras_text}, "
+            f"and {toilets} toilet rooms. Since this is a fit-out, please provide the existing "
+            "floor plan or the measured internal width and depth, and mark the entrance and any "
+            "fixed columns, stairs, shafts or service cores. Without that existing-condition "
+            "information I can only prepare a generic adjacency concept, not claim it fits the site."
+        )
+        second_reply = (
+            f"The measured internal floorplate is {12 + i} m by {16 + (i % 3) * 2} m. "
+            "The entrance is on the shorter side. I will provide a measured drawing before "
+            "asking for a fit-out model; start with a room adjacency proposal."
+        )
+        final = (
+            f"Brief recorded for a {use}: planning capacity {people}; toilet rooms {toilets}; "
+            f"required spaces {extras_text}; measured floorplate {12 + i} m by "
+            f"{16 + (i % 3) * 2} m; entrance on the shorter side. The next deliverable is a "
+            "room adjacency and circulation proposal. Existing columns, stairs, shafts, accessible "
+            "routes and applicable occupancy/fire requirements must be checked against the measured "
+            "source plan before detailed geometry is approved."
+        )
+        add_three_turn_flow("design_intake_commercial_architecture", "commercial", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, architecture_system)
+
+    # Vehicle and transport CAD: start with the vehicle's intended use and
+    # package, then distinguish a concept model from roadworthy engineering.
+    vehicle_specs = [
+        ("compact electric SUV", "five", "electric", "front-wheel drive"),
+        ("two-seat sports coupe", "two", "petrol", "rear-wheel drive"),
+        ("family sedan", "five", "hybrid", "front-wheel drive"),
+        ("double-cab pickup", "five", "diesel", "four-wheel drive"),
+        ("small city car", "four", "electric", "rear-wheel drive"),
+        ("off-road utility vehicle", "five", "petrol", "four-wheel drive"),
+        ("electric delivery van", "two front seats", "electric", "front-wheel drive"),
+        ("track-day sports car", "two", "petrol", "mid-engine rear-wheel drive"),
+        ("minibus", "twelve", "diesel", "rear-wheel drive"),
+        ("compact crossover", "five", "hybrid", "all-wheel drive"),
+    ]
+    for i, (vehicle, occupants, powertrain, drive) in enumerate(vehicle_specs):
+        prompt = "Design a car in CAD." if i == 0 else f"Create a CAD concept for a {vehicle}."
+        first = (
+            "I can help build an editable vehicle concept. First, please confirm: "
+            f"(1) the vehicle type and main use, (2) the number of occupants, "
+            "(3) the target overall length, width, height and wheelbase—or permission "
+            "to use clearly labelled concept placeholders, (4) the powertrain and drive "
+            "layout if already chosen, (5) the exterior/interior components you want "
+            "modelled, and (6) whether the deliverable is a visual concept, packaging "
+            "model, detailed assembly or manufacturing drawing. Do you have wheel and "
+            "tyre sizes, ground-clearance targets or battery/engine package dimensions?"
+        )
+        first_reply = (
+            f"Make it a {vehicle} for {occupants} occupants, using a {powertrain} powertrain "
+            f"and {drive}. I want an editable exterior and packaging concept, not manufacturing "
+            "drawings yet. I do not have every component dimension."
+        )
+        follow = (
+            f"Recorded: {vehicle}, {occupants} occupants, {powertrain} powertrain, {drive}, "
+            "and an editable exterior/packaging concept. I still need the target vehicle envelope "
+            "(length, width, height and wheelbase), or your approval to create labelled editable "
+            "parameters for those values. Please also tell me whether I should keep wheel/tyre, "
+            "battery/engine and suspension interfaces as placeholders until verified package data "
+            "is supplied."
+        )
+        second_reply = (
+            f"Use a concept envelope of {4.2 + (i % 4) * 0.1:.1f} m length, "
+            f"{1.75 + (i % 3) * 0.05:.2f} m width and {1.5 + (i % 3) * 0.05:.2f} m height. "
+            f"Use a {2.6 + (i % 4) * 0.05:.2f} m wheelbase. Keep wheel/tyre and powertrain "
+            "mounting details as named editable placeholders for now."
+        )
+        final = (
+            f"Vehicle brief: {vehicle}; occupants: {occupants}; powertrain: {powertrain}; "
+            f"drive layout: {drive}; concept envelope: {4.2 + (i % 4) * 0.1:.1f} m × "
+            f"{1.75 + (i % 3) * 0.05:.2f} m × {1.5 + (i % 3) * 0.05:.2f} m; "
+            f"wheelbase: {2.6 + (i % 4) * 0.05:.2f} m. Deliverable: editable exterior and "
+            "packaging concept. Wheel/tyre and powertrain mounts remain named, editable placeholders. "
+            "NextCAD should organise the body, glazing, doors, wheel envelopes and interior package "
+            "as separate parametric components. This concept is not a roadworthy vehicle design: "
+            "crashworthiness, restraint systems, braking, steering, chassis strength and statutory "
+            "compliance require verified engineering data, qualified review and applicable tests."
+        )
+        add_three_turn_flow("design_intake_vehicle_cad", "vehicle", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, cad_system)
+
+    # General mechanical parts: function and interfaces govern the model.
+    component_specs = [
+        ("mounting bracket", "support a specified component on a frame"),
+        ("gearbox housing", "enclose and locate a gear train"),
+        ("rotating shaft", "transmit torque between defined interfaces"),
+        ("pump impeller", "transfer energy to a specified fluid"),
+        ("machine guard", "separate people from moving machine parts"),
+        ("lifting eye", "provide a defined lifting attachment point"),
+        ("bearing block", "locate a shaft and its bearing"),
+        ("pipe flange", "connect two specified pipe components"),
+        ("robot arm link", "connect two joints in a defined mechanism"),
+        ("heat sink", "transfer heat away from a defined electronic component"),
+    ]
+    for i, (part, function) in enumerate(component_specs):
+        prompt = f"Design a {part} in CAD."
+        first = (
+            f"I can model the {part}. Before choosing geometry, please clarify: "
+            f"(1) what it must do ({function}), (2) which parts it connects to and "
+            "the measured mating dimensions, (3) the available envelope and critical "
+            "hole/shaft/face locations, (4) expected loads, motion, temperature or fluid "
+            "conditions where relevant, (5) preferred material if known, and "
+            "(6) manufacturing method and required tolerances. Is this a visual prototype "
+            "or a functional/load-bearing component?"
+        )
+        first_reply = (
+            f"It is for {function}. It must fit an existing assembly, but I have not supplied "
+            "the mating drawing or exact loads. Make a preliminary parametric concept."
+        )
+        follow = (
+            f"Understood: the {part} must {function}, fit an existing assembly and begin as a "
+            "preliminary parametric concept. Please supply the mating interface measurements or "
+            "reference drawing, and identify any known loads or operating conditions. Until those "
+            "are verified, I can model the envelope and editable interfaces but cannot size it for "
+            "strength or certify functional safety."
+        )
+        second_reply = (
+            "I will attach the mating drawing and verified operating data later. For now, create "
+            "named parameters for the unknown interfaces and leave strength-critical dimensions "
+            "uncommitted. Use millimetres and keep the feature history editable."
+        )
+        final = (
+            f"Part brief: {part}; function: {function}; units: mm; parametric editable concept. "
+            "Unknown mating interfaces and operating loads must remain named, uncommitted parameters. "
+            "The next native CAD step is to create a reference skeleton, datum planes and named "
+            "parameters, then build the base feature only after the reference drawing is attached. "
+            "Do not invent interface sizes, material properties, load capacity or tolerances. "
+            "A concept model is not proof of structural or functional adequacy."
+        )
+        add_three_turn_flow("design_intake_mechanical_part", "mechanical-part", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, cad_system)
+
+    # Assembly design: interfaces, degrees of freedom and motion must be explicit.
+    assembly_specs = [
+        ("gearbox assembly", "shafts, gears, bearings and housing"),
+        ("bicycle crank assembly", "crank arms, spindle, bearings and chainring"),
+        ("robot gripper", "base, links, pivots, actuator and fingers"),
+        ("desk chair mechanism", "seat, backrest, height adjuster and swivel base"),
+        ("conveyor drive assembly", "motor, gearbox, coupling, shaft and rollers"),
+        ("door hinge mechanism", "leaves, pin, knuckles and fasteners"),
+        ("pump assembly", "casing, impeller, shaft, seals and bearings"),
+        ("folding mechanism", "links, pivots, stops, locks and user controls"),
+    ]
+    for i, (assembly, components) in enumerate(assembly_specs):
+        prompt = f"Create a CAD model of a {assembly}."
+        first = (
+            f"I can organise the {assembly}. Please confirm: (1) the function and operating "
+            f"sequence, (2) the required components (a starting list could be {components}), "
+            "(3) which components are existing parts versus new designs, (4) the mating faces, "
+            "axes, fastener patterns and interface dimensions, (5) which joints should be fixed, "
+            "revolute, prismatic or otherwise constrained, and (6) the expected motion range and "
+            "service access. Do you need an exploded view or manufacturing drawings?"
+        )
+        first_reply = (
+            f"Use {components}. Some parts will be new, but I have not supplied their interface "
+            "dimensions or motion limits. I need an editable assembly and an exploded view."
+        )
+        follow = (
+            "I have recorded the component list, editable assembly requirement and exploded-view "
+            "deliverable. Please identify the reference component and provide the interface axes/"
+            "faces or source part files. Also confirm the intended joint motion and its limits. "
+            "I will not lock components together or invent clearances where the interfaces are unknown."
+        )
+        second_reply = (
+            "Use the housing/base as the reference component. I will provide the source part files "
+            "for the remaining components. Show unconfirmed joints as unresolved constraints."
+        )
+        final = (
+            f"Assembly brief: {assembly}; planned components: {components}; reference component: "
+            "housing/base; outputs: editable assembly and exploded view. Source component files and "
+            "measured interfaces remain required before final constraints are assigned. NextCAD should "
+            "preserve component instances, apply only confirmed fixed/revolute/prismatic joints, report "
+            "remaining degrees of freedom and flag unresolved constraints rather than guessing."
+        )
+        add_three_turn_flow("design_intake_assembly_cad", "assembly", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, cad_system)
+
+    # Sheet-metal / enclosure design: manufacturing and internal packaging.
+    enclosures = [
+        ("electrical control cabinet", "control equipment, terminals and cable entries"),
+        ("desktop computer case", "motherboard, power supply, drives and cooling"),
+        ("industrial sensor enclosure", "sensor board, connectors and environmental protection"),
+        ("battery enclosure", "battery modules, isolation and thermal management"),
+        ("wall-mounted distribution box", "protective devices, busbars and cable routing"),
+        ("instrument enclosure", "display, circuit board, controls and connectors"),
+        ("pump control panel", "controller, switches, indicators and cable glands"),
+        ("small network cabinet", "switches, patch panels, power and airflow"),
+    ]
+    for i, (name, contents) in enumerate(enclosures):
+        prompt = f"Design a sheet-metal {name} in CAD."
+        first = (
+            f"I can prepare the {name}. Please confirm the internal items ({contents}), "
+            "overall width/height/depth, preferred sheet material and thickness if known, "
+            "mounting method, access-panel/door arrangement, connector and cable openings, "
+            "cooling/ventilation needs, and the manufacturing method. Do you have a target "
+            "environmental/IP rating or electrical/thermal requirements from the project?"
+        )
+        first_reply = (
+            f"It must contain {contents}. I need a sheet-metal enclosure with a removable access "
+            "panel, but the final dimensions and sheet thickness are not fixed yet."
+        )
+        follow = (
+            "Recorded: the internal equipment, sheet-metal construction and removable access panel. "
+            "Please provide the component layout or largest component dimensions, plus the intended "
+            "mounting points. Should I create an editable enclosure envelope with provisional bend "
+            "and thickness parameters, clearly marked for confirmation?"
+        )
+        second_reply = (
+            "Yes. Use a provisional editable envelope and clearly named parameters. Do not claim an "
+            "IP rating, electrical clearance or thermal performance until I provide verified data."
+        )
+        final = (
+            f"Enclosure brief: {name}; contents: {contents}; construction: sheet metal; access: "
+            "removable panel; envelope, material and thickness: provisional named parameters awaiting "
+            "confirmation. NextCAD can create an editable base sheet, flanges, bends and access panel "
+            "with a flat-pattern check. Cable openings, clearances, ventilation, grounding and any "
+            "IP/electrical/thermal rating remain unverified until approved data and relevant tests exist."
+        )
+        add_three_turn_flow("design_intake_sheet_metal_cad", "sheet-metal", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, cad_system)
+
+    # BIM new-build intake: the output is an information model as well as geometry.
+    bim_projects = [
+        ("three-storey residential apartment building", "residential", "architecture, structure and MEP"),
+        ("single-storey school", "education", "architecture, structure, HVAC, electrical and plumbing"),
+        ("small hospital", "healthcare", "architecture, structure, HVAC, electrical, plumbing and medical services"),
+        ("office building", "commercial", "architecture, structure and building services"),
+        ("warehouse", "industrial/storage", "architecture, structure, fire protection and electrical"),
+        ("hotel", "hospitality", "architecture, structure, HVAC, plumbing, electrical and interiors"),
+        ("shopping centre", "retail", "architecture, structure, HVAC, electrical, plumbing and fire protection"),
+        ("residential bungalow", "residential", "architecture, structure, plumbing and electrical"),
+        ("university laboratory", "education/research", "architecture, structure, HVAC, electrical and specialist services"),
+        ("mixed-use development", "mixed use", "architecture, structure, MEP, site works and vertical circulation"),
+    ]
+    for i, (project, use, disciplines) in enumerate(bim_projects):
+        prompt = f"Create a BIM model for a {project}."
+        first = (
+            f"I can set up the BIM project for the {project}. Before modelling, please confirm: "
+            f"(1) project location and governing jurisdiction, (2) site survey, coordinate reference "
+            "and vertical datum, (3) building use and occupancy, number of storeys and approximate "
+            "floor area, (4) which disciplines are in scope—such as "
+            f"{disciplines}, (5) required model detail and information (geometry and asset data), "
+            "(6) deliverables such as schedules, quantities, issue coordination and IFC export, "
+            "including the required IFC schema/version, and (7) project units and naming/classification "
+            "standards. Are you starting from drawings, a survey, or an existing model?"
+        )
+        first_reply = (
+            f"It is a {use} project. Include {disciplines}. I need a coordinated BIM model and "
+            "IFC exchange, but I have not supplied the survey, coordinate system or information "
+            "requirements yet."
+        )
+        follow = (
+            "Recorded: project use, requested disciplines, coordinated BIM model and IFC exchange. "
+            "For a reliable setup, please provide the site survey or source drawings, project "
+            "coordinate reference/vertical datum, target IFC schema, and the required information "
+            "level or employer information requirements. I will keep these as unresolved items rather "
+            "than invent coordinates, levels, classifications or asset properties."
+        )
+        second_reply = (
+            "I will provide the survey and employer information requirements. Start with the project "
+            "structure, storeys, discipline model breakdown and an information-delivery checklist. "
+            "Keep the IFC schema configurable until confirmed."
+        )
+        final = (
+            f"BIM brief: project {project}; use {use}; disciplines {disciplines}; required output: "
+            "coordinated information model and IFC exchange. Site coordinates, levels, IFC schema "
+            "and information requirements remain pending source documents. The next BIMCraft step is "
+            "to create the project structure, storeys, discipline containers and an information-delivery "
+            "checklist. Do not fabricate survey coordinates or claim IDS/IFC validation before running "
+            "the agreed checks on the native model and export."
+        )
+        add_three_turn_flow("design_intake_bim_new_build", "bim-new", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, bim_system)
+
+    # BIM renovation: teach the model to establish the reliability of existing
+    # information before changing the asset.
+    renovation_scopes = [
+        ("residential extension", "extend living space and add a bedroom"),
+        ("office refurbishment", "replan workspaces and upgrade building services"),
+        ("school renovation", "refurbish teaching rooms and improve accessibility"),
+        ("hospital ward upgrade", "reconfigure clinical spaces and services"),
+        ("warehouse conversion", "change the building to a new operational use"),
+        ("historic building restoration", "record and conserve significant existing fabric"),
+        ("apartment remodelling", "reconfigure selected rooms and wet areas"),
+        ("retail fit-out", "adapt an existing shell for a new tenant"),
+    ]
+    for i, (project, scope) in enumerate(renovation_scopes):
+        prompt = f"Update the BIM model for a {project}."
+        first = (
+            f"I can help with the {project}. First, what is the exact scope ({scope}), and which "
+            "elements must remain, be removed or be added? What existing information is available "
+            "(verified as-built drawings, survey, point cloud, photographs or IFC model), how current "
+            "is it, and who verified it? Please identify the coordinate reference, project phase, "
+            "required disciplines, asset information to preserve and the required deliverables."
+        )
+        first_reply = (
+            f"The scope is to {scope}. We have an old PDF plan and photographs, but no verified "
+            "as-built model. Some existing dimensions may have changed on site."
+        )
+        follow = (
+            "I have recorded the renovation scope and the source evidence: an old PDF plan and "
+            "photographs whose dimensions are not verified. Please arrange a measured survey or "
+            "confirm which dimensions have been checked on site, and identify elements that must "
+            "not be disturbed. I can prepare an existing-condition information checklist now, but "
+            "I must not treat the old drawing as accurate as-built geometry."
+        )
+        second_reply = (
+            "We will commission a measured survey and mark protected elements. For now, prepare an "
+            "existing-condition model plan with uncertain dimensions flagged and no destructive edits."
+        )
+        final = (
+            f"Renovation brief: {project}; scope: {scope}; current evidence: old PDF and photographs "
+            "only; as-built accuracy: unverified; measured survey: pending; protected elements: to be "
+            "identified. Next BIMCraft step: create an existing-condition register with source, date, "
+            "confidence and verification status for each element group. Keep uncertain geometry flagged "
+            "and do not move/delete existing elements until the survey and scope are approved."
+        )
+        add_three_turn_flow("design_intake_bim_renovation", "bim-renovation", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, bim_system)
+
+    # Civil infrastructure: request design basis and source survey before
+    # creating route geometry or claiming compliance.
+    infra_types = [
+        ("access road", "road classification, design speed and vehicle type"),
+        ("urban drainage network", "catchment, rainfall basis, outfall and allowable discharge"),
+        ("pedestrian bridge", "span arrangement, loading basis, clearance and geotechnical data"),
+        ("car park", "vehicle mix, capacity, circulation and accessible bays"),
+        ("water distribution network", "demand, pressure zones, source, storage and pipe material"),
+        ("sewer network", "design flow, ground levels, outfall and maintenance access"),
+        ("site grading model", "survey datum, existing/proposed levels, drainage and earthworks limits"),
+        ("retaining structure", "retained height, ground profile, soil investigation and water conditions"),
+    ]
+    for i, (asset, basis) in enumerate(infra_types):
+        prompt = f"Design an {asset} in CAD/BIM."
+        first = (
+            f"I can prepare the {asset} model. Before geometry, please confirm the design basis: "
+            f"{basis}; project location and governing authority; source topographic survey and datum; "
+            "alignment/site boundary and right-of-way; required capacities or performance criteria; "
+            "known geotechnical, utility and environmental constraints; and the required drawing, "
+            "quantity and BIM/IFC deliverables. Which inputs are already verified and which are still "
+            "estimates?"
+        )
+        first_reply = (
+            f"The project is an {asset}. I have an approximate site sketch, but no verified survey "
+            "or complete design basis yet. I need a preliminary model for coordination."
+        )
+        follow = (
+            f"Understood: {asset}, preliminary coordination model, approximate sketch only. Please "
+            "provide the verified survey and the project-specific design criteria for {basis}. "
+            "Until then, I can prepare a data checklist and an explicitly schematic alignment/site "
+            "model, but not dimensioned construction geometry or a compliant engineering design."
+        )
+        second_reply = (
+            "Proceed with a clearly marked schematic coordination model. Keep all unverified levels, "
+            "dimensions and capacities as unresolved parameters, and list the documents needed to "
+            "advance it to detailed design."
+        )
+        final = (
+            f"Infrastructure brief: {asset}; deliverable: schematic coordination model only; source "
+            "survey and design basis: unverified/pending. Keep alignment, levels, capacities and "
+            "geotechnical values as unresolved parameters. The next native CAD/BIM step is to create "
+            "reference layers, coordinate/datum placeholders and an assumptions register. Do not "
+            "produce construction-ready geometry or state regulatory compliance until verified data, "
+            "design calculations and jurisdictional reviews are complete."
+        )
+        add_three_turn_flow("design_intake_civil_infrastructure", "infrastructure", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, ENGINEERING_SYSTEM)
+
+    return lessons
+
+
 def make_synthetic_curriculum() -> list[dict[str, Any]]:
     """Small, original, unit-aware lessons that cover gaps in public corpora."""
     lessons = make_advanced_engineering_curriculum() + [
@@ -1685,13 +2277,15 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
             },
         })
 
+    lessons.extend(make_design_intake_curriculum())
+
     records = []
     for index, lesson in enumerate(lessons):
         completion = lesson["completion"]
         if not isinstance(completion, str):
             completion = json.dumps(completion, ensure_ascii=False)
         records.append({
-            "record_id": f"next3d-synthetic-{index + 1:03d}",
+            "record_id": f"next3d-synthetic-{index + 1:04d}",
             "domain": lesson["domain"],
             "system": lesson["system"],
             "prompt": lesson["prompt"],
@@ -1699,6 +2293,8 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
             "images": [],
             "source": "Next3D original synthetic curriculum",
             "license": "project-authored",
+            **({"split_group": lesson["split_group"], "stage": lesson["stage"]}
+               if lesson.get("split_group") else {}),
         })
     return records
 
@@ -1763,6 +2359,15 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "engineering_fem_axial_bar_calculation": 0.035,
         "engineering_pipe_continuity_calculation": 0.03,
         "construction_concrete_quantity_calculation": 0.03,
+        "design_intake_architecture": 0.055,
+        "design_intake_commercial_architecture": 0.035,
+        "design_intake_vehicle_cad": 0.045,
+        "design_intake_mechanical_part": 0.045,
+        "design_intake_assembly_cad": 0.04,
+        "design_intake_sheet_metal_cad": 0.04,
+        "design_intake_bim_new_build": 0.055,
+        "design_intake_bim_renovation": 0.045,
+        "design_intake_civil_infrastructure": 0.04,
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
@@ -1811,12 +2416,16 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def split_synthetic_curriculum(lessons: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    """Hold out deterministic parameter variants instead of training on every authored lesson."""
+    """Hold out design families and keep every dialogue stage in one split."""
     result = {"train": [], "validation": [], "test": []}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for index, lesson in enumerate(lessons, 1):
-        bucket = index % 10
+        group_id = str(lesson.get("split_group") or lesson.get("record_id") or f"lesson-{index}")
+        grouped.setdefault(group_id, []).append(lesson)
+    for group_index, group in enumerate(grouped.values(), 1):
+        bucket = group_index % 10
         split = "test" if bucket == 0 else "validation" if bucket == 1 else "train"
-        result[split].append(lesson)
+        result[split].extend(group)
     return result
 
 
@@ -1904,6 +2513,11 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "bim_room_boundaries": [], "bim_asset_handover": [],
         "bim_revision_change_impact": [], "construction_4d_sequence": [],
         "civil_site_coordination": [],
+        "design_intake_architecture": [], "design_intake_commercial_architecture": [],
+        "design_intake_vehicle_cad": [], "design_intake_mechanical_part": [],
+        "design_intake_assembly_cad": [], "design_intake_sheet_metal_cad": [],
+        "design_intake_bim_new_build": [], "design_intake_bim_renovation": [],
+        "design_intake_civil_infrastructure": [],
         "nextcad_native": [], "nextbim_native": [],
     }
     validation, tests, quarantine = [], [], []
@@ -1993,7 +2607,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             counts[f"{domain}_{split}"] = len(rows)
     synthetic_splits = split_synthetic_curriculum(make_synthetic_curriculum())
     for lesson in synthetic_splits["train"]:
-        groups[lesson["domain"]].append(lesson)
+        groups.setdefault(lesson["domain"], []).append(lesson)
     validation.extend(synthetic_splits["validation"])
     tests.extend(synthetic_splits["test"])
     counts["synthetic_train"] = len(synthetic_splits["train"])
