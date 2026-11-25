@@ -172,6 +172,142 @@ class NativeToolSafetyTests(unittest.TestCase):
             self.assertIn("read_only", tool)
         self.assertTrue(any(not item["read_only"] for item in tool_registry.TOOLS))
 
+    def test_native_dimension_edit_tool_is_typed_and_approval_gated(self):
+        tool = next(item for item in tool_registry.TOOLS if item["name"] == "edit_native_property")
+        properties = tool["parameters"]["properties"]
+        self.assertEqual(properties["property_name"]["enum"], [
+            "Length", "Width", "Height", "Radius", "Radius1", "Radius2", "Label"
+        ])
+        self.assertEqual(set(tool["parameters"]["required"]), {"object_name", "property_name", "value"})
+        self.assertFalse(tool["read_only"])
+
+    def test_native_dimension_edit_changes_only_an_allowlisted_property(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        class FakeObject:
+            Name = "WatchTowerColumn01"
+            Label = "Column 01"
+            TypeId = "Part::Box"
+            PropertiesList = ["Length", "Width", "Height", "Label"]
+            State = []
+            Shape = None
+
+            def __init__(self):
+                self.Length = 300.0
+
+            def getTypeIdOfProperty(self, name):
+                return "App::PropertyLength" if name in {"Length", "Width", "Height"} else "App::PropertyString"
+
+            def getEditorMode(self, name):
+                return 0
+
+        class FakeDoc:
+            def __init__(self, obj):
+                self.obj = obj
+                self.recompute_count = 0
+
+            def getObject(self, name):
+                return self.obj if name == self.obj.Name else None
+
+            def recompute(self):
+                self.recompute_count += 1
+
+        obj = FakeObject()
+        doc = FakeDoc(obj)
+        with patch.object(freecad_tools, "_apps", return_value=(SimpleNamespace(), None)):
+            result = freecad_tools._partdesign_step(doc, "edit_native_property", {
+                "object_name": "WatchTowerColumn01",
+                "property_name": "Length",
+                "value": 6500,
+            })
+            self.assertEqual(result["before"], 300.0)
+            self.assertEqual(result["after"], 6500.0)
+            self.assertEqual(obj.Length, 6500.0)
+            self.assertGreaterEqual(doc.recompute_count, 1)
+
+            with self.assertRaises(ValueError):
+                freecad_tools._partdesign_step(doc, "edit_native_property", {
+                    "object_name": "WatchTowerColumn01",
+                    "property_name": "Placement",
+                    "value": 2,
+                })
+
+    def test_native_label_edit_is_persistent_object_rename_not_recreation(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        class FakeObject:
+            Name = "Beam01"
+            Label = "Old Beam Label"
+            TypeId = "Part::Box"
+            PropertiesList = ["Label"]
+
+        class FakeDoc:
+            def __init__(self, obj):
+                self.obj = obj
+            def getObject(self, name):
+                return self.obj if name == self.obj.Name else None
+            def recompute(self):
+                pass
+
+        obj = FakeObject()
+        with patch.object(freecad_tools, "_apps", return_value=(SimpleNamespace(), None)):
+            result = freecad_tools._partdesign_step(FakeDoc(obj), "edit_native_property", {
+                "object_name": "Beam01",
+                "property_name": "Label",
+                "value": "B01 — Primary perimeter beam (concept)",
+            })
+        self.assertEqual(result["edited"], "Beam01")
+        self.assertEqual(obj.Label, "B01 — Primary perimeter beam (concept)")
+
+    def test_plan_execution_reports_each_native_step_and_refreshes_viewport(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        class FakeDoc:
+            def __init__(self):
+                self.events = []
+            def openTransaction(self, name):
+                self.events.append("open")
+            def recompute(self):
+                self.events.append("recompute")
+            def commitTransaction(self):
+                self.events.append("commit")
+            def abortTransaction(self):
+                self.events.append("abort")
+
+        class FakeGui:
+            def __init__(self):
+                self.refreshes = 0
+            def updateGui(self):
+                self.refreshes += 1
+
+        doc, gui = FakeDoc(), FakeGui()
+        progress = []
+        plan = [
+            {"tool": "create_draft_line", "args": {"start": [0, 0], "end": [100, 0]}},
+            {"tool": "create_draft_text", "args": {"text": "ROOM LABEL"}},
+        ]
+        with patch.object(freecad_tools, "_assert_turn", return_value=doc), \
+             patch.object(freecad_tools, "_apps", return_value=(SimpleNamespace(), gui)), \
+             patch.object(freecad_tools, "_create_step", side_effect=lambda d, tool, args: {"tool": tool}), \
+             patch.object(freecad_tools, "_doc_summary", return_value={"object_count": 2}):
+            result = freecad_tools.execute_plan(
+                {"document": doc, "name": "Test", "file": ""},
+                plan,
+                progress_callback=lambda index, total, tool, phase: progress.append((index, total, tool, phase)),
+            )
+        self.assertTrue(result["success"])
+        self.assertEqual(gui.refreshes, 3)
+        self.assertEqual(progress, [
+            (1, 2, "create_draft_line", "starting"),
+            (1, 2, "create_draft_line", "completed"),
+            (2, 2, "create_draft_text", "starting"),
+            (2, 2, "create_draft_text", "completed"),
+        ])
+        self.assertEqual(doc.events[-1], "commit")
+
     def test_native_partdesign_tool_contract(self):
         tools = {item["name"]: item for item in tool_registry.TOOLS}
         expected = {
