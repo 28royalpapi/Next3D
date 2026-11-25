@@ -1886,12 +1886,261 @@ def make_design_intake_curriculum() -> list[dict[str, Any]]:
         add_three_turn_flow("design_intake_cam_cad", "cam", i + 1,
                             prompt, first, first_reply, follow, second_reply, final, cad_system)
 
+
+    # Dedicated guard/watchtower interview, including the user's concrete-vs-steel decision.
+    for i, material in enumerate([
+        "steel frame", "reinforced concrete", "steel frame", "reinforced concrete",
+        "timber frame", "steel frame", "reinforced concrete", "steel frame",
+    ], 1):
+        prompt = [
+            "I need a wash tower where security people can stay.",
+            "Design a watch tower for security officers.",
+            "I need a guard tower overlooking the entrance.",
+            "Create an elevated security lookout tower.",
+            "Make a watchtower for two security guards.",
+            "Design a small tower for site security staff.",
+            "I want a guard post above the perimeter wall.",
+            "Create an observation tower for security personnel.",
+        ][i - 1]
+        first = (
+            "Do you mean a watchtower/guard tower where security staff can stay and observe the site? "
+            "Before I design it, please confirm: (1) the structure you prefer—steel frame, reinforced "
+            "concrete, timber or another system; (2) how many people must occupy the cabin; "
+            "(3) the observation-platform height above ground; (4) cabin width/depth and any desk, "
+            "seating, storage or equipment needs; (5) stair or ladder access; (6) roof, doors, windows, "
+            "guardrails, lighting and power; and (7) site survey, ground information and wind exposure. "
+            "Do you need a visual concept or an engineered construction design?"
+        )
+        first_reply = (
+            f"Yes, a guard watchtower. Use a {material}, for two security officers. "
+            f"Set the platform around {6000 + ((i - 1) % 3) * 1000} mm above ground and cover the cabin. "
+            "I want an editable visual concept first, not a certified design."
+        )
+        follow = (
+            f"Recorded: watchtower for two officers; material intent {material}; platform height about "
+            f"{6000 + ((i - 1) % 3) * 1000} mm; covered cabin; concept only. Please confirm the cabin "
+            "footprint, preferred stair or ladder, and whether I may use clearly labelled placeholder "
+            "envelopes for columns and beams. A safe structural design still needs the site survey, wind "
+            "exposure, occupancy/equipment loads, geotechnical/foundation information, connections and "
+            "the governing design standard."
+        )
+        second_reply = (
+            "Use a 4000 mm by 4000 mm support footprint and a 2600 mm by 2600 mm cabin. "
+            f"Keep the {material} concept, use a stair and roof, and show placeholder member envelopes "
+            "only for visual coordination. I will provide site, wind and soil information before sizing."
+        )
+        final = (
+            f"Confirmed watchtower brief: {material}; two occupants; platform +"
+            f"{6000 + ((i - 1) % 3) * 1000} mm; 4000 × 4000 mm support footprint; 2600 × 2600 mm cabin; "
+            "covered cabin; stair access requested; visual concept only. Editable column/beam/cabin/roof "
+            "envelopes may be created and labelled as placeholders. The material intent is not yet "
+            "assigned as verified native material data, and the placeholder sizes are not engineered "
+            "sections. Stair, guardrails, openings, foundations, connections, wind and soil design remain "
+            "to be modelled/checked from verified inputs. No load capacity, wind resistance, foundation "
+            "adequacy or construction readiness is claimed."
+        )
+        add_three_turn_flow(
+            "design_intake_watchtower_architecture", "watchtower", i,
+            prompt, first, first_reply, follow, second_reply, final, architecture_system
+        )
+
+    return lessons
+
+
+
+def make_design_execution_curriculum() -> list[dict[str, Any]]:
+    """Teach the student to turn approved design briefs into editable native operations."""
+    lessons: list[dict[str, Any]] = []
+
+    def add(domain: str, prompt: str, message: str, plan: list[dict[str, Any]]) -> None:
+        lessons.append({
+            "domain": domain,
+            "system": CAD_SYSTEM,
+            "prompt": prompt,
+            "completion": json.dumps({"message": message, "plan": plan}, ensure_ascii=False),
+        })
+
+    floorplan_plan = [
+        {"tool": "create_draft_wire", "args": {"points": [[0,0],[16000,0],[16000,12000],[0,12000]], "closed": True, "label": "A-00 — 3 bedroom bungalow outline"}},
+        {"tool": "create_draft_wire", "args": {"points": [[0,8000],[5000,8000],[5000,12000],[0,12000]], "closed": True, "label": "A-01 — Master bedroom"}},
+        {"tool": "create_draft_wire", "args": {"points": [[0,6000],[2500,6000],[2500,8000],[0,8000]], "closed": True, "label": "A-02 — Master ensuite"}},
+        {"tool": "create_draft_wire", "args": {"points": [[0,2000],[5000,2000],[5000,6000],[0,6000]], "closed": True, "label": "A-03 — Bedroom 2"}},
+        {"tool": "create_draft_wire", "args": {"points": [[5000,6000],[11000,6000],[11000,12000],[5000,12000]], "closed": True, "label": "A-04 — Sitting and living"}},
+        {"tool": "create_draft_wire", "args": {"points": [[5000,4000],[7000,4000],[7000,6000],[5000,6000]], "closed": True, "label": "A-05 — Store"}},
+        {"tool": "create_draft_wire", "args": {"points": [[11000,4000],[16000,4000],[16000,8000],[11000,8000]], "closed": True, "label": "A-06 — Kitchen and dining"}},
+        {"tool": "create_draft_wire", "args": {"points": [[11000,8000],[16000,8000],[16000,12000],[11000,12000]], "closed": True, "label": "A-07 — Bedroom 3"}},
+        {"tool": "create_draft_wire", "args": {"points": [[11000,2000],[13500,2000],[13500,4000],[11000,4000]], "closed": True, "label": "A-08 — Shared bathroom"}},
+        {"tool": "create_draft_text", "args": {"text": "MASTER BEDROOM\n5.0 × 4.0 m", "position": [1200,9800], "height": 250, "label": "Room label — master bedroom"}},
+        {"tool": "create_draft_text", "args": {"text": "ENSUITE\n2.5 × 2.0 m", "position": [300,6800], "height": 180, "label": "Room label — ensuite"}},
+        {"tool": "create_draft_text", "args": {"text": "BEDROOM 2\n5.0 × 4.0 m", "position": [1200,3800], "height": 250, "label": "Room label — bedroom 2"}},
+        {"tool": "create_draft_text", "args": {"text": "SITTING / LIVING\n6.0 × 6.0 m", "position": [6500,9000], "height": 250, "label": "Room label — sitting room"}},
+        {"tool": "create_draft_text", "args": {"text": "STORE\n2.0 × 2.0 m", "position": [5200,4800], "height": 160, "label": "Room label — store"}},
+        {"tool": "create_draft_text", "args": {"text": "KITCHEN / DINING\n5.0 × 4.0 m", "position": [11600,5600], "height": 230, "label": "Room label — kitchen and dining"}},
+        {"tool": "create_draft_text", "args": {"text": "BEDROOM 3\n5.0 × 4.0 m", "position": [11600,9800], "height": 250, "label": "Room label — bedroom 3"}},
+        {"tool": "create_draft_text", "args": {"text": "SHARED BATH\n2.5 × 2.0 m", "position": [11050,2800], "height": 160, "label": "Room label — shared bathroom"}},
+        {"tool": "create_draft_dimension", "args": {"start": [0,0], "end": [16000,0], "dimension_line_point": [8000,-700], "label": "Overall plan width — 16000 mm"}},
+        {"tool": "create_draft_dimension", "args": {"start": [0,0], "end": [0,12000], "dimension_line_point": [-700,6000], "label": "Overall plan depth — 12000 mm"}},
+    ]
+    add(
+        "design_execution_residential_floorplan",
+        "The user approved a 3-bedroom bungalow concept in NextCAD: one master bedroom with ensuite, two other bedrooms, one shared bathroom (two toilet/bathroom rooms total), one sitting room, one store, and a kitchen/dining area. Use a 16000 × 12000 mm concept envelope and these room zones: master 0,8000–5000,12000; ensuite 0,6000–2500,8000; bedroom 2 0,2000–5000,6000; sitting 5000,6000–11000,12000; store 5000,4000–7000,6000; kitchen/dining 11000,4000–16000,8000; bedroom 3 11000,8000–16000,12000; shared bathroom 11000,2000–13500,4000. Create editable native 2D room zoning.",
+        "I will build native editable Draft geometry, not a generated picture. The 16000 × 12000 mm outline contains the agreed room zones and labels, with two overall dimensions. This is a 2D room-zoning concept only: doors, windows, openings, wall thicknesses, setbacks, access, ventilation and local planning checks are not yet modelled or verified.",
+        floorplan_plan,
+    )
+
+    watchtower_plan = []
+    for i, origin in enumerate(([0,0,0],[3700,0,0],[0,3700,0],[3700,3700,0]), 1):
+        watchtower_plan.append({"tool": "create_arch_structure", "args": {
+            "length": 300, "width": 300, "height": 6000, "origin": origin,
+            "label": f"C{i:02d} — column envelope 300×300×6000 — concept placeholder"
+        }})
+    for i, (length, width, origin) in enumerate((
+        (4000,250,[0,0,5600]), (4000,250,[0,3750,5600]),
+        (250,4000,[0,0,5600]), (250,4000,[3750,0,5600]),
+    ), 1):
+        watchtower_plan.append({"tool": "create_part_box", "args": {
+            "length": length, "width": width, "height": 400, "origin": origin,
+            "label": f"B{i:02d} — perimeter beam envelope — concept only, not engineered"
+        }})
+    watchtower_plan.append({"tool": "create_part_box", "args": {
+        "length": 4000, "width": 4000, "height": 250, "origin": [0,0,6000],
+        "label": "D01 — elevated deck 4000×4000×250 — concept placeholder"
+    }})
+    for label, points in [
+        ("W01 — cabin front wall", [[700,700,6250],[3300,700,6250]]),
+        ("W02 — cabin right wall", [[3300,700,6250],[3300,3300,6250]]),
+        ("W03 — cabin rear wall", [[3300,3300,6250],[700,3300,6250]]),
+        ("W04 — cabin left wall", [[700,3300,6250],[700,700,6250]]),
+    ]:
+        watchtower_plan.append({"tool": "create_arch_wall", "args": {
+            "points": points, "height": 2300, "width": 150, "label": label
+        }})
+    watchtower_plan.append({"tool": "create_part_box", "args": {
+        "length": 3000, "width": 3000, "height": 150, "origin": [500,500,8550],
+        "label": "R01 — cabin roof envelope 3000×3000×150 — concept placeholder"
+    }})
+    watchtower_plan.extend([
+        {"tool": "create_draft_dimension", "args": {
+            "start": [0,-500,0], "end": [4000,-500,0], "dimension_line_point": [2000,-900,0],
+            "label": "Support footprint width — 4000 mm"
+        }},
+        {"tool": "create_draft_dimension", "args": {
+            "start": [0,0,0], "end": [0,0,8700], "dimension_line_point": [-900,0,4350],
+            "label": "Concept overall height — 8700 mm"
+        }},
+        {"tool": "create_draft_text", "args": {
+            "text": "GUARD WATCHTOWER — STEEL INTENT CONCEPT ONLY\n"
+                    "2 occupants | platform +6000 mm | support footprint 4000×4000 mm\n"
+                    "Cabin 2600×2600 mm | wall height 2300 mm | roof 3000×3000 mm\n"
+                    "C01-C04: 300×300 mm column envelopes; B01-B04: 250×400 mm beam envelopes\n"
+                    "Member envelopes are visual placeholders, NOT engineered sizes. No verified "
+                    "material assignment has been made. Access stair, door/window openings, guardrails, "
+                    "foundations, connections, wind and geotechnical design remain open.",
+            "position": [4500,500,8700], "height": 150, "label": "Watchtower notes and member schedule"
+        }}
+    ])
+    add(
+        "design_execution_watchtower_concept",
+        "The user approved an editable visual concept for a steel-intent watchtower for two guards: 4000×4000 mm support footprint, observation platform at +6000 mm, 2600×2600 mm cabin, 2300 mm cabin wall height and a roof. The user explicitly approved visible placeholder envelopes only: 300×300×6000 mm columns, 250×400 mm perimeter beam envelopes, 4000×4000×250 mm deck and 3000×3000×150 mm roof. Create the native concept and identify what remains unmodelled. Do not present the envelopes as engineered steel sections or assign a material that the tools cannot set.",
+        "I will create the editable 3D tower concept with native Arch structure/wall objects and parametric box components. Supports, beams, deck, cabin walls and roof are individually named. I will add overall dimensions and a member schedule. This is visual coordination geometry only: the stair, guardrails, door/window openings, foundations and connections are not modelled, and the listed member envelopes are not structurally designed or material-assigned.",
+        watchtower_plan,
+    )
+
+    mechanical_plan = [
+        {"tool": "create_partdesign_body", "args": {"name": "GearHousingBody"}},
+        {"tool": "create_partdesign_sketch", "args": {"body_name": "GearHousingBody", "name": "HousingBaseProfile", "plane": "XY_Plane", "offset": 0}},
+        {"tool": "add_sketch_polygon", "args": {"sketch_name": "HousingBaseProfile", "points": [[0,0],[200,0],[200,150],[0,150]]}},
+        {"tool": "create_partdesign_pad", "args": {"body_name": "GearHousingBody", "sketch_name": "HousingBaseProfile", "length": 80, "name": "HousingBasePad"}},
+        {"tool": "create_partdesign_sketch", "args": {"body_name": "GearHousingBody", "name": "MountingHoleProfile", "plane": "XY_Plane", "offset": 80}},
+        {"tool": "add_sketch_circle", "args": {"sketch_name": "MountingHoleProfile", "center": [15,15], "radius": 6, "label": "Mounting hole 1"}},
+        {"tool": "add_sketch_circle", "args": {"sketch_name": "MountingHoleProfile", "center": [185,15], "radius": 6, "label": "Mounting hole 2"}},
+        {"tool": "add_sketch_circle", "args": {"sketch_name": "MountingHoleProfile", "center": [185,135], "radius": 6, "label": "Mounting hole 3"}},
+        {"tool": "add_sketch_circle", "args": {"sketch_name": "MountingHoleProfile", "center": [15,135], "radius": 6, "label": "Mounting hole 4"}},
+        {"tool": "create_partdesign_pocket", "args": {"body_name": "GearHousingBody", "sketch_name": "MountingHoleProfile", "length": 80, "through_all": True, "reversed": True, "name": "FourMountingHoles"}},
+    ]
+    add(
+        "design_execution_parametric_mechanical_part",
+        "Create an editable parametric mounting base for a gear-housing concept in NextCAD. Approved envelope: 200×150×80 mm; four 12 mm diameter through-holes, centres 15 mm from each adjacent edge. Use a native PartDesign body, constrained profile, Pad and Pocket feature history. Do not choose material, loads or tolerances.",
+        "I will create a native PartDesign body with a fully constrained 200×150 mm base sketch, pad it 80 mm, then add four 12 mm through-holes using a second sketch and pocket. The object stays editable in the PartDesign feature tree. Material, tolerances, loads and functional capacity are not specified, so none will be assumed.",
+        mechanical_plan,
+    )
+
+    edit_plan = [
+        {"tool": "edit_native_property", "args": {"object_name": "B01Beam", "property_name": "Width", "value": 300}},
+        {"tool": "edit_native_property", "args": {"object_name": "B01Beam", "property_name": "Height", "value": 450}},
+        {"tool": "edit_native_property", "args": {"object_name": "B01Beam", "property_name": "Label", "value": "B01 — revised beam envelope 4000×300×450 mm — concept only"}},
+    ]
+    add(
+        "design_execution_edit_existing_model",
+        "The open NextCAD document inspection shows an existing Part::Box object whose exact Name is B01Beam, currently Width=250 mm and Height=400 mm. The user explicitly asks to change this existing beam envelope to Width=300 mm and Height=450 mm, then update its label. Do not create another beam.",
+        "I will edit the existing B01Beam in place: update its Width and Height, then change its label. I will not create a duplicate. The native document recomputes after each change, and I will report the before-and-after values.",
+        edit_plan,
+    )
+
+
+    # Dedicated guard/watchtower interview, including the user's concrete-vs-steel decision.
+    for i, material in enumerate([
+        "steel frame", "reinforced concrete", "steel frame", "reinforced concrete",
+        "timber frame", "steel frame", "reinforced concrete", "steel frame",
+    ], 1):
+        prompt = [
+            "I need a wash tower where security people can stay.",
+            "Design a watch tower for security officers.",
+            "I need a guard tower overlooking the entrance.",
+            "Create an elevated security lookout tower.",
+            "Make a watchtower for two security guards.",
+            "Design a small tower for site security staff.",
+            "I want a guard post above the perimeter wall.",
+            "Create an observation tower for security personnel.",
+        ][i - 1]
+        first = (
+            "Do you mean a watchtower/guard tower where security staff can stay and observe the site? "
+            "Before I design it, please confirm: (1) the structure you prefer—steel frame, reinforced "
+            "concrete, timber or another system; (2) how many people must occupy the cabin; "
+            "(3) the observation-platform height above ground; (4) cabin width/depth and any desk, "
+            "seating, storage or equipment needs; (5) stair or ladder access; (6) roof, doors, windows, "
+            "guardrails, lighting and power; and (7) site survey, ground information and wind exposure. "
+            "Do you need a visual concept or an engineered construction design?"
+        )
+        first_reply = (
+            f"Yes, a guard watchtower. Use a {material}, for two security officers. "
+            f"Set the platform around {6000 + ((i - 1) % 3) * 1000} mm above ground and cover the cabin. "
+            "I want an editable visual concept first, not a certified design."
+        )
+        follow = (
+            f"Recorded: watchtower for two officers; material intent {material}; platform height about "
+            f"{6000 + ((i - 1) % 3) * 1000} mm; covered cabin; concept only. Please confirm the cabin "
+            "footprint, preferred stair or ladder, and whether I may use clearly labelled placeholder "
+            "envelopes for columns and beams. A safe structural design still needs the site survey, wind "
+            "exposure, occupancy/equipment loads, geotechnical/foundation information, connections and "
+            "the governing design standard."
+        )
+        second_reply = (
+            "Use a 4000 mm by 4000 mm support footprint and a 2600 mm by 2600 mm cabin. "
+            f"Keep the {material} concept, use a stair and roof, and show placeholder member envelopes "
+            "only for visual coordination. I will provide site, wind and soil information before sizing."
+        )
+        final = (
+            f"Confirmed watchtower brief: {material}; two occupants; platform +"
+            f"{6000 + ((i - 1) % 3) * 1000} mm; 4000 × 4000 mm support footprint; 2600 × 2600 mm cabin; "
+            "covered cabin; stair access requested; visual concept only. Editable column/beam/cabin/roof "
+            "envelopes may be created and labelled as placeholders. The material intent is not yet "
+            "assigned as verified native material data, and the placeholder sizes are not engineered "
+            "sections. Stair, guardrails, openings, foundations, connections, wind and soil design remain "
+            "to be modelled/checked from verified inputs. No load capacity, wind resistance, foundation "
+            "adequacy or construction readiness is claimed."
+        )
+        add_three_turn_flow(
+            "design_intake_watchtower_architecture", "watchtower", i,
+            prompt, first, first_reply, follow, second_reply, final, architecture_system
+        )
+
     return lessons
 
 
 def make_synthetic_curriculum() -> list[dict[str, Any]]:
     """Small, original, unit-aware lessons that cover gaps in public corpora."""
-    lessons = make_advanced_engineering_curriculum() + [
+    lessons = make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_design_execution_curriculum() + [
         {
             "domain": "cad_2d_drafting",
             "system": CAD_SYSTEM,
@@ -2513,6 +2762,11 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "design_intake_consumer_product_cad": 0.04,
         "design_intake_technical_drawing_cad": 0.035,
         "design_intake_cam_cad": 0.035,
+        "design_intake_watchtower_architecture": 0.045,
+        "design_execution_residential_floorplan": 0.05,
+        "design_execution_watchtower_concept": 0.05,
+        "design_execution_parametric_mechanical_part": 0.05,
+        "design_execution_edit_existing_model": 0.045,
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
@@ -2664,7 +2918,9 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "design_intake_bim_new_build": [], "design_intake_bim_renovation": [],
         "design_intake_civil_infrastructure": [],
         "design_intake_consumer_product_cad": [], "design_intake_technical_drawing_cad": [],
-        "design_intake_cam_cad": [],
+        "design_intake_cam_cad": [], "design_intake_watchtower_architecture": [],
+        "design_execution_residential_floorplan": [], "design_execution_watchtower_concept": [],
+        "design_execution_parametric_mechanical_part": [], "design_execution_edit_existing_model": [],
         "nextcad_native": [], "nextbim_native": [],
     }
     validation, tests, quarantine = [], [], []
