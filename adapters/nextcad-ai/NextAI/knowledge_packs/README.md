@@ -10,7 +10,7 @@ The pack is deliberately small and text-only. It adds no second model and no geo
 - `aec/bim-construction.md`: architecture, BIM, structure, MEP, documentation and IFC workflow.
 - `engineering/design-validation.md`: engineering inputs, units, calculation discipline, assumptions and verification boundaries.
 - `drawing-intake.md`: image/drawing interpretation, scale, annotation and uncertainty rules.
-- `design/design-intake.md`: guided requirements interviews for residential/commercial plans, vehicles, mechanical parts, assemblies, BIM projects, renovations and civil infrastructure.
+- `design/design-intake.md`: guided requirements interviews for residential/commercial plans, vehicles and consumer products, mechanical parts, assemblies, sheet-metal enclosures, manufacturing drawings, CAM setup, BIM projects, renovations and civil infrastructure.
 
 ## Authority order
 
