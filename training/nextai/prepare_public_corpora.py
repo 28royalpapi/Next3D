@@ -10,6 +10,7 @@ import argparse
 import base64
 import itertools
 import json
+import math
 import random
 import re
 from collections import Counter
@@ -969,6 +970,180 @@ def make_advanced_engineering_curriculum() -> list[dict[str, Any]]:
                 },
             },
         ])
+
+
+    # Worked, unit-aware calculation lessons. Values are explicitly supplied
+    # in each prompt; the targets show auditable equilibrium, stiffness,
+    # continuity and quantity steps rather than unsupported design decisions.
+    for index in range(12):
+        span_m = 6.0 + 0.5 * (index % 3)
+        udl_kn_m = 3.0 + 0.5 * (index % 4)
+        point_load_kn = 9.0 + (index % 5)
+        point_distance_m = span_m / 3.0
+        udl_resultant_kn = udl_kn_m * span_m
+        right_reaction_kn = (
+            udl_resultant_kn * (span_m / 2.0)
+            + point_load_kn * point_distance_m
+        ) / span_m
+        left_reaction_kn = udl_resultant_kn + point_load_kn - right_reaction_kn
+
+        lessons.append({
+            "domain": "engineering_beam_reactions_calculation",
+            "system": ENGINEERING_SYSTEM,
+            "prompt": (
+                f"A simply supported beam has span {span_m:g} m, a full-span "
+                f"uniformly distributed load of {udl_kn_m:g} kN/m, and a "
+                f"{point_load_kn:g} kN point load located {point_distance_m:g} m "
+                "from the left support. Calculate the two vertical reactions "
+                "using static equilibrium. Treat this as an idealised textbook "
+                "exercise, not a complete member design."
+            ),
+            "completion": {
+                "schema": "nextai.beam_reactions_worked.v1",
+                "units": {"length": "m", "distributed_load": "kN/m", "force": "kN", "moment": "kN.m"},
+                "model": "pin and roller supports; full-span UDL; one vertical point load; self-weight excluded because it is not specified",
+                "given": {
+                    "span_m": span_m,
+                    "udl_kn_per_m": udl_kn_m,
+                    "point_load_kn": point_load_kn,
+                    "point_load_distance_from_left_m": round(point_distance_m, 6),
+                },
+                "working": [
+                    f"UDL resultant = wL = {udl_kn_m:g} × {span_m:g} = {udl_resultant_kn:g} kN, acting at L/2",
+                    f"Take moments about the left support: R_B L = (wL)(L/2) + P a = {udl_resultant_kn:g} × {span_m/2:g} + {point_load_kn:g} × {point_distance_m:g}",
+                    "Solve the moment equation for the right reaction, then use vertical force equilibrium for the left reaction",
+                ],
+                "answer": {
+                    "left_reaction_kn": round(left_reaction_kn, 6),
+                    "right_reaction_kn": round(right_reaction_kn, 6),
+                    "vertical_force_check_kn": round(left_reaction_kn + right_reaction_kn - udl_resultant_kn - point_load_kn, 9),
+                    "left_support_moment_check_kn_m": round(
+                        right_reaction_kn * span_m
+                        - udl_resultant_kn * span_m / 2.0
+                        - point_load_kn * point_distance_m, 9
+                    ),
+                },
+                "limits": [
+                    "This checks global reactions only; it does not calculate shear-force or bending-moment envelopes, deflection, stability or member capacity.",
+                    "A real design requires the applicable load combinations, self-weight, support conditions, material data and governing jurisdictional standard.",
+                ],
+            },
+        })
+
+        youngs_modulus_pa = 200e9
+        area_mm2 = 300.0 + 50.0 * (index % 5)
+        bar_length_m = 2.0 + 0.25 * (index % 3)
+        axial_force_kn = 15.0 + 5.0 * (index % 4)
+        area_m2 = area_mm2 * 1e-6
+        axial_stiffness_n_per_m = youngs_modulus_pa * area_m2 / bar_length_m
+        displacement_mm = (axial_force_kn * 1000.0 / axial_stiffness_n_per_m) * 1000.0
+
+        lessons.append({
+            "domain": "engineering_fem_axial_bar_calculation",
+            "system": ENGINEERING_SYSTEM,
+            "prompt": (
+                f"For a one-element, two-node linear axial bar with E = 200 GPa, "
+                f"area = {area_mm2:g} mm², length = {bar_length_m:g} m, node 1 fixed "
+                f"and a tensile {axial_force_kn:g} kN force at node 2, form the "
+                "element stiffness matrix and calculate the free-end displacement. "
+                "Show unit conversions. This is a linear-elastic teaching example."
+            ),
+            "completion": {
+                "schema": "nextai.fem_axial_bar_worked.v1",
+                "units": {"E": "Pa", "area": "m2 after conversion", "length": "m", "stiffness": "N/m", "force": "N", "displacement": "mm"},
+                "given": {"youngs_modulus_pa": youngs_modulus_pa, "area_mm2": area_mm2, "area_m2": area_m2, "length_m": bar_length_m, "tensile_force_kn": axial_force_kn},
+                "working": [
+                    "Convert area from mm² to m² by multiplying by 10⁻⁶",
+                    "For a 2-node axial bar, k = EA/L",
+                    "The local element matrix is k multiplied by [[1, -1], [-1, 1]]",
+                    "With node 1 fixed, the free-end displacement is F/k",
+                ],
+                "element_stiffness_n_per_m": round(axial_stiffness_n_per_m, 3),
+                "element_matrix_n_per_m": [
+                    [round(axial_stiffness_n_per_m, 3), round(-axial_stiffness_n_per_m, 3)],
+                    [round(-axial_stiffness_n_per_m, 3), round(axial_stiffness_n_per_m, 3)],
+                ],
+                "answer": {
+                    "node_1_displacement_mm": 0.0,
+                    "node_2_displacement_mm": round(displacement_mm, 6),
+                    "support_reaction_kn": round(-axial_force_kn, 6),
+                },
+                "limits": [
+                    "Assumes a prismatic bar, small displacement, linear elasticity, perfect axial alignment and no thermal strain.",
+                    "This single-element result is not a complete structural analysis or member-capacity check.",
+                ],
+            },
+        })
+
+        flow_m3_s = 0.01 + 0.002 * index
+        pipe_diameter_m = 0.10 + 0.01 * (index % 4)
+        pipe_area_m2 = math.pi * pipe_diameter_m**2 / 4.0
+        mean_velocity_m_s = flow_m3_s / pipe_area_m2
+
+        lessons.append({
+            "domain": "engineering_pipe_continuity_calculation",
+            "system": ENGINEERING_SYSTEM,
+            "prompt": (
+                f"A full circular pipe carries a steady discharge of {flow_m3_s:g} m³/s "
+                f"and has internal diameter {pipe_diameter_m:g} m. Calculate its "
+                "cross-sectional area and mean flow velocity using continuity. "
+                "Assume incompressible steady flow and do not calculate head loss."
+            ),
+            "completion": {
+                "schema": "nextai.pipe_continuity_worked.v1",
+                "units": {"discharge": "m3/s", "diameter": "m", "area": "m2", "velocity": "m/s"},
+                "given": {"discharge_m3_s": flow_m3_s, "internal_diameter_m": pipe_diameter_m},
+                "working": [
+                    "For a circular pipe, A = πD²/4",
+                    "Apply continuity for steady incompressible flow: Q = Av",
+                    "Rearrange to v = Q/A and retain SI units",
+                ],
+                "answer": {
+                    "area_m2": round(pipe_area_m2, 8),
+                    "mean_velocity_m_s": round(mean_velocity_m_s, 6),
+                    "continuity_check_m3_s": round(pipe_area_m2 * mean_velocity_m_s, 9),
+                },
+                "limits": [
+                    "Mean velocity alone does not determine pressure, energy grade line, friction loss or pump duty.",
+                    "A real hydraulic assessment also needs pipe roughness, length, fittings, fluid properties and boundary conditions.",
+                ],
+            },
+        })
+
+        slab_length_m = 5.0 + 0.5 * (index % 3)
+        slab_width_m = 4.0 + 0.25 * (index % 4)
+        slab_thickness_m = 0.15 + 0.025 * (index % 2)
+        concrete_volume_m3 = slab_length_m * slab_width_m * slab_thickness_m
+
+        lessons.append({
+            "domain": "construction_concrete_quantity_calculation",
+            "system": ENGINEERING_SYSTEM,
+            "prompt": (
+                f"Calculate the net geometric concrete volume for a rectangular "
+                f"slab {slab_length_m:g} m long, {slab_width_m:g} m wide and "
+                f"{slab_thickness_m:g} m thick. Assume no openings and no allowance "
+                "for waste. Show the unit-consistent calculation."
+            ),
+            "completion": {
+                "schema": "nextai.concrete_quantity_worked.v1",
+                "units": {"dimensions": "m", "volume": "m3"},
+                "given": {"length_m": slab_length_m, "width_m": slab_width_m, "thickness_m": slab_thickness_m},
+                "working": [
+                    "For a rectangular slab, volume = length × width × thickness",
+                    f"Substitute the supplied dimensions: {slab_length_m:g} × {slab_width_m:g} × {slab_thickness_m:g}",
+                    "The resulting unit is m³",
+                ],
+                "answer": {
+                    "net_concrete_volume_m3": round(concrete_volume_m3, 6),
+                    "plan_area_m2": round(slab_length_m * slab_width_m, 6),
+                },
+                "exclusions": [
+                    "No waste or overbreak allowance",
+                    "No deduction for openings because the prompt specifies none",
+                    "No reinforcement, formwork or cost quantity is inferred from concrete volume",
+                ],
+            },
+        })
 
     return lessons
 
