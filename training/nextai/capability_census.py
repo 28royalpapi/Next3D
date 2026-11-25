@@ -263,7 +263,7 @@ def build_census(bim_path: Path, cad_index_path: Path,
                         "bridge. Confirm the current access mode and inspect the native result."
                     )
             else:
-                item["workbenches"] = capability.get("workbenches") or []
+                item["toolbar_workbenches"] = capability.get("toolbar_workbenches") or []
                 item["special_rule"] = (
                     "A discovered GUI command or public API member is not automatically a safe, typed AI tool. "
                     "Enable execution only through a reviewed native adapter."
@@ -287,7 +287,10 @@ def build_census(bim_path: Path, cad_index_path: Path,
                 "upstream_commit": cad_data["upstream_commit"],
                 "source_module_count": len(cad_modules),
                 "runtime_capture": "captured" if runtime_data else "not_captured",
-                "application_version": runtime_data.get("application_version") if runtime_data else None
+                "application_version": runtime_data.get("application_version") if runtime_data else None,
+                "python_api_enumeration_scope": (
+                    (runtime_data or {}).get("runtime_inventory", {}).get("python_api_enumeration_scope")
+                )
             },
             "nextbim": {
                 "upstream_commit": bim_data["upstream_commit"],
