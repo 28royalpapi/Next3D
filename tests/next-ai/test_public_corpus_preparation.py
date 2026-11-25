@@ -796,6 +796,25 @@ class DesignExecutionCurriculumTests(unittest.TestCase):
         self.assertEqual(sphere["plan"][0]["tool"], "create_part_sphere")
         self.assertEqual(nozzle["plan"][0]["tool"], "create_part_cone")
 
+    def test_execution_and_bim_domains_have_explicit_non_dominating_sampling_weights(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        for domain in (
+            "design_execution_vehicle_package",
+            "design_execution_3d_architectural_wall_shell",
+            "design_execution_parametric_hollow_tube",
+            "design_execution_electrical_cabinet",
+            "design_execution_pump_package",
+            "bim_execution_new_build",
+            "bim_execution_watchtower",
+            "bim_execution_mep_coordination",
+            "bim_execution_edit_existing_element",
+            "bim_execution_ifc_exchange_readiness",
+        ):
+            match = re.search(rf'"{re.escape(domain)}": ([0-9.]+)', source)
+            self.assertIsNotNone(match, domain)
+            self.assertGreater(float(match.group(1)), 0.0)
+            self.assertLess(float(match.group(1)), 0.13)
+
     def test_bim_operator_workflows_use_only_native_assistant_tools(self):
         lessons = module.make_bim_execution_curriculum()
         by_domain = {lesson["domain"]: lesson for lesson in lessons}
