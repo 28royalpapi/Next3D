@@ -307,8 +307,10 @@ def make_bim_qa_record(row: dict[str, Any], record_id: str, split: str) -> dict[
 def load_stream(repo: str, split: str, limit: int, seed: int):
     from datasets import load_dataset
     dataset = load_dataset(repo, split=split, streaming=True)
-    if split == "train":
-        dataset = dataset.shuffle(seed=seed, buffer_size=5000)
+    # Shuffle every split deterministically so a bounded validation/test sample
+    # is not merely the first shard or first alphabetic source records.
+    split_seed = seed + {"train": 0, "validation": 1, "test": 2}.get(split, 3)
+    dataset = dataset.shuffle(seed=split_seed, buffer_size=5000)
     return itertools.islice(iter(dataset), max(0, limit))
 
 
