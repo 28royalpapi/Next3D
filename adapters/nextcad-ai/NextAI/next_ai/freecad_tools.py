@@ -285,6 +285,56 @@ def _create_step(doc, tool, args):
             obj.Label = str(args["label"])[:120]
         return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
 
+    if tool == "create_part_cylinder":
+        radius = _number(args.get("radius"), "radius", 0.001, 1_000_000.0)
+        height = _number(args.get("height"), "height", 0.001, 1_000_000.0)
+        origin = App.Vector(*_point(args.get("origin", [0, 0, 0]), "origin"))
+        axis = App.Vector(*_point(args.get("axis", [0, 0, 1]), "axis"))
+        if axis.Length <= 1e-7:
+            raise ValueError("A cylinder axis must be a non-zero direction.")
+        obj = doc.addObject("Part::Cylinder", "NextAICylinder")
+        obj.Radius = radius
+        obj.Height = height
+        obj.Placement = App.Placement(
+            origin,
+            App.Rotation(App.Vector(0, 0, 1), axis),
+        )
+        if args.get("label"):
+            obj.Label = str(args["label"])[:120]
+        return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
+
+    if tool == "create_part_sphere":
+        radius = _number(args.get("radius"), "radius", 0.001, 1_000_000.0)
+        center = App.Vector(*_point(args.get("center", [0, 0, 0]), "center"))
+        obj = doc.addObject("Part::Sphere", "NextAISphere")
+        obj.Radius = radius
+        obj.Placement = App.Placement(center, App.Rotation())
+        if args.get("label"):
+            obj.Label = str(args["label"])[:120]
+        return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
+
+    if tool == "create_part_cone":
+        radius1 = _number(args.get("radius1"), "radius1", 0.0, 1_000_000.0)
+        radius2 = _number(args.get("radius2"), "radius2", 0.0, 1_000_000.0)
+        height = _number(args.get("height"), "height", 0.001, 1_000_000.0)
+        if radius1 <= 0 and radius2 <= 0:
+            raise ValueError("A cone needs at least one positive end radius.")
+        origin = App.Vector(*_point(args.get("origin", [0, 0, 0]), "origin"))
+        axis = App.Vector(*_point(args.get("axis", [0, 0, 1]), "axis"))
+        if axis.Length <= 1e-7:
+            raise ValueError("A cone axis must be a non-zero direction.")
+        obj = doc.addObject("Part::Cone", "NextAICone")
+        obj.Radius1 = radius1
+        obj.Radius2 = radius2
+        obj.Height = height
+        obj.Placement = App.Placement(
+            origin,
+            App.Rotation(App.Vector(0, 0, 1), axis),
+        )
+        if args.get("label"):
+            obj.Label = str(args["label"])[:120]
+        return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
+
     if tool == "create_draft_wire":
         import Draft
         raw_points = args.get("points")
