@@ -810,6 +810,166 @@ def make_advanced_engineering_curriculum() -> list[dict[str, Any]]:
         },
     })
 
+    # Additional engineering lessons close gaps between model creation,
+    # engineering validation and downstream project delivery.
+    for index in range(12):
+        width = 100 + (index % 6) * 20
+        height = 70 + (index % 5) * 10
+        thickness = 8 + (index % 4) * 2
+        diameter = 6 + (index % 3) * 2
+        depth = 5 + (index % 5) * 2
+        storeys = 2 + index % 4
+
+        lessons.extend([
+            {
+                "domain": "cad_geometry_topology",
+                "system": CAD_SYSTEM,
+                "prompt": "Explain how vertices, edges, wires, faces, shells, solids and meshes relate in a boundary-representation CAD model. Give the validity checks required before editing, manufacturing or exporting.",
+                "completion": {
+                    "schema": "nextai.cad_topology_validation.v1",
+                    "entities": {
+                        "vertex": "topological point",
+                        "edge": "bounded curve between vertices",
+                        "wire": "ordered connected boundary edges",
+                        "face": "surface bounded by wires",
+                        "shell": "connected collection of faces",
+                        "solid": "closed shell enclosing a volume",
+                        "mesh": "polygon facets approximating a surface, without parametric feature history",
+                    },
+                    "checks": ["wire closure where required", "valid face boundaries", "closed shell for volume solids", "kernel solid validity and non-zero volume", "mesh watertightness and consistent normals", "units and geometric tolerance recorded"],
+                    "rule": "A visually closed mesh is not proof of a valid parametric solid.",
+                },
+            },
+            {
+                "domain": "cad_sketch_constraint_diagnosis",
+                "system": CAD_SYSTEM,
+                "prompt": f"Diagnose a fully constrained sketch for a {width} mm by {height} mm plate with two {diameter} mm holes. Explain degrees of freedom, geometric constraints and driving dimensions.",
+                "completion": {
+                    "schema": "nextai.sketch_constraint_diagnosis.v1",
+                    "units": "mm",
+                    "geometry": ["four connected lines", "two circles"],
+                    "constraints": ["coincident endpoints", "horizontal and vertical edges", "equal opposite sides", "aligned hole centres", "symmetric hole centres"],
+                    "dimensions": [{"name": "width", "value": width}, {"name": "height", "value": height}, {"name": "hole_diameter", "value": diameter}],
+                    "diagnosis": ["inspect remaining degrees of freedom", "identify unconstrained translation/rotation", "add only independent constraints", "recompute and inspect conflicts", "change one driving dimension and verify intended movement"],
+                    "acceptance": ["zero intended degrees of freedom", "no redundant or conflicting constraints", "dimensions trace to the specification"],
+                },
+            },
+            {
+                "domain": "cad_boolean_feature_planning",
+                "system": CAD_SYSTEM,
+                "prompt": f"Plan a parametric boolean difference for a {width} mm by {height} mm by {thickness} mm plate with a central {diameter} mm through-hole. Return the base solid, cutter and feature order.",
+                "completion": {
+                    "schema": "nextai.cad_boolean_feature_plan.v1",
+                    "units": "mm",
+                    "features": [
+                        {"order": 1, "id": "base", "operation": "box", "length": width, "width": height, "height": thickness},
+                        {"order": 2, "id": "cutter", "operation": "cylinder", "radius": diameter / 2, "height": thickness, "origin": [width / 2, height / 2, 0]},
+                        {"order": 3, "id": "result", "operation": "boolean_difference", "base": "base", "tool": "cutter"},
+                    ],
+                    "validation": ["one valid solid", "one through-hole", "volume reduction matches the removed cylinder within tolerance", "recompute and save/reopen"],
+                },
+            },
+            {
+                "domain": "cad_surface_modelling",
+                "system": CAD_SYSTEM,
+                "prompt": "Choose between extrusion, revolution, sweep and loft for a parametric surface or solid. Describe the profiles, guide curves, axes, section order and continuity checks needed.",
+                "completion": {
+                    "schema": "nextai.cad_surface_modelling_guide.v1",
+                    "operations": {"extrusion": "translate a profile along a vector", "revolution": "rotate a profile about an axis", "sweep": "move a profile along a guide path", "loft": "interpolate between ordered sections"},
+                    "inputs": ["profile geometry and closure", "axis or path", "section order", "orientation/twist rule", "continuity requirement", "units and tolerance"],
+                    "checks": ["profiles valid and consistently oriented", "guide path continuous", "section correspondence checked", "self-intersections checked", "result shell/solid validity matches intent"],
+                },
+            },
+            {
+                "domain": "cad_mesh_quality",
+                "system": CAD_SYSTEM,
+                "prompt": "Prepare a mesh export quality checklist for a parametric part. Explain scale, chordal deviation, angular deflection, watertightness, normals and format selection.",
+                "completion": {
+                    "schema": "nextai.cad_mesh_quality_plan.v1",
+                    "checks": ["correct body and revision", "units and scale", "mesh closure/manifold edges", "consistent normals", "self-intersection", "chordal deviation", "angular deflection", "minimum feature size", "orientation and origin"],
+                    "formats": {"STL": "triangular surface; no parametric history", "3MF": "additive manufacturing container with richer metadata"},
+                    "acceptance": ["mesh integrity passes", "tessellation error fits manufacturing tolerance", "dimensions agree with source B-rep", "export can be re-imported and inspected"],
+                },
+            },
+            {
+                "domain": "cad_fem_preprocessing",
+                "system": CAD_SYSTEM,
+                "prompt": "Prepare a finite-element analysis of a structural bracket. Identify idealisation, material, contacts, mesh, loads, supports, convergence and independent checks. Do not invent loads or claim a solved result.",
+                "completion": {
+                    "schema": "nextai.fem_preprocessing_plan.v1",
+                    "stages": ["simplify only non-critical detail", "assign verified material", "define contacts", "select element formulation and mesh controls", "apply supports matching physical conditions", "apply documented load cases", "solve and review residuals", "refine mesh and check convergence", "compare with hand checks and engineering judgement"],
+                    "required_inputs": ["material modulus and Poisson ratio", "strength properties where needed", "load magnitudes/directions", "support stiffness", "contact assumptions", "solver and acceptance criteria"],
+                    "rule": "A stress plot is not a valid result without correct boundary conditions, equilibrium, convergence and review.",
+                },
+            },
+            {
+                "domain": "cad_cam_preprocessing",
+                "system": CAD_SYSTEM,
+                "prompt": "Prepare a CAM job for a plate with drilled holes. List the stock, work coordinate system, machine, tools, operations, cutting data, simulation and postprocessor information needed before generating G-code.",
+                "completion": {
+                    "schema": "nextai.cam_job_plan.v1",
+                    "stages": ["confirm model revision", "define stock and material", "set machine and work coordinate system", "select verified tools and holders", "choose facing/profile/drilling operations", "set feeds/speeds/depths from approved data", "simulate and check collisions", "review remaining stock", "postprocess for the exact controller", "verify approved setup"],
+                    "required_inputs": ["machine kinematics", "controller", "tool geometry", "material cutting data", "workholding", "tolerances"],
+                    "not_assumed": ["spindle speed", "feed rate", "tool diameter", "stepover", "cut depth", "machine-specific G-code"],
+                },
+            },
+            {
+                "domain": "bim_room_boundaries",
+                "system": BIM_SYSTEM,
+                "prompt": "Explain how BIM rooms/spaces are bounded by walls, doors, floors and separation lines. Distinguish room objects, boundaries, gross/net area and room enclosure validity.",
+                "completion": {
+                    "schema": "nextai.bim_room_boundary_lesson.v1",
+                    "concepts": {"space": "semantic spatial object with identity and level", "boundary": "enclosure derived from room-bounding objects", "gross_area": "area by the adopted gross boundary convention", "net_area": "area by the adopted clear boundary convention", "volume": "enclosed volume subject to height/boundary rules"},
+                    "checks": ["boundary is closed", "correct storey assignment", "boundary elements resolve", "area method is documented", "unbounded/overlapping rooms are reported"],
+                    "rule": "A shared wall does not prove a door or navigable connection.",
+                },
+            },
+            {
+                "domain": "bim_asset_handover",
+                "system": BIM_SYSTEM,
+                "prompt": "Prepare BIM asset information requirements for facilities-management handover. Include type and instance data, location, classification, manufacturer, warranty and maintenance document fields.",
+                "completion": {
+                    "schema": "nextai.bim_asset_handover.v1",
+                    "fields": ["asset_id", "ifc_class", "asset_type", "classification", "storey", "space", "system", "manufacturer", "model_reference", "serial_number", "installation_date", "warranty_expiry", "maintenance_interval", "document_reference"],
+                    "rules": ["separate type and instance data", "preserve approved identifiers", "link documents to the correct asset", "record missing values rather than guessing", "validate against the agreed handover requirements"],
+                    "checks": ["unique asset IDs", "resolvable location and system", "required properties complete", "document links resolve", "open issues disclosed"],
+                },
+            },
+            {
+                "domain": "bim_revision_change_impact",
+                "system": BIM_SYSTEM,
+                "prompt": "A host wall is moved in a BIM project. Explain how to identify dependent doors/windows, rooms, finishes, dimensions, schedules, sections and quantities before applying the edit.",
+                "completion": {
+                    "schema": "nextai.bim_change_impact_plan.v1",
+                    "workflow": ["capture before-state and element identity", "inspect direct and indirect dependencies", "list hosted elements", "identify room boundary and finish impacts", "identify affected views, dimensions and schedules", "identify quantity and IFC relationship changes", "request approval if design intent is ambiguous", "apply as one native transaction", "recompute and revalidate affected objects", "compare and save a revision record"],
+                    "rule": "Never move a host object without checking hosted elements and seeking approval when the change is ambiguous.",
+                },
+            },
+            {
+                "domain": "construction_4d_sequence",
+                "system": BIM_SYSTEM,
+                "prompt": f"Plan a 4D BIM workflow for a {storeys}-storey building. Distinguish WBS activity dates, model phases, baseline, actual progress and field-verified completion.",
+                "completion": {
+                    "schema": "nextai.construction_4d_plan.v1",
+                    "sequence": ["create WBS activities", "link activities to model elements and work zones", "define dependencies and calendars", "assign baseline durations and dates", "simulate planned sequence", "record actual dates and measurable evidence separately", "track deviations and approved recovery actions", "retain baseline/revision history"],
+                    "checks": ["no broken activity dependencies", "linked elements exist", "baseline remains controlled", "actual progress has traceable field evidence"],
+                    "rule": "A model phase or element's existence is not evidence that site work has been completed.",
+                },
+            },
+            {
+                "domain": "civil_site_coordination",
+                "system": BIM_SYSTEM,
+                "prompt": f"Prepare a civil site BIM model for a {depth} m deep proposed foundation influence zone. Include survey controls, boundary, terrain, building pad, access, drainage and buried utilities. State the inputs needed before grading design.",
+                "completion": {
+                    "schema": "nextai.civil_site_model_plan.v1",
+                    "layers": ["survey control and benchmarks", "legal/site boundary", "existing terrain", "proposed finished levels", "building footprint and formation", "roads and pedestrian access", "hardscape", "surface drainage and outfall", "buried utilities and easements"],
+                    "required_inputs": ["topographic survey", "boundary/title information", "geotechnical report", "rainfall/catchment data", "utility records", "road authority requirements", "local planning/environmental rules"],
+                    "checks": ["coordinate system and datum agree", "cut/fill uses verified surfaces", "runoff reaches approved outfall", "access gradients and clearances checked", "services coordinated with foundations"],
+                    "rule": "Never fabricate survey levels, legal boundaries, drainage capacity or approval status.",
+                },
+            },
+        ])
+
     return lessons
 
 
@@ -1405,6 +1565,18 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "swiss_dwellings_floorplan": 0.09,
         "ifc_model_summary": 0.06,
         "ifc_element_inventory": 0.08,
+        "cad_geometry_topology": 0.035,
+        "cad_sketch_constraint_diagnosis": 0.04,
+        "cad_boolean_feature_planning": 0.03,
+        "cad_surface_modelling": 0.03,
+        "cad_mesh_quality": 0.025,
+        "cad_fem_preprocessing": 0.025,
+        "cad_cam_preprocessing": 0.025,
+        "bim_room_boundaries": 0.04,
+        "bim_asset_handover": 0.035,
+        "bim_revision_change_impact": 0.03,
+        "construction_4d_sequence": 0.03,
+        "civil_site_coordination": 0.03,
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
@@ -1540,6 +1712,12 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "construction_project_controls": [], "construction_cost_and_quantities": [],
         "construction_quality_and_safety": [], "swiss_dwellings_floorplan": [],
         "ifc_model_summary": [], "ifc_element_inventory": [],
+        "cad_geometry_topology": [], "cad_sketch_constraint_diagnosis": [],
+        "cad_boolean_feature_planning": [], "cad_surface_modelling": [],
+        "cad_mesh_quality": [], "cad_fem_preprocessing": [], "cad_cam_preprocessing": [],
+        "bim_room_boundaries": [], "bim_asset_handover": [],
+        "bim_revision_change_impact": [], "construction_4d_sequence": [],
+        "civil_site_coordination": [],
         "nextcad_native": [], "nextbim_native": [],
     }
     validation, tests, quarantine = [], [], []
