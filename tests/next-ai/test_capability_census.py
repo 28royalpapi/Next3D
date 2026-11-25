@@ -46,9 +46,9 @@ class CapabilityCensusTests(unittest.TestCase):
                 "application_version": "1.1.0", "upstream_commit": CAD_COMMIT,
                 "runtime_inventory": {
                     "global_command_registry_enumerated": True,
-                    "workbenches": [{"id": wb, "command_ids": ["Part_Box"]}],
+                    "workbenches": [{"id": wb, "toolbar_command_ids": ["Part_Box"], "menu_command_mapping": "not_exposed_by_pinned_python_workbench_wrapper"}],
                     "commands": [{"id": "Part_Box", "menu_text": "Create box",
-                                  "workbenches": [wb], "ui_contexts": ["toolbar:Primitives"]}],
+                                  "toolbar_workbenches": [wb], "ui_contexts": ["toolbar:Primitives"]}],
                     "python_api_modules": [{"name": "Part", "public_members": [
                         {"name": "makeBox", "kind": "callable", "documentation": "Create a box."},
                         {"name": "Shape", "kind": "class", "documentation": "Shape base."}

@@ -137,12 +137,12 @@ def load_nextcad_runtime(path: Path, expected_commit: str):
     wb_ids = {row["id"] for row in workbenches}
     command_ids = {row["id"] for row in commands}
     for wb in workbenches:
-        references = wb.get("command_ids") or []
+        references = wb.get("toolbar_command_ids") or []
         if not isinstance(references, list) or set(references) - command_ids:
             raise CensusError(f"Workbench {wb['id']} refers to unknown command IDs")
     capabilities = []
     for row in commands:
-        workbench_ids = [item for item in row.get("workbenches") or [] if item in wb_ids]
+        workbench_ids = [item for item in row.get("toolbar_workbenches") or [] if item in wb_ids]
         capabilities.append({
             "application": "nextcad",
             "capability_id": "nextcad.command." + row["id"],
