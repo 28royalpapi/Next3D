@@ -25,17 +25,17 @@ The builder streams the CAD dataset's published `train`, `validation` and `test`
 
 ## Train
 
-The trainer follows the Unsloth Qwen3.5-0.8B vision recipe with BF16/FP16 LoRA (depending on GPU hardware), vision and language pathways both receive LoRA adapters, with the base checkpoint weights retained. It does not use QLoRA. Begin with a small run to check memory and loss before a longer experiment.
+The trainer follows the Unsloth Qwen3.5-0.8B vision recipe with BF16/FP16 LoRA (depending on GPU hardware), vision and language pathways both receive LoRA adapters, with the base checkpoint weights retained. It does not use QLoRA. The default notebook completes one full pass over the sampled training set; use `--max-steps 100` for a short memory/throughput smoke test before the full pass. It selects BF16 where the GPU supports it, otherwise FP16. The Unsloth guide reports about 3 GB VRAM for a basic 0.8B BF16 LoRA recipe; multi-view CAD and 4K context can need more headroom, so the notebook checks actual GPU memory and should be adjusted if it runs out.
 
     pip install --upgrade unsloth unsloth_zoo
     pip install --upgrade transformers trl datasets peft accelerate bitsandbytes pillow
-    python training/nextai/train_nextai.py --data-dir /workspace/nextai-corpus --output-dir /workspace/nextai-run-001 --max-steps 800
+    python training/nextai/train_nextai.py --data-dir /workspace/nextai-corpus --output-dir /workspace/nextai-run-001 --max-steps -1 --num-train-epochs 1
 
 The script saves the LoRA adapter, a temporary merged 16-bit checkpoint, and exports the main language model as Q4_K_M GGUF. The notebook then converts the separate multimodal vision projector to Q8_0 with the repository's `quantize-mmproj-q8.sh`, verifies its GGUF header and SHA-256, and replaces the full-precision projector only after the Q8 file is valid. The teacher weights are not required for this training script and are not bundled. The final merged quantised model is a new candidate; it must be independently benchmarked before replacing the current runtime baseline.
 
 ## Compare the untouched student and tuned candidate
 
-Run the same held-out test file against the untouched student and the trained candidate, writing separate reports:
+Run the same held-out test file against the untouched student and the trained candidate, writing separate reports. The training script defaults to one complete epoch (`--max-steps -1`) rather than stopping after an arbitrary 800 steps; validation metrics are recorded at the end of the run. A second epoch is considered only after validation shows improvement without overfitting:
 
     python training/nextai/evaluate_nextai.py --model Qwen/Qwen3.5-0.8B --test-jsonl /workspace/nextai-corpus/test.jsonl --output /workspace/eval-base.json
     python training/nextai/evaluate_nextai.py --model /workspace/nextai-run-001/adapter --test-jsonl /workspace/nextai-corpus/test.jsonl --output /workspace/eval-tuned.json
