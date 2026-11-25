@@ -156,6 +156,10 @@ class NativeToolSafetyTests(unittest.TestCase):
         self.assertIn("create_part_cylinder", ui_source)
         self.assertIn("create_part_sphere", ui_source)
         self.assertIn("create_part_cone", ui_source)
+        self.assertIn("create_arch_wall", ui_source)
+        self.assertIn("3D architectural wall shell", ui_source)
+        self.assertIn("20-step native-plan limit", ui_source)
+        self.assertIn("keep each component separate and labelled", ui_source)
 
     def test_nextbim_installer_adds_guided_design_intake_to_native_assistant(self):
         installer = (ROOT / "scripts/install-nextbim-ai-knowledge.py").read_text(encoding="utf-8")
