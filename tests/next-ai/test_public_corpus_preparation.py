@@ -132,7 +132,7 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         source = trainer_path.read_text(encoding="utf-8")
         compile(source, str(trainer_path), "exec")
         self.assertIn("load_in_4bit=False", source)
-        self.assertIn("finetune_vision_layers=False", source)
+        self.assertIn("finetune_vision_layers=True", source)
         self.assertIn("held_out_test_metrics_by_domain", source)
         self.assertIn("test_set_used_for_training", source)
 
