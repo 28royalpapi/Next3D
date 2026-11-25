@@ -12,6 +12,7 @@ The pack is deliberately small and text-only. It adds no second model and no geo
 - `drawing-intake.md`: image/drawing interpretation, scale, annotation and uncertainty rules.
 - `design/design-intake.md`: guided requirements interviews for residential/commercial plans, vehicles and consumer products, mechanical parts, assemblies, sheet-metal enclosures, manufacturing drawings, CAM setup, BIM projects, renovations and civil infrastructure.
 - `design/design-execution.md`: staged native model creation, editable feature history, room zoning, watchtower component schedules, vehicle packaging, geometry-aware primitive selection, mechanical parts, in-place editing, BIM element workflows and honest validation reports.
+- `bim/native-command-playbook.md`: BIMCraft command discovery, staged building creation, room validation, watchtower/guard-tower workflows, in-place element editing and BIM reporting.
 
 ## Authority order
 
