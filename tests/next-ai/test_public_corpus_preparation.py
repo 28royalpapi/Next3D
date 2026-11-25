@@ -143,7 +143,34 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             for bounds in [room["bounds"]]
         )
         self.assertEqual(room_area, shell["width"] * shell["depth"])
-        self.assertEqual(len(floorplan_data["door_centres"]), 8)
+        self.assertEqual(len(floorplan_data["door_centres"]), 9)
+        room_bounds = {room["name"]: room["bounds"] for room in floorplan_data["room_rectangles"]}
+        room_areas = {
+            name: (bounds[2] - bounds[0]) * (bounds[3] - bounds[1]) / 1_000_000
+            for name, bounds in room_bounds.items()
+        }
+        minima = {room["name"]: room.get("minimum_area_m2", 0) for room in floorplan_data["room_program"]}
+        for room_name, minimum in minima.items():
+            self.assertGreaterEqual(room_areas[room_name], minimum, room_name)
+
+        def on_shared_boundary(a, b, point):
+            ax0, ay0, ax1, ay1 = room_bounds[a]
+            bx0, by0, bx1, by1 = room_bounds[b]
+            px, py = point
+            vertical_overlap = max(ay0, by0) < min(ay1, by1)
+            horizontal_overlap = max(ax0, bx0) < min(ax1, bx1)
+            if vertical_overlap and (ax1 == bx0 or bx1 == ax0):
+                return abs(px - (ax1 if ax1 == bx0 else bx1)) <= 1 and max(ay0, by0) <= py <= min(ay1, by1)
+            if horizontal_overlap and (ay1 == by0 or by1 == ay0):
+                return abs(py - (ay1 if ay1 == by0 else by1)) <= 1 and max(ax0, bx0) <= px <= min(ax1, bx1)
+            return False
+
+        for door in floorplan_data["door_centres"]:
+            a, b = door["connects"]
+            if a == "entrance":
+                self.assertEqual(door["point"][1], 0)
+            else:
+                self.assertTrue(on_shared_boundary(a, b, door["point"]), (a, b, door["point"]))
         dimension_lesson = next(row for row in lessons if row["domain"] == "cad_2d_drafting")
         self.assertIn("6000", dimension_lesson["completion"])
         self.assertIn("mm", dimension_lesson["completion"])
