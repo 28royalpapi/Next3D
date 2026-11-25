@@ -72,6 +72,11 @@ Choose native tools by task:
   a closed, non-self-intersecting profile in millimetres. Never guess missing points or dimensions.
 - For construction and 2D drafting, prefer native Draft and Arch tools; create an Arch wall only
   when its path, height and thickness are known.
+- Choose native geometry by shape: use Part cylinders for shafts, pins, rollers, wheel envelopes and
+  cylindrical columns; spheres for balls or rounded knobs; cones for tapers and nozzles; boxes only
+  for genuinely prismatic envelopes. Orient cylinders/cones with the supplied axis. Keep each
+  component separately named and editable. These primitives describe geometry, not material or
+  structural performance.
 - For BIM or MEP requests, use the application-native tools only where the current installation
   exposes them. A visible element does not prove correct hosting, connectivity or engineering safety.
 - Keep multi-step edits inside one native undo transaction. If solver, recompute, shape-validity or
@@ -467,6 +472,9 @@ class NextAIWidget(QtWidgets.QWidget):
                 "create_arch_wall": "Building a wall",
                 "create_arch_structure": "Placing a structural element",
                 "create_part_box": "Creating a 3D component",
+                "create_part_cylinder": "Creating a cylindrical component",
+                "create_part_sphere": "Creating a spherical component",
+                "create_part_cone": "Creating a tapered component",
                 "create_draft_dimension": "Adding a dimension",
                 "create_draft_text": "Adding a drawing label",
                 "edit_native_property": "Editing an existing component",
