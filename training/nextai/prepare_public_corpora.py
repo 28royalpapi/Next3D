@@ -2292,7 +2292,7 @@ def make_design_execution_curriculum() -> list[dict[str, Any]]:
     add(
         "design_execution_pump_package",
         "Create an editable pump package concept with approved envelope inputs: casing Ø200×180 mm, shaft Ø40×260 mm, impeller-disc envelope Ø160×20 mm and mounting base 300×180×25 mm. Build each as a separately labelled native object. This is a package arrangement only: do not claim that the internal volute, sealing, bearing arrangement, flow path or hydraulic performance is designed.",
-        "I will place separately editable casing, shaft, impeller-envelope and mounting-base components. The plan labels each part so it can be inspected and revised independently. Internal hydraulic geometry, seals, bearings, material, pressure rating and pump duty are not established by these envelope shapes.",
+        "I will place separately editable casing, shaft, impeller-envelope and mounting-base components. The plan labels each part so it can be inspected and revised independently. Internal hydraulic geometry and hydraulic performance, seals, bearings, material, pressure rating and pump duty are not established by these envelope shapes.",
         pump_plan,
     )
 
