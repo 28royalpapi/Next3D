@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, nextcad, nextai-operator-foundation]
     paths:
+      - "scripts/verify_native_capability_indices.py"
       - "scripts/run_nextcad_capability_census.py"
       - "training/nextai/COMPLETE_NATIVE_CAPABILITY_STANDARD.md"
       - "docs/next-ai/catalogs/**"
@@ -27,6 +28,7 @@ on:
       - "scripts/smoke_native.py"
   pull_request:
     paths:
+      - "scripts/verify_native_capability_indices.py"
       - "scripts/run_nextcad_capability_census.py"
       - "training/nextai/COMPLETE_NATIVE_CAPABILITY_STANDARD.md"
       - "docs/next-ai/catalogs/**"
@@ -74,6 +76,15 @@ jobs:
         run: |
           echo "Preparing the two pinned native source trees; no encoded overlay patch is used."
           bash scripts/apply-source-patches.sh
+
+      - name: Verify capability indexes against pinned native sources
+        shell: bash
+        run: |
+          python scripts/verify_native_capability_indices.py \
+            --nextcad-source-root upstream/FreeCAD/src/Mod \
+            --nextbim-source-root upstream/BIMCraft \
+            --nextcad-source-index docs/next-ai/catalogs/NEXTCAD_WORKBENCH_SOURCE_INDEX.v1.json \
+            --nextbim-catalog docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json
 
       - name: Run NextAI data-pipeline unit tests
         shell: bash
