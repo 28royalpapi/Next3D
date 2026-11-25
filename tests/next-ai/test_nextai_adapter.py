@@ -171,7 +171,7 @@ class NativeToolSafetyTests(unittest.TestCase):
             "visual member envelopes as concept placeholders",
         ):
             self.assertIn(term, installer)
-        self.assertIn("design-execution.md", installer)
+        self.assertIn('pack_root.rglob("*.md")', installer)
 
     def test_coordinate_validation(self):
         self.assertEqual(freecad_tools._point([10, 20]), [10.0, 20.0, 0.0])
