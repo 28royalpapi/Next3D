@@ -60,6 +60,12 @@ class CapabilityCensusTests(unittest.TestCase):
             self.assertEqual(found["native_id"], "Part_Box")
             self.assertEqual(found["toolbar_workbenches"], [wb])
             self.assertEqual(census["counts"]["nextcad_runtime_api_members"], 2)
+            self.assertIn("Public names of Python modules loaded", census["sources"]["nextcad"]["python_api_enumeration_scope"])
+            part_box_obligations = [x for x in obligations
+                                    if x["application"] == "nextcad" and x["native_id"] == "Part_Box"]
+            self.assertTrue(all(x["native_metadata"]["menu_text"] is None or
+                                isinstance(x["native_metadata"]["menu_text"], str)
+                                for x in part_box_obligations))
             self.assertEqual(len([x for x in obligations if x["application"] == "nextcad"]), 30)
             self.assertEqual(
                 {x["native_id"] for x in census["capabilities"] if x["capability_type"] == "native_api_member"},
@@ -119,6 +125,12 @@ class CapabilityCensusTests(unittest.TestCase):
         self.assertTrue(all("image-blind" in x.get("special_rule", "") for x in render_obligations))
         self.assertEqual(commands["wall"]["parameter_contract_kind"],
                          "human_readable_registration_description_not_json_schema")
+        wall_obligations = [x for x in obligations
+                            if x["application"] == "nextbim" and x["native_id"] == "wall"]
+        self.assertTrue(all(x["native_metadata"].get("parameter_contract") for x in wall_obligations))
+        self.assertTrue(all(x["native_metadata"].get("assistant_execution_status") ==
+                            "native_execution_candidate_subject_to_bridge_policy"
+                            for x in wall_obligations))
 
     def test_file_effect_commands_have_a_policy_boundary(self):
         census, obligations = module.build_census(BIM, CAD)

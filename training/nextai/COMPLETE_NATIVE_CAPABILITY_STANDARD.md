@@ -16,7 +16,7 @@ A complete inventory has separate layers. No one layer is a substitute for anoth
 
 1. **Source modules and workbenches.** Start from the pinned source index. Record every module, workbench, source path, source revision and external dependency.
 2. **Live GUI command registry.** Run the discovery macro inside the actual NextCAD GUI. It uses the native global command registry and records every registered GUI command and its metadata. It also records workbench menu labels and the toolbar commands that the pinned Python workbench wrapper exposes. The wrapper does not expose a menu-label-to-command-ID mapping, so the census must not pretend that it knows every command's menu membership.
-3. **Public Python API.** Record the APIs exposed by the installed modules and their public classes, functions, properties and documentation. This is a separate layer from GUI commands: a callable API method may have no toolbar button.
+3. **Public Python API.** Record public names from the modules loaded after workbench activation, with class/callable/value type and available documentation. This is a separate layer from GUI commands: a callable API method may have no toolbar button. This runtime snapshot is not a complete index of every compiled C++ symbol or every optional module that could not be imported; follow it with a version-pinned API-reference/source index.
 4. **Native object model.** Inventory object types, property schemas, units, links, placements, constraints, feature history, dependencies, supported file formats and import/export behaviour.
 5. **Optional integrations.** Inventory add-ons, solvers, post-processors, libraries and external programmes separately, with their versions, availability, licences and tests.
 6. **AI operation surface.** Compare all discovered capabilities with the reviewed typed NextAI tool registry. A capability that has no safe adapter is a visible coverage gap, not an implied AI ability.
@@ -48,7 +48,7 @@ For every native command (and, separately, every callable API operation), the st
 9. Composition: use in compound workflows and complete projects, including combinations not explicitly shown in one lesson.
 10. Limitations: unsupported functions, unavailable dependencies, incomplete exchange and engineering claims the application cannot prove.
 
-The new census generator creates these as **skill obligations**, not as fake supervised examples. For Next BIM, a parameter contract is a human-readable command-registration description, not a formal JSON Schema; live command discovery and the native engine remain authoritative for argument acceptance. A command is not mastered because a row was generated for it.
+The new census generator creates these as **skill obligations**, not as fake supervised examples. Each obligation carries the native command/API metadata, including the real parameter description and current assistant-policy status. For Next BIM, a parameter contract is a human-readable command-registration description, not a formal JSON Schema; live command discovery and the native engine remain authoritative for argument acceptance. A command is not mastered because a row was generated for it.
 
 ## 3. The scenario grammar
 

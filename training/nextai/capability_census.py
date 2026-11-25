@@ -228,6 +228,18 @@ def build_census(bim_path: Path, cad_index_path: Path,
                 "evidence_required_for_mastery": "L3_native_execution_passed",
                 "mastery_status": "not_assessed"
             }
+            metadata_fields = (
+                "aliases", "parameter_contract", "parameter_contract_kind",
+                "registration_kind", "undoable", "file_effect", "menu",
+                "assistant_surface", "assistant_execution_status",
+                "toolbar_workbenches", "ui_contexts", "menu_text", "tooltip",
+                "status_tip", "whats_this", "accelerator", "command_class",
+                "module", "module_file", "member_kind", "documentation"
+            )
+            native_metadata = {
+                key: capability[key] for key in metadata_fields if key in capability
+            }
+            item["native_metadata"] = native_metadata
             if capability["application"] == "nextbim":
                 item.update({
                     "registration_kind": capability.get("registration_kind"),

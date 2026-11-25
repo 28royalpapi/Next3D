@@ -199,7 +199,12 @@ report = {
         "workbenches": workbenches,
         "commands": commands,
         "python_api_modules": api_modules,
-        "python_api_member_count": sum(len(item["public_members"]) for item in api_modules)
+        "python_api_member_count": sum(len(item["public_members"]) for item in api_modules),
+        "python_api_enumeration_scope": (
+            "Public names of Python modules loaded after workbench activation, including "
+            "imported core native modules; this is not a complete C++ symbol inventory "
+            "or a guarantee that every optional API module was importable."
+        )
     },
     "diagnostics": diagnostics
 }
