@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
@@ -32,8 +31,8 @@ SYSTEM = (
 )
 
 SAFE_ENUM_PROPERTIES = {
-    "predefinedtype", "objecttype", "loadbearing", "isexternal",
-    "fireexit", "combustible", "extendtostructure", "status",
+    "predefinedtype", "loadbearing", "isexternal", "firerating",
+    "fireexit", "combustible", "extendtostructure",
 }
 RELATION_TYPES = (
     "IfcRelAggregates",
@@ -88,8 +87,10 @@ def _safe_scalar(name: str, value: Any) -> int | float | bool | str | None:
     if isinstance(value, str):
         key = name.casefold().replace(" ", "")
         clean = value.strip()
+        unsafe_markers = ("@", "/", "\\\\", "email", "phone", "address", "author", "student", "projectnumber")
+        lowered = clean.casefold()
         if key in SAFE_ENUM_PROPERTIES and clean and len(clean) <= 64:
-            if not re.search(r"[@/\\]|\\b(?:email|phone|address|author|student|projectnumber)\\b", clean, re.I):
+            if not any(marker in lowered for marker in unsafe_markers):
                 return clean
     return None
 
