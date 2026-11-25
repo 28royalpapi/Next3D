@@ -1131,7 +1131,10 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
         south_depth = 4500 + (index % 3) * 250
         north_depth = shell_depth - south_depth
         x1, x2, x3 = shell_width * 2 // 7, shell_width * 4 // 7, shell_width * 5 // 7
-        upper_bath_y = shell_depth - north_depth // 3
+        # Reserve a full 3.5 m depth for the master bedroom and at least
+        # 2.0 m for the ensuite/dressing band, so the stated area targets
+        # are actually met rather than being labels over undersized rooms.
+        upper_bath_y = min(shell_depth - 2000, south_depth + 3500)
         ensuite_x = x3 + (shell_width - x3) // 2
         lessons.append({
             "domain": "bim_architectural_floorplan",
@@ -1157,6 +1160,7 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                     {"name": "Master bedroom", "zone": "north-east", "minimum_area_m2": 14},
                     {"name": "Shared bathroom", "zone": "near hall", "minimum_area_m2": 4},
                     {"name": "Master ensuite", "zone": "inside master suite", "minimum_area_m2": 4},
+                    {"name": "Master dressing", "zone": "inside master suite", "minimum_area_m2": 3},
                     {"name": "Hall and circulation", "zone": "central", "minimum_clear_width_mm": 1200},
                 ],
                 "room_rectangles": [
@@ -1172,11 +1176,12 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                 ],
                 "door_centres": [
                     {"connects": ["entrance", "Living and dining"], "point": [mid_x, 0]},
+                    {"connects": ["Living and dining", "Kitchen"], "point": [mid_x, south_depth // 2]},
                     {"connects": ["Living and dining", "Bedroom 2"], "point": [x1 // 2, south_depth]},
-                    {"connects": ["Bedroom 3", "Hall and circulation"], "point": [x2, south_depth + (upper_bath_y - south_depth) // 2]},
                     {"connects": ["Kitchen", "Hall and circulation"], "point": [(x2 + x3) // 2, south_depth]},
+                    {"connects": ["Bedroom 3", "Hall and circulation"], "point": [x2, south_depth + (upper_bath_y - south_depth) // 2]},
                     {"connects": ["Hall and circulation", "Shared bathroom"], "point": [(x2 + x3) // 2, upper_bath_y]},
-                    {"connects": ["Kitchen", "Master bedroom"], "point": [(x3 + shell_width) // 2, south_depth]},
+                    {"connects": ["Hall and circulation", "Master bedroom"], "point": [x3, south_depth + (upper_bath_y - south_depth) // 2]},
                     {"connects": ["Master bedroom", "Master ensuite"], "point": [(x3 + ensuite_x) // 2, upper_bath_y]},
                     {"connects": ["Master bedroom", "Master dressing"], "point": [(ensuite_x + shell_width) // 2, upper_bath_y]},
                 ],
@@ -1191,12 +1196,14 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                 ],
                 "required_relationships": [
                     {"from": "entrance", "to": "living and dining", "type": "door"},
-                    {"from": "living and dining", "to": "hall and circulation", "type": "door"},
-                    {"from": "hall and circulation", "to": "bedroom 2", "type": "door"},
-                    {"from": "hall and circulation", "to": "bedroom 3", "type": "door"},
+                    {"from": "living and dining", "to": "kitchen", "type": "door"},
+                    {"from": "living and dining", "to": "bedroom 2", "type": "door"},
+                    {"from": "kitchen", "to": "hall and circulation", "type": "door"},
+                    {"from": "bedroom 3", "to": "hall and circulation", "type": "door"},
                     {"from": "hall and circulation", "to": "shared bathroom", "type": "door"},
                     {"from": "hall and circulation", "to": "master bedroom", "type": "door"},
                     {"from": "master bedroom", "to": "master ensuite", "type": "door"},
+                    {"from": "master bedroom", "to": "master dressing", "type": "door"},
                 ],
                 "unresolved_inputs": ["site orientation", "setbacks", "wall thickness", "door and window sizes", "accessibility requirements", "local planning rules"],
                 "validation": ["shell dimensions exact", "no room overlap", "room adjacency graph connected", "door relationships valid", "areas and circulation checked"],
