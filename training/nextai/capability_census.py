@@ -114,32 +114,7 @@ def load_nextcad_source_index(path: Path, expected_commit: str | None = None):
             "mastery_status": "not_assessed"
         })
 
-    api_modules = unique_rows(runtime.get("python_api_modules") or [], "name", "NextCAD Python API modules")
-    api_capabilities = []
-    for api_module in api_modules:
-        members = unique_rows(api_module.get("public_members") or [], "name",
-                              "NextCAD API members in " + api_module["name"])
-        for member in members:
-            if member.get("kind") not in ("callable", "class"):
-                continue
-            api_capabilities.append({
-                "application": "nextcad",
-                "capability_id": "nextcad.api." + api_module["name"] + "." + member["name"],
-                "native_id": api_module["name"] + "." + member["name"],
-                "name": member["name"],
-                "capability_type": "native_api_member",
-                "source_evidence": "live_imported_python_api",
-                "source_commit": expected_commit,
-                "application_version": data.get("application_version"),
-                "runtime_status": "public_api_member_discovered",
-                "module": api_module["name"],
-                "module_file": api_module.get("module_file"),
-                "member_kind": member.get("kind"),
-                "documentation": member.get("documentation"),
-                "agent_tool_status": "requires_reviewed_typed_adapter",
-                "mastery_status": "not_assessed"
-            })
-    return data, capabilities, api_capabilities
+    return data, capabilities
 
 
 def load_nextcad_runtime(path: Path, expected_commit: str):
@@ -186,7 +161,32 @@ def load_nextcad_runtime(path: Path, expected_commit: str):
             "agent_tool_status": "requires_reviewed_typed_adapter",
             "mastery_status": "not_assessed"
         })
-    return data, capabilities
+    api_modules = unique_rows(runtime.get("python_api_modules") or [], "name", "NextCAD Python API modules")
+    api_capabilities = []
+    for api_module in api_modules:
+        members = unique_rows(api_module.get("public_members") or [], "name",
+                              "NextCAD API members in " + api_module["name"])
+        for member in members:
+            if member.get("kind") not in ("callable", "class"):
+                continue
+            api_capabilities.append({
+                "application": "nextcad",
+                "capability_id": "nextcad.api." + api_module["name"] + "." + member["name"],
+                "native_id": api_module["name"] + "." + member["name"],
+                "name": member["name"],
+                "capability_type": "native_api_member",
+                "source_evidence": "live_imported_python_api",
+                "source_commit": expected_commit,
+                "application_version": data.get("application_version"),
+                "runtime_status": "public_api_member_discovered",
+                "module": api_module["name"],
+                "module_file": api_module.get("module_file"),
+                "member_kind": member.get("kind"),
+                "documentation": member.get("documentation"),
+                "agent_tool_status": "requires_reviewed_typed_adapter",
+                "mastery_status": "not_assessed"
+            })
+    return data, capabilities, api_capabilities
 
 
 def build_census(bim_path: Path, cad_index_path: Path,

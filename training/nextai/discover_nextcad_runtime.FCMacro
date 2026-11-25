@@ -147,8 +147,10 @@ for module_name, module in sorted(list(sys.modules.items()), key=lambda item: st
         continue
     root_name = module_name.split(".", 1)[0]
     module_file = getattr(module, "__file__", None)
-    normalized_path = str(module_file or "").replace("\\\\", "/")
-    in_mod_tree = "/Mod/" in normalized_path or "\\\\Mod\\\\" in str(module_file or "")
+    try:
+        in_mod_tree = any(part.lower() == "mod" for part in Path(module_file).parts) if module_file else False
+    except Exception:
+        in_mod_tree = False
     if root_name not in api_roots and not in_mod_tree:
         continue
     public_members = []
