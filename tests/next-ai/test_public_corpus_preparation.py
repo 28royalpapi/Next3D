@@ -661,6 +661,14 @@ class DesignExecutionCurriculumTests(unittest.TestCase):
             "design_execution_watchtower_concept",
             "design_execution_parametric_mechanical_part",
             "design_execution_edit_existing_model",
+            "design_execution_vehicle_package",
+            "design_execution_cylindrical_shaft",
+            "design_execution_spherical_component",
+            "design_execution_tapered_nozzle",
+            "design_execution_3d_architectural_wall_shell",
+            "design_execution_electrical_cabinet",
+            "design_execution_parametric_hollow_tube",
+            "design_execution_pump_package",
         }
         self.assertEqual(set(self.by_domain), expected_domains)
         for domain, lesson in self.by_domain.items():
@@ -727,6 +735,99 @@ class DesignExecutionCurriculumTests(unittest.TestCase):
         self.assertTrue(pocket["through_all"])
         self.assertFalse(pocket["reversed"])
         self.assertIn("material, tolerances, loads", response["message"].lower())
+
+    def test_vehicle_plan_uses_separate_chassis_body_and_four_wheels(self):
+        response = json.loads(self.by_domain["design_execution_vehicle_package"]["completion"])
+        plan = response["plan"]
+        names = [step["tool"] for step in plan]
+        self.assertEqual(names.count("create_part_box"), 2)
+        self.assertEqual(names.count("create_part_cylinder"), 4)
+        self.assertEqual(names.count("create_draft_dimension"), 2)
+        labels = [step["args"].get("label", "") for step in plan]
+        for mark in ("CH01", "BD01", "WH01", "WH02", "WH03", "WH04"):
+            self.assertTrue(any(label.startswith(mark) for label in labels))
+        self.assertIn("not a functional or road-ready vehicle", response["message"].lower())
+
+    def test_3d_architectural_shell_uses_native_arch_walls_not_only_2d_outlines(self):
+        response = json.loads(self.by_domain["design_execution_3d_architectural_wall_shell"]["completion"])
+        plan = response["plan"]
+        self.assertEqual(sum(step["tool"] == "create_arch_wall" for step in plan), 7)
+        self.assertEqual(sum(step["tool"] == "create_draft_dimension" for step in plan), 2)
+        self.assertTrue(all(
+            step["args"]["height"] == 3000 and step["args"]["width"] == 200
+            for step in plan if step["tool"] == "create_arch_wall"
+        ))
+        self.assertIn("3d wall-shell concept", response["message"].lower())
+        self.assertIn("doors, windows, openings", response["message"].lower())
+
+    def test_electrical_cabinet_components_are_separate_and_limits_disclosed(self):
+        response = json.loads(self.by_domain["design_execution_electrical_cabinet"]["completion"])
+        names = [step["tool"] for step in response["plan"]]
+        self.assertEqual(names.count("create_part_box"), 6)
+        self.assertEqual(names.count("create_part_cylinder"), 3)
+        self.assertEqual(names.count("create_draft_text"), 1)
+        self.assertIn("does not hollow the cabinet", response["message"].lower())
+        self.assertIn("earthing", response["message"].lower())
+
+    def test_hollow_tube_uses_annular_partdesign_profile(self):
+        response = json.loads(self.by_domain["design_execution_parametric_hollow_tube"]["completion"])
+        self.assertEqual([step["tool"] for step in response["plan"]], [
+            "create_partdesign_body",
+            "create_partdesign_sketch",
+            "add_sketch_circle",
+            "add_sketch_circle",
+            "create_partdesign_pad",
+        ])
+        circles = [step["args"] for step in response["plan"] if step["tool"] == "add_sketch_circle"]
+        self.assertEqual([circle["radius"] for circle in circles], [25, 20])
+        self.assertIn("hollow tube feature", response["message"].lower())
+
+    def test_pump_package_uses_cylinders_for_round_parts_and_discloses_missing_design(self):
+        response = json.loads(self.by_domain["design_execution_pump_package"]["completion"])
+        self.assertEqual(sum(step["tool"] == "create_part_cylinder" for step in response["plan"]), 3)
+        self.assertEqual(sum(step["tool"] == "create_part_box" for step in response["plan"]), 1)
+        self.assertIn("hydraulic performance", response["message"].lower())
+
+    def test_primitive_selection_matches_geometry_family(self):
+        shaft = json.loads(self.by_domain["design_execution_cylindrical_shaft"]["completion"])
+        sphere = json.loads(self.by_domain["design_execution_spherical_component"]["completion"])
+        nozzle = json.loads(self.by_domain["design_execution_tapered_nozzle"]["completion"])
+        self.assertEqual(shaft["plan"][0]["tool"], "create_part_cylinder")
+        self.assertEqual(sphere["plan"][0]["tool"], "create_part_sphere")
+        self.assertEqual(nozzle["plan"][0]["tool"], "create_part_cone")
+
+    def test_bim_operator_workflows_use_only_native_assistant_tools(self):
+        lessons = module.make_bim_execution_curriculum()
+        by_domain = {lesson["domain"]: lesson for lesson in lessons}
+        expected = {
+            "bim_execution_new_build",
+            "bim_execution_watchtower",
+            "bim_execution_mep_coordination",
+            "bim_execution_edit_existing_element",
+            "bim_execution_quantity_schedule",
+            "bim_execution_renovation_existing_conditions",
+            "bim_execution_ifc_exchange_readiness",
+            "bim_execution_structural_coordination",
+        }
+        self.assertEqual(set(by_domain), expected)
+        allowed = {"inspect_model", "query_elements", "list_commands", "execute", "todo_write"}
+        for domain, lesson in by_domain.items():
+            response = json.loads(lesson["completion"])
+            self.assertTrue(response["message"])
+            self.assertIn("workflow", response)
+            self.assertIn("checks", response)
+            self.assertIn("list_commands", response["command_execution_rule"])
+            for step in response["workflow"]:
+                self.assertIn(step["tool"], allowed)
+                self.assertIsInstance(step["args"], dict)
+        new_build = json.loads(by_domain["bim_execution_new_build"]["completion"])
+        self.assertTrue(any(step["tool"] == "todo_write" for step in new_build["workflow"]))
+        edit = json.loads(by_domain["bim_execution_edit_existing_element"]["completion"])
+        self.assertTrue(any(step["tool"] == "query_elements" and step["args"].get("category") == "wall"
+                            for step in edit["workflow"]))
+        self.assertIn("six-digit element ID", edit["message"])
+        ifc = json.loads(by_domain["bim_execution_ifc_exchange_readiness"]["completion"])
+        self.assertIn("cannot perform file exports", ifc["message"].lower())
 
     def test_edit_example_modifies_existing_element_without_creating_duplicate(self):
         response = json.loads(self.by_domain["design_execution_edit_existing_model"]["completion"])
