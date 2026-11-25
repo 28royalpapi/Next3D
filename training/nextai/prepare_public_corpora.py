@@ -1744,6 +1744,142 @@ def make_design_intake_curriculum() -> list[dict[str, Any]]:
         add_three_turn_flow("design_intake_civil_infrastructure", "infrastructure", i + 1,
                             prompt, first, first_reply, follow, second_reply, final, ENGINEERING_SYSTEM)
 
+    # Consumer products and industrial design: learn the product's purpose,
+    # user, interface, ergonomics and manufacturing route before surfacing.
+    products = [
+        ("ergonomic task chair", "seated office work", "seat, backrest, armrests, adjustment and base"),
+        ("adjustable desk lamp", "task lighting", "base, arm, pivots, light source and controls"),
+        ("handheld power drill", "drilling and fastening", "motor, gearbox, chuck, battery and grip"),
+        ("insulated water bottle", "carrying hot or cold liquids", "body, lid, seal, mouthpiece and handle"),
+        ("storage cabinet", "organising household or office items", "carcase, shelves, doors, hinges and handles"),
+        ("manual garden tool", "a defined gardening task", "working head, shaft, grip and attachment"),
+        ("portable speaker housing", "portable audio playback", "drivers, enclosure, controls, battery and connectors"),
+        ("kitchen appliance", "a specified food-preparation task", "motor or heater, controls, housing, removable parts and guards"),
+    ]
+    for i, (product, use, components) in enumerate(products):
+        prompt = f"Design a {product} in CAD."
+        first = (
+            f"I can help design the {product}. What task should it perform and who will use it? "
+            "Please confirm the working environment, target size/envelope, ergonomic or handling "
+            f"needs, and the main components (a starting list could be {components}). "
+            "Do any parts need to move, open, rotate, adjust or be removable? Do you have "
+            "material and manufacturing preferences, or should I keep them as options? "
+            "Finally, do you need a visual concept, editable parametric model, assembly or drawings?"
+        )
+        first_reply = (
+            f"It is for {use}. Include {components}. I want an editable product concept, but "
+            "I have not chosen all dimensions, material or manufacturing method."
+        )
+        follow = (
+            f"Recorded: {product} for {use}, with {components}, as an editable concept. "
+            "Please provide the target envelope and any critical user-fit or connection dimensions, "
+            "or confirm that I may create named editable parameters for them. I will not silently "
+            "choose material or manufacturing method; those can remain alternatives until reviewed."
+        )
+        second_reply = (
+            "Use named editable parameters for the unconfirmed dimensions. Show the main parts as "
+            "separate editable components and mark material/process choices as options for review."
+        )
+        final = (
+            f"Product brief: {product}; function: {use}; components: {components}; deliverable: "
+            "editable parametric concept with separate components. Unconfirmed dimensions remain "
+            "named parameters; material and manufacturing method remain alternatives, not decisions. "
+            "NextCAD should establish the main envelope and interface skeleton before detailed "
+            "features. Ergonomic fit, moving-part clearances and any safety-related performance "
+            "must be checked against supplied requirements and appropriate tests."
+        )
+        add_three_turn_flow("design_intake_consumer_product_cad", "consumer-product", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, cad_system)
+
+    # Technical drawings: teach the student to ask for drawing conventions,
+    # tolerances and controlled requirements rather than inventing them.
+    drawing_prompts = [
+        "Prepare a manufacturing drawing for my mechanical part.",
+        "Create a dimensioned 2D drawing from my CAD model.",
+        "Make an assembly drawing with a parts list.",
+        "Prepare a sectioned drawing for a machined housing.",
+        "Create a fabrication drawing for a welded frame.",
+        "Generate sheet-metal flat-pattern and fold drawings.",
+        "Prepare an architectural detail drawing from the model.",
+        "Create a civil engineering setting-out drawing.",
+    ]
+    for i, prompt in enumerate(drawing_prompts):
+        first = (
+            "I can prepare the drawing package. Please confirm the exact part/model revision, "
+            "units, sheet size and scale, projection method, required orthographic/section/detail "
+            "views, dimensions and datum scheme, material and surface finish, tolerances/GD&T, "
+            "revision/title-block information, and the required drawing standard with jurisdiction "
+            "and edition. Which values are already defined in the model, and which must remain TBD?"
+        )
+        first_reply = (
+            "Use the current model revision and millimetres. I need the drawing views and dimensions, "
+            "but the material, tolerances and drawing standard have not been confirmed."
+        )
+        follow = (
+            "I have the model-revision and millimetre requirements. Please confirm the projection "
+            "method and sheet size. For material, tolerances, finish and the governing drawing "
+            "standard, should I leave them explicitly marked TBD until approved information is supplied? "
+            "I will not invent tolerance values or claim standards compliance."
+        )
+        second_reply = (
+            "Use first-angle projection and A3 sheets. Leave material, tolerances, finish and standard "
+            "references as TBD; flag them in the drawing issue checklist."
+        )
+        final = (
+            "Drawing brief: use the current model revision, millimetres, first-angle projection and "
+            "A3 sheets. Produce the requested views and dimensions from the verified model. Material, "
+            "tolerances, finish and governing standard remain TBD and must be listed as open items. "
+            "Do not fabricate GD&T values or mark the drawing approved for manufacture until those "
+            "requirements are confirmed and the drawing is checked."
+        )
+        add_three_turn_flow("design_intake_technical_drawing_cad", "technical-drawing", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, cad_system)
+
+    # CAM preparation: gather machine, stock and tooling data before toolpath
+    # or controller-specific output can be considered.
+    cam_prompts = [
+        "Prepare CNC machining for this plate.",
+        "Generate a milling setup for a mechanical bracket.",
+        "Prepare a drilling toolpath for a hole pattern.",
+        "Set up a turning operation for a shaft.",
+        "Create a CAM plan for a pocketed aluminium component.",
+        "Prepare a machining plan for a steel housing.",
+        "Set up a 3-axis milling job for a fixture plate.",
+        "Prepare a router job for a sheet material part.",
+    ]
+    for i, prompt in enumerate(cam_prompts):
+        first = (
+            "Before preparing toolpaths, please confirm the stock material and stock dimensions, "
+            "the exact machine and axis configuration, controller/postprocessor, workholding and "
+            "work coordinate system, cutting tools and holders, required operations, tolerances and "
+            "surface finish. Feeds, speeds, stepovers and cut depths must come from approved data for "
+            "the actual machine, tool and material. Do you need a setup sheet, simulation, toolpaths "
+            "or controller-specific output?"
+        )
+        first_reply = (
+            "I need a CAM setup plan for this part. The material is known, but I have not supplied "
+            "the machine, controller, tool list or workholding details."
+        )
+        follow = (
+            "I have recorded the need for a CAM setup plan and the known material. Please supply the "
+            "machine/controller, stock size, fixture/workholding, work coordinate origin and tool/holder "
+            "list. Until then I can prepare an operation checklist with unresolved parameters, but "
+            "must not invent cutting data, simulate an unverified machine or generate controller G-code."
+        )
+        second_reply = (
+            "Prepare the operation checklist and setup-data template only. Keep machine, fixture, tools, "
+            "feeds, speeds, depths and postprocessor unresolved until the machinist supplies them."
+        )
+        final = (
+            "CAM brief: prepare an operation checklist and setup-data template only. Machine, "
+            "controller, stock dimensions, workholding, tools, cutting data and postprocessor remain "
+            "unresolved. NextCAD may organise the model features and identify candidate operations, "
+            "but no executable toolpath or G-code should be produced until the real setup is verified "
+            "and the simulation/collision review passes."
+        )
+        add_three_turn_flow("design_intake_cam_cad", "cam", i + 1,
+                            prompt, first, first_reply, follow, second_reply, final, cad_system)
+
     return lessons
 
 
@@ -2368,6 +2504,9 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "design_intake_bim_new_build": 0.055,
         "design_intake_bim_renovation": 0.045,
         "design_intake_civil_infrastructure": 0.04,
+        "design_intake_consumer_product_cad": 0.04,
+        "design_intake_technical_drawing_cad": 0.035,
+        "design_intake_cam_cad": 0.035,
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
@@ -2518,6 +2657,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "design_intake_assembly_cad": [], "design_intake_sheet_metal_cad": [],
         "design_intake_bim_new_build": [], "design_intake_bim_renovation": [],
         "design_intake_civil_infrastructure": [],
+        "design_intake_consumer_product_cad": [], "design_intake_technical_drawing_cad": [],
+        "design_intake_cam_cad": [],
         "nextcad_native": [], "nextbim_native": [],
     }
     validation, tests, quarantine = [], [], []
