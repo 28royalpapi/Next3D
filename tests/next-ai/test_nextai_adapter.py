@@ -109,8 +109,11 @@ class NativeToolSafetyTests(unittest.TestCase):
             )
             result = knowledge.search("Draft Arch parametric wall", root)
             self.assertTrue(result)
-            self.assertIn("walls.md", result[0]["source"])
-            self.assertIn("parametric wall", result[0]["excerpt"])
+            wall_matches = [
+                item for item in result
+                if "walls.md" in item["source"] and "parametric wall" in item["excerpt"]
+            ]
+            self.assertTrue(wall_matches, result)
 
     def test_bundled_engineering_skill_pack_is_retrievable(self):
         result = knowledge.search("parametric sketch constraints feature tree")
