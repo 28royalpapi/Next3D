@@ -48,14 +48,23 @@ class CapabilityCensusTests(unittest.TestCase):
                     "global_command_registry_enumerated": True,
                     "workbenches": [{"id": wb, "command_ids": ["Part_Box"]}],
                     "commands": [{"id": "Part_Box", "menu_text": "Create box",
-                                  "workbenches": [wb], "ui_contexts": ["toolbar:Primitives"]}]
+                                  "workbenches": [wb], "ui_contexts": ["toolbar:Primitives"]}],
+                    "python_api_modules": [{"name": "Part", "public_members": [
+                        {"name": "makeBox", "kind": "callable", "documentation": "Create a box."},
+                        {"name": "Shape", "kind": "class", "documentation": "Shape base."}
+                    ]}]
                 }
             }), encoding="utf-8")
             census, obligations = module.build_census(BIM, CAD, path, CAD_COMMIT, BIM_COMMIT)
             found = next(x for x in census["capabilities"] if x["capability_type"] == "native_gui_command")
             self.assertEqual(found["native_id"], "Part_Box")
             self.assertEqual(found["workbenches"], [wb])
-            self.assertEqual(len([x for x in obligations if x["application"] == "nextcad"]), 10)
+            self.assertEqual(census["counts"]["nextcad_runtime_api_members"], 2)
+            self.assertEqual(len([x for x in obligations if x["application"] == "nextcad"]), 30)
+            self.assertEqual(
+                {x["native_id"] for x in census["capabilities"] if x["capability_type"] == "native_api_member"},
+                {"Part.makeBox", "Part.Shape"}
+            )
 
     def test_runtime_report_with_wrong_source_commit_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -114,6 +123,8 @@ class RuntimeMacroSafetyTests(unittest.TestCase):
         self.assertIn("Gui.Command.get(command_id)", source)
         self.assertIn("Gui.listWorkbenches()", source)
         self.assertIn("getToolbarItems()", source)
+        self.assertIn("python_api_modules", source)
+        self.assertIn("sys.modules", source)
         self.assertNotIn("Gui.runCommand(", source)
         self.assertNotIn("App.newDocument(", source)
         self.assertNotIn("doc.save(", source)

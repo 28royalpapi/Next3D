@@ -113,7 +113,33 @@ def load_nextcad_source_index(path: Path, expected_commit: str | None = None):
             "ai_discovery_rule": row.get("ai_discovery_rule"),
             "mastery_status": "not_assessed"
         })
-    return data, capabilities
+
+    api_modules = unique_rows(runtime.get("python_api_modules") or [], "name", "NextCAD Python API modules")
+    api_capabilities = []
+    for api_module in api_modules:
+        members = unique_rows(api_module.get("public_members") or [], "name",
+                              "NextCAD API members in " + api_module["name"])
+        for member in members:
+            if member.get("kind") not in ("callable", "class"):
+                continue
+            api_capabilities.append({
+                "application": "nextcad",
+                "capability_id": "nextcad.api." + api_module["name"] + "." + member["name"],
+                "native_id": api_module["name"] + "." + member["name"],
+                "name": member["name"],
+                "capability_type": "native_api_member",
+                "source_evidence": "live_imported_python_api",
+                "source_commit": expected_commit,
+                "application_version": data.get("application_version"),
+                "runtime_status": "public_api_member_discovered",
+                "module": api_module["name"],
+                "module_file": api_module.get("module_file"),
+                "member_kind": member.get("kind"),
+                "documentation": member.get("documentation"),
+                "agent_tool_status": "requires_reviewed_typed_adapter",
+                "mastery_status": "not_assessed"
+            })
+    return data, capabilities, api_capabilities
 
 
 def load_nextcad_runtime(path: Path, expected_commit: str):
@@ -170,14 +196,15 @@ def build_census(bim_path: Path, cad_index_path: Path,
     bim_data, bim_caps = load_bim_catalog(bim_path, expected_bim_commit)
     cad_data, cad_modules = load_nextcad_source_index(cad_index_path, expected_cad_commit)
     cad_commands = []
+    cad_api_members = []
     runtime_data = None
     if cad_runtime_path:
-        runtime_data, cad_commands = load_nextcad_runtime(cad_runtime_path, cad_data["upstream_commit"])
+        runtime_data, cad_commands, cad_api_members = load_nextcad_runtime(cad_runtime_path, cad_data["upstream_commit"])
 
-    capabilities = cad_modules + cad_commands + bim_caps
+    capabilities = cad_modules + cad_commands + cad_api_members + bim_caps
     obligations = []
     for capability in capabilities:
-        if capability["capability_type"] not in ("native_command", "native_gui_command"):
+        if capability["capability_type"] not in ("native_command", "native_gui_command", "native_api_member"):
             continue
         for dimension, objective in DIMENSIONS.items():
             item = {
@@ -245,6 +272,8 @@ def build_census(bim_path: Path, cad_index_path: Path,
         "counts": {
             "nextcad_source_modules": len(cad_modules),
             "nextcad_runtime_commands": len(cad_commands),
+            "nextcad_runtime_api_modules": len((runtime_data or {}).get("runtime_inventory", {}).get("python_api_modules", [])),
+            "nextcad_runtime_api_members": len(cad_api_members),
             "nextbim_registered_commands": len(bim_caps),
             "total_discovered_capabilities": len(capabilities),
             "skill_obligations": len(obligations),
@@ -279,6 +308,8 @@ def write_outputs(census: dict[str, Any], obligations: list[dict[str, Any]], out
         "## Counts", "",
         f"- NextCAD source modules: **{counts['nextcad_source_modules']}**",
         f"- NextCAD live GUI commands: **{counts['nextcad_runtime_commands']}**",
+        f"- NextCAD public Python API modules: **{counts['nextcad_runtime_api_modules']}**",
+        f"- NextCAD public Python API members: **{counts['nextcad_runtime_api_members']}**",
         f"- Next BIM registered commands: **{counts['nextbim_registered_commands']}**",
         f"- Total capabilities inventoried: **{counts['total_discovered_capabilities']}**",
         f"- Per-command learning obligations: **{counts['skill_obligations']}**", "",

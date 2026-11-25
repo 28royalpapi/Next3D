@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import sys
 import time
 import FreeCAD as App
 import FreeCADGui as Gui
@@ -66,10 +67,6 @@ output_path.parent.mkdir(parents=True, exist_ok=True)
 
 # FreeCAD's pinned GUI initialisation exposes the entire registered command manager
 # through Gui.listCommands; this is intentionally different from the smaller AI tool list.
-command_ids = sorted(set(str(item) for item in Gui.listCommands() if item))
-if not command_ids:
-    raise RuntimeError("The live global command registry returned no commands")
-
 try:
     initial_workbench = str(Gui.activeWorkbench())
 except Exception:
@@ -110,6 +107,11 @@ for workbench_id in workbench_ids:
         "command_ids": sorted(command_set)
     })
 
+# Python workbenches may register commands only when activated.
+command_ids = sorted(set(str(item) for item in Gui.listCommands() if item))
+if not command_ids:
+    raise RuntimeError("The live global command registry returned no commands")
+
 commands = []
 for command_id in command_ids:
     try:
@@ -130,6 +132,43 @@ for command_id in command_ids:
         "is_active_at_census": read_bool(command, "isActive"),
         "workbenches": sorted(membership.get(command_id, set())),
         "ui_contexts": sorted(ui_contexts.get(command_id, set()))
+    })
+
+# Inventory public Python API members exposed by the loaded native workbench modules.
+api_roots = set(workbench_ids) | {
+    "FreeCAD", "FreeCADGui", "Part", "PartDesign", "Sketcher", "Draft", "Arch",
+    "TechDraw", "Fem", "Mesh", "MeshPart", "Path", "Points", "Surface",
+    "Robot", "Spreadsheet", "Import", "Inspection", "Material", "OpenSCAD",
+    "ReverseEngineering", "Measure", "Plot", "JtReader", "BIM"
+}
+api_modules = []
+for module_name, module in sorted(list(sys.modules.items()), key=lambda item: str(item[0])):
+    if module is None or not isinstance(module_name, str):
+        continue
+    root_name = module_name.split(".", 1)[0]
+    module_file = getattr(module, "__file__", None)
+    normalized_path = str(module_file or "").replace("\\\\", "/")
+    in_mod_tree = "/Mod/" in normalized_path or "\\\\Mod\\\\" in str(module_file or "")
+    if root_name not in api_roots and not in_mod_tree:
+        continue
+    public_members = []
+    try:
+        names = sorted(name for name in dir(module) if name and not name.startswith("_"))
+    except Exception:
+        names = []
+    for name in names:
+        try:
+            member = getattr(module, name)
+            kind = "class" if isinstance(member, type) else ("callable" if callable(member) else "value")
+            doc = getattr(member, "__doc__", None)
+            documentation = str(doc).strip().splitlines()[0][:320] if isinstance(doc, str) and doc.strip() else None
+            public_members.append({"name": name, "kind": kind, "documentation": documentation})
+        except Exception:
+            public_members.append({"name": name, "kind": "unreadable", "documentation": None})
+    api_modules.append({
+        "name": module_name,
+        "module_file": Path(module_file).name if module_file else None,
+        "public_members": public_members
     })
 
 if initial_workbench:
@@ -154,13 +193,15 @@ report = {
         "global_command_registry_enumerated": True,
         "global_command_count": len(commands),
         "workbenches": workbenches,
-        "commands": commands
+        "commands": commands,
+        "python_api_modules": api_modules,
+        "python_api_member_count": sum(len(item["public_members"]) for item in api_modules)
     },
     "diagnostics": diagnostics
 }
 temporary = output_path.with_suffix(output_path.suffix + ".tmp")
 temporary.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 temporary.replace(output_path)
-print("NEXTCAD CAPABILITY CENSUS PASS: {} commands across {} workbenches -> {}".format(
-    len(commands), len(workbenches), output_path
+print("NEXTCAD CAPABILITY CENSUS PASS: {} commands, {} API modules across {} workbenches -> {}".format(
+    len(commands), len(api_modules), len(workbenches), output_path
 ))
