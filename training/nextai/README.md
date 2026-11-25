@@ -65,7 +65,7 @@ The script saves the LoRA adapter, a temporary merged 16-bit checkpoint, and exp
 Run the same held-out test file against the untouched student and the trained candidate, writing separate reports. The training script defaults to one complete epoch (`--max-steps -1`) rather than stopping after an arbitrary 800 steps; validation metrics are recorded at the end of the run. A second epoch is considered only after validation shows improvement without overfitting:
 
     python training/nextai/evaluate_nextai.py --model Qwen/Qwen3.5-0.8B --test-jsonl /workspace/nextai-corpus/test.jsonl --output /workspace/eval-base.json
-    python training/nextai/evaluate_nextai.py --model /workspace/nextai-run-001/adapter --test-jsonl /workspace/nextai-corpus/test.jsonl --output /workspace/eval-tuned.json
+    python training/nextai/evaluate_nextai.py --model /workspace/nextai-run-001/merged_16bit --test-jsonl /workspace/nextai-corpus/test.jsonl --output /workspace/eval-tuned.json
 
 The evaluator reports JSON parse rate, expected-key recall, scalar matches and lexical overlap separately by task domain. These are diagnostics, not engineering correctness. Compare the base and tuned reports on the identical test split before native engine validation.
 
