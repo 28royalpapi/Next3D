@@ -170,7 +170,7 @@ class NativeToolSafetyTests(unittest.TestCase):
             "update todo_write",
             "query_elements",
             "use modify on that same element",
-            "do not create a duplicate",
+            "duplicate or delete/recreate it",
             "visual member envelopes as concept placeholders",
         ):
             self.assertIn(term, installer)
