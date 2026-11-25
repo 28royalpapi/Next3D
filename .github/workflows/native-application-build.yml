@@ -61,7 +61,7 @@ jobs:
           submodules: false
           fetch-depth: 1
       - name: Install NextAI corpus test dependency
-        run: python -m pip install --disable-pip-version-check pillow
+        run: python -m pip install --disable-pip-version-check pillow shapely
 
       - name: Apply and verify Next 3D source changes
         shell: bash
