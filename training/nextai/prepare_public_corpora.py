@@ -1357,6 +1357,7 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "construction_project_controls": 0.03,
         "construction_cost_and_quantities": 0.03,
         "construction_quality_and_safety": 0.03,
+        "swiss_dwellings_floorplan": 0.09,
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
@@ -1404,6 +1405,31 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def read_swiss_dwellings_directory(path: Path) -> dict[str, list[dict[str, Any]]]:
+    """Load pre-rendered, building-disjoint Swiss Dwellings records by split."""
+    result = {"train": [], "validation": [], "test": []}
+    for split in result:
+        source_path = path / f"{split}.jsonl"
+        if not source_path.is_file():
+            raise FileNotFoundError(f"Swiss Dwellings {split} file not found: {source_path}")
+        with source_path.open("r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                if row.get("domain") != "swiss_dwellings_floorplan":
+                    raise ValueError(f"Unexpected Swiss Dwellings domain at {source_path}:{line_number}")
+                if row.get("source_doi") != "10.5281/zenodo.7788422" or row.get("license") != "CC-BY-4.0":
+                    raise ValueError(f"Swiss Dwellings provenance mismatch at {source_path}:{line_number}")
+                if row.get("source_split") != split:
+                    raise ValueError(f"Swiss Dwellings record has wrong split at {source_path}:{line_number}")
+                images = row.get("images") or []
+                if len(images) != 1 or not Path(images[0]).is_file():
+                    raise FileNotFoundError(f"Swiss Dwellings record image missing at {source_path}:{line_number}")
+                result[split].append(row)
+    return result
+
+
 def prepare(args: argparse.Namespace) -> dict[str, Any]:
     out = Path(args.output_dir).resolve()
     assets = out / "assets"
@@ -1425,7 +1451,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "engineering_geotechnical_workflow": [], "engineering_water_and_drainage": [],
         "engineering_survey_and_setting_out": [], "engineering_standards_and_regulations": [],
         "construction_project_controls": [], "construction_cost_and_quantities": [],
-        "construction_quality_and_safety": [],
+        "construction_quality_and_safety": [], "swiss_dwellings_floorplan": [],
         "nextcad_native": [], "nextbim_native": [],
     }
     validation, tests, quarantine = [], [], []
@@ -1475,6 +1501,15 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         if record:
             tests.append(record)
 
+    if args.swiss_dwellings_dir:
+        swiss_records = read_swiss_dwellings_directory(args.swiss_dwellings_dir)
+        groups["swiss_dwellings_floorplan"].extend(swiss_records["train"])
+        validation.extend(swiss_records["validation"])
+        tests.extend(swiss_records["test"])
+        counts["swiss_dwellings_train"] = len(swiss_records["train"])
+        counts["swiss_dwellings_validation"] = len(swiss_records["validation"])
+        counts["swiss_dwellings_test"] = len(swiss_records["test"])
+
     groups["nextcad_native"] = read_native(args.nextcad_native, "nextcad_native")
     groups["nextbim_native"] = read_native(args.nextbim_native, "nextbim_native")
     for lesson in make_synthetic_curriculum():
@@ -1494,8 +1529,9 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "method": "BF16 LoRA supervised fine-tuning",
         "sources": [
             {"repo": CAD_DATASET, "license": "Apache-2.0", "purpose": "CAD visual feature recognition and construction sequence"},
-            {"repo": BIM_DATASET, "license": "MIT", "purpose": "IFC/BIM instruction lessons; only metadata.validated=true and score >=4.5"},
+            {"repo": BIM_DATASET, "license": "MIT", "purpose": "IFC/BIM instruction lessons; source must claim validation and score >=4.5"},
             {"repo": BIM_QA_DATASET, "license": "CC-BY-4.0", "attribution": "Dietmar2020", "purpose": "IFC/BIM conceptual QA"},
+            {"repo": "Swiss Dwellings v3.0.0", "doi": "10.5281/zenodo.7788422", "license": "CC-BY-4.0", "attribution": "Standfest et al., Archilyse AG", "purpose": "Image-grounded architectural floor-plan geometry, room typology and shared-boundary relationships; optional training-only corpus"},
             {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, BIM concepts and construction workflows"},
         ],
         "source_counts": dict(counts),
@@ -1512,6 +1548,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "IFC text examples are not proof of an IFC file or BIMCraft project passing validation.",
             "The IFC dedup set is excluded from positive lessons until its generated IFC is validated.",
             "Standards remain versioned retrieval references, not copied wholesale into model weights.",
+            "Swiss Dwellings images and vector labels are a training-only optional corpus; the 931.9 MB source archive is not part of the runtime package.",
+            "Swiss Dwellings floors from the same building are kept in one data split to prevent train/test leakage.",
         ],
     }
     out.mkdir(parents=True, exist_ok=True)
@@ -1532,6 +1570,8 @@ def main() -> int:
     parser.add_argument("--max-mixed-train", type=int, default=24000)
     parser.add_argument("--max-validation", type=int, default=2500)
     parser.add_argument("--max-test", type=int, default=1200)
+    parser.add_argument("--swiss-dwellings-dir", type=Path,
+                        help="Optional directory containing Swiss Dwellings train/validation/test JSONL and rendered images.")
     parser.add_argument("--nextcad-native")
     parser.add_argument("--nextbim-native")
     parser.add_argument("--seed", type=int, default=3407)
