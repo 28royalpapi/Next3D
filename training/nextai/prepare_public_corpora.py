@@ -2056,7 +2056,7 @@ def make_design_execution_curriculum() -> list[dict[str, Any]]:
         {"tool": "add_sketch_circle", "args": {"sketch_name": "MountingHoleProfile", "center": [185,15], "radius": 6, "label": "Mounting hole 2"}},
         {"tool": "add_sketch_circle", "args": {"sketch_name": "MountingHoleProfile", "center": [185,135], "radius": 6, "label": "Mounting hole 3"}},
         {"tool": "add_sketch_circle", "args": {"sketch_name": "MountingHoleProfile", "center": [15,135], "radius": 6, "label": "Mounting hole 4"}},
-        {"tool": "create_partdesign_pocket", "args": {"body_name": "GearHousingBody", "sketch_name": "MountingHoleProfile", "length": 80, "through_all": True, "reversed": True, "name": "FourMountingHoles"}},
+        {"tool": "create_partdesign_pocket", "args": {"body_name": "GearHousingBody", "sketch_name": "MountingHoleProfile", "length": 80, "through_all": True, "reversed": False, "name": "FourMountingHoles"}},
     ]
     add(
         "design_execution_parametric_mechanical_part",
