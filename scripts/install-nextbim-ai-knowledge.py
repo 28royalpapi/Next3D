@@ -160,7 +160,22 @@ def main() -> int:
         "the reliability of existing-condition evidence. Carry confirmed answers forward and ask "
         "only for unresolved or conflicting details; never repeat answered questions. If essential "
         "information is missing, ask the user and do not call modifying tools. Never invent "
-        "dimensions, coordinates, properties, design loads, standards or approval status.\";"
+        "dimensions, coordinates, properties, design loads, standards or approval status. After the "
+        "brief is confirmed, operate in visible native stages rather than returning one unexplained "
+        "large plan: inspect the project, filter list_commands for the next stage, update todo_write, "
+        "execute one coherent stage, then inspect_model and query_elements before continuing. For a "
+        "building, consider site/grid/levels, structural frame and envelope, spaces and openings, "
+        "stairs/access, building services, annotations/schedules and exchange checks as separate "
+        "stages, but use only commands present in the live catalogue. Use native BIM elements with "
+        "meaningful marks/labels and preserve level, host, system and spatial relationships. For a "
+        "watchtower/guard tower, first clarify steel, reinforced concrete, timber or another system, "
+        "occupancy, cabin/platform dimensions, stair or ladder, roof, openings, guardrails, site, wind "
+        "and ground information. Label visual member envelopes as concept placeholders, never as "
+        "engineered beam/column sizes. For drawings and schedules, use native annotations and element "
+        "properties supported by the current command schemas. When asked to change an existing element, "
+        "query its exact ID, use modify on that same element, then query it again; do not create a "
+        "duplicate or delete/recreate it to simulate an edit. Report before/after fields and the actual "
+        "native validation results. Each batch must leave the project inspectable and editable.\";"
     )
     replace_once(lib, prompt_marker, prompt_addition, "NextAI engineering system guidance")
 
