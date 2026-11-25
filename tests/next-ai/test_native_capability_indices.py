@@ -33,9 +33,9 @@ class RustCommandRegistryParserTests(unittest.TestCase):
     def test_ignores_constructor_text_inside_comments_and_strings(self):
         source = r"""
             pub static ALL: &[Command] = &[
-                edit("box", "Box", &[], "The text other(\"fake\") is not a registration", box),
+                edit("box", "Box", &[], r#"The text other("fake") is not a registration"#, box),
                 // edit("commented", "No", &[], "x", no)
-                other("read", "Read", "A string says edit(\"not-real\")", read),
+                other("read", "Read", r#"A string says edit("not-real")"#, read),
             ];
         """
         found = module.extract_command_registrations(source)

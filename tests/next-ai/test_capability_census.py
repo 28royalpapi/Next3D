@@ -109,7 +109,7 @@ class CapabilityCensusTests(unittest.TestCase):
     def test_obligations_are_not_training_examples_or_mastery(self):
         census, obligations = module.build_census(BIM, CAD)
         self.assertFalse(census["evidence_rules"]["skill_obligations_are_sft_examples"])
-        self.assertFalse(census["evidence_rules"]["mastery_requires_native_execution_and_validation"] is False)
+        self.assertTrue(census["evidence_rules"]["mastery_requires_native_execution_and_validation"])
         self.assertTrue(all(x["record_type"] == "skill_obligation_not_training_example" for x in obligations))
         self.assertTrue(all(x["mastery_status"] == "not_assessed" for x in obligations))
 
