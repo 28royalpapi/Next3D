@@ -381,6 +381,55 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 exporter.install_projector(gguf_dir, invalid)
 
+    def test_native_trace_reader_keeps_app_and_splits_separate(self):
+        import tempfile
+
+        message_set = [
+            {"role": "system", "content": "NextAI"},
+            {"role": "user", "content": "Create a constrained sketch."},
+            {"role": "assistant", "content": "{\"steps\":[]}"},
+        ]
+        source = {
+            "source_type": "synthetic",
+            "license": "Apache-2.0",
+            "terms_reviewed": True,
+            "source_group_sha256": "a" * 64,
+        }
+        privacy = {
+            "contains_personal_data": False,
+            "redaction_status": "not_needed",
+            "user_consent": False,
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for split in ("train", "validation", "test"):
+                row = {
+                    "record_id": f"cad-{split}",
+                    "application": "nextcad",
+                    "application_version": "1.0",
+                    "adapter_schema_version": "1.0",
+                    "split": split,
+                    "messages": message_set,
+                    "source": source,
+                    "privacy": privacy,
+                }
+                (root / f"{split}.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+            train = module.read_native(root / "train.jsonl", "nextcad_native", "nextcad", "train")
+            validation = module.read_native(root / "validation.jsonl", "nextcad_native", "nextcad", "validation")
+            test = module.read_native(root / "test.jsonl", "nextcad_native", "nextcad", "test")
+            self.assertEqual([row["source_split"] for row in train + validation + test],
+                             ["train", "validation", "test"])
+
+            wrong_application = dict(json.loads((root / "train.jsonl").read_text()), application="nextbim")
+            (root / "train.jsonl").write_text(json.dumps(wrong_application) + "\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                module.read_native(root / "train.jsonl", "nextcad_native", "nextcad", "train")
+
+            wrong_split = dict(json.loads((root / "validation.jsonl").read_text()), split="train")
+            (root / "validation.jsonl").write_text(json.dumps(wrong_split) + "\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                module.read_native(root / "validation.jsonl", "nextcad_native", "nextcad", "validation")
+
     def test_sampler_uses_available_domains_and_respects_limit(self):
         groups = {
             "cad_visual": [{"domain": "cad_visual", "id": i} for i in range(30)],
