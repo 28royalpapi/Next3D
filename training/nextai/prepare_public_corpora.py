@@ -3053,6 +3053,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "Swiss Dwellings floors from the same building are kept in one data split to prevent train/test leakage.",
             "Optional IFC model records are split by source model or paired project team; free-text names and original GlobalIds are excluded.",
             "Guided design-intake dialogue stages remain grouped together in one split; confirmed answers are carried forward and missing requirements are asked without repetition.",
+            "Native design-execution examples use the current NextCAD typed tool schemas and are validated against the registry in tests; watchtower member dimensions are concept placeholders, and the floor-plan example is room zoning only.",
         ],
     }
     if ifc_model_manifest:
