@@ -130,6 +130,11 @@ class NativeToolSafetyTests(unittest.TestCase):
             "feeds speeds stepover machine workholding postprocessor G-code"
         )
         self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in cam))
+        execution = knowledge.search(
+            "native viewport recompute each operation editable parametric feature history "
+            "watchtower member schedule inspect modify existing BIM element"
+        )
+        self.assertTrue(any(item["source"].endswith("design/design-execution.md") for item in execution))
 
     def test_nextcad_runtime_prompt_requires_context_aware_design_clarification(self):
         ui_source = (ROOT / "adapters/nextcad-ai/NextAI/next_ai/ui.py").read_text(encoding="utf-8")
