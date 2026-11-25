@@ -18,6 +18,32 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def conversation_row_for_collator(row: dict[str, Any]) -> dict[str, Any]:
+    """Preserve Qwen tool-call messages and pass per-example tool schemas to its chat template."""
+    messages = row.get("messages")
+    if not isinstance(messages, list):
+        raise ValueError("A conversational training record must contain a messages list.")
+    normalized = []
+    for message in messages:
+        if not isinstance(message, dict) or not isinstance(message.get("role"), str):
+            raise ValueError("Each conversational message needs a role.")
+        item = dict(message)
+        if isinstance(item.get("content"), str):
+            item["content"] = [{"type": "text", "text": item["content"]}]
+        normalized.append(item)
+
+    result = {"messages": normalized}
+    template_kwargs = dict(row.get("chat_template_kwargs") or {})
+    tools = row.get("tools")
+    if tools is not None:
+        if not isinstance(tools, list) or not tools:
+            raise ValueError("The tools field must be a non-empty function-schema list.")
+        template_kwargs["tools"] = tools
+    if template_kwargs:
+        result["chat_template_kwargs"] = template_kwargs
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", required=True, type=Path)
@@ -72,13 +98,7 @@ def main() -> int:
         def __getitem__(self, index):
             row = self.rows[index]
             if isinstance(row.get("messages"), list):
-                normalized = []
-                for message in row["messages"]:
-                    item = dict(message)
-                    if isinstance(item.get("content"), str):
-                        item["content"] = [{"type": "text", "text": item["content"]}]
-                    normalized.append(item)
-                return {"messages": normalized}
+                return conversation_row_for_collator(row)
             content = []
             for image_path in row.get("images") or []:
                 with Image.open(image_path) as image:
