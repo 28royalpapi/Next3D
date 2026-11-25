@@ -143,6 +143,69 @@ def _materials(element: Any, util_element: Any) -> list[str]:
         return []
 
 
+def _local_placement_summary(element: Any) -> dict[str, Any] | None:
+    """Return only an object's immediate parent-relative placement, never world coordinates."""
+    placement = getattr(element, "ObjectPlacement", None)
+    if placement is None:
+        return None
+    result: dict[str, Any] = {
+        "placement_class": placement.is_a() if hasattr(placement, "is_a") else type(placement).__name__,
+    }
+    if not hasattr(placement, "is_a") or placement.is_a() != "IfcLocalPlacement":
+        return result
+    parent = getattr(placement, "PlacementRelTo", None)
+    relative = getattr(placement, "RelativePlacement", None)
+    result["relative_to_class"] = (
+        parent.is_a() if parent is not None and hasattr(parent, "is_a") else None
+    )
+    if relative is None:
+        return result
+    location = getattr(relative, "Location", None)
+    coordinates = getattr(location, "Coordinates", None) if location is not None else None
+    if coordinates is not None:
+        try:
+            values = [round(float(value), 5) for value in coordinates[:3]]
+            while len(values) < 3:
+                values.append(0.0)
+            result["origin_in_parent_frame"] = values
+        except (TypeError, ValueError):
+            pass
+    axis = getattr(relative, "Axis", None)
+    ref_direction = getattr(relative, "RefDirection", None)
+    if axis is not None:
+        try:
+            result["z_axis"] = [round(float(value), 6) for value in axis.DirectionRatios[:3]]
+        except (AttributeError, TypeError, ValueError):
+            pass
+    else:
+        result["z_axis"] = [0.0, 0.0, 1.0]
+    if ref_direction is not None:
+        try:
+            result["x_axis"] = [round(float(value), 6) for value in ref_direction.DirectionRatios[:3]]
+        except (AttributeError, TypeError, ValueError):
+            pass
+    else:
+        result["x_axis"] = [1.0, 0.0, 0.0]
+    result["coordinate_frame"] = "immediate parent-relative local placement; not transformed to site/world coordinates"
+    return result
+
+
+def _representation_summary(element: Any) -> list[dict[str, Any]]:
+    product_representation = getattr(element, "Representation", None)
+    representations = getattr(product_representation, "Representations", []) if product_representation else []
+    result = []
+    for representation in representations or []:
+        items = getattr(representation, "Items", []) or []
+        result.append({
+            "identifier": getattr(representation, "RepresentationIdentifier", None),
+            "representation_type": getattr(representation, "RepresentationType", None),
+            "item_classes": sorted({
+                item.is_a() for item in items if item is not None and hasattr(item, "is_a")
+            }),
+        })
+    return result
+
+
 def _numeric_psets(element: Any, util_element: Any) -> dict[str, dict[str, Any]]:
     output: dict[str, dict[str, Any]] = {}
     for pset_name, properties in _get_psets(element, util_element).items():
@@ -239,6 +302,8 @@ def extract_model(model: Any, element_chunk_size: int = 64) -> tuple[dict[str, A
             ),
             "material_classes": _materials(element, util_element),
             "numeric_and_safe_enum_psets": _numeric_psets(element, util_element),
+            "local_placement": _local_placement_summary(element),
+            "shape_representation_types": _representation_summary(element),
         })
 
     relationship_rows = []
