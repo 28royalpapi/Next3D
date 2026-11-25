@@ -71,5 +71,5 @@ class PromptExtractionTests(unittest.TestCase):
         self.assertEqual(expected, "A constraint defines geometry.")
 
 
-if __import__("__main__").__name__ == "__main__":
+if __name__ == "__main__":
     unittest.main()
