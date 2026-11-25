@@ -2,6 +2,10 @@
 
 The only runtime student is Qwen3.5-0.8B. The larger CAD and BIM teacher models are research/training aids only. Teacher weights, raw datasets, training images, checkpoints and training libraries are never shipped in the Next3D installer.
 
+## Comprehensive capability programme
+
+The next curriculum phase is specified in [COMPREHENSIVE_CAPABILITY_CURRICULUM.md](./COMPREHENSIVE_CAPABILITY_CURRICULUM.md). It defines a full native capability census, atomic and compound skills, complete projects, high-rise floor variation, product/mechanical design, revisions and recovery, plus 10,000-case and 100,000-case milestones per application. These are future targets, not current counts. It also defines evidence levels so authored lessons, schema-checked plans, native-executed traces and independently validated results are reported separately.
+
 ## Data sources and admission
 
 - Autodesk Zero-to-CAD-100k (Apache-2.0): use bounded streaming samples from its train, validation and test splits. It includes eight rendered views and a structured construction-operation trace.
