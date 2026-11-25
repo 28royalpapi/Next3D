@@ -119,15 +119,15 @@ class NativeToolSafetyTests(unittest.TestCase):
 
     def test_guided_design_intake_knowledge_is_retrievable_for_architecture_and_bim(self):
         architecture = knowledge.search(
-            "three bedroom bungalow master bedrooms toilets ensuites shared store plot dimensions"
+            "bungalow storey house ensuite shared facilities guest WC plot frontage road access"
         )
         self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in architecture))
         bim = knowledge.search(
-            "BIM project coordinate reference IFC schema LOD asset information requirements"
+            "vertical datum employer information requirements IFC schema project coordinates"
         )
         self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in bim))
         cam = knowledge.search(
-            "CNC machine controller stock workholding cutting tools postprocessor toolpath"
+            "feeds speeds stepover machine workholding postprocessor G-code"
         )
         self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in cam))
 
@@ -137,6 +137,9 @@ class NativeToolSafetyTests(unittest.TestCase):
         self.assertIn("number of master bedrooms", ui_source)
         self.assertIn("Ask only for unresolved or conflicting requirements", ui_source)
         self.assertIn("return an empty plan", ui_source)
+        self.assertIn("edit_native_property", ui_source)
+        self.assertIn("show_native_progress", ui_source)
+        self.assertIn("Finished: ", ui_source)
 
     def test_nextbim_installer_adds_guided_design_intake_to_native_assistant(self):
         installer = (ROOT / "scripts/install-nextbim-ai-knowledge.py").read_text(encoding="utf-8")
