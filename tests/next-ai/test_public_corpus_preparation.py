@@ -543,6 +543,25 @@ class GuidedDesignIntakeCurriculumTests(unittest.TestCase):
         self.assertIn("verified survey", self.by_domain["design_intake_civil_infrastructure"][1]["completion"].lower())
         self.assertIn("schematic coordination model", self.by_domain["design_intake_civil_infrastructure"][2]["completion"].lower())
 
+    def test_consumer_product_design_intake_covers_use_ergonomics_and_components(self):
+        rows = self.by_domain["design_intake_consumer_product_cad"]
+        self.assertEqual(len(rows), 24)
+        for term in ("task should it perform", "who will use it", "target size", "material", "manufacturing"):
+            self.assertIn(term, rows[0]["completion"].lower())
+        self.assertIn("critical user-fit", rows[1]["completion"].lower())
+        self.assertIn("separate components", rows[2]["completion"].lower())
+
+    def test_technical_drawing_and_cam_intakes_never_invent_specifications(self):
+        drawings = self.by_domain["design_intake_technical_drawing_cad"]
+        cam = self.by_domain["design_intake_cam_cad"]
+        self.assertEqual(len(drawings), 24)
+        self.assertEqual(len(cam), 24)
+        for term in ("projection method", "tolerances", "drawing standard", "edition"):
+            self.assertIn(term, drawings[0]["completion"].lower())
+        self.assertIn("leave them explicitly marked tbd", drawings[1]["completion"].lower())
+        self.assertIn("not invent cutting data", cam[1]["completion"].lower())
+        self.assertIn("no executable toolpath or g-code", cam[2]["completion"].lower())
+
     def test_all_three_turns_for_one_design_scenario_remain_in_one_split(self):
         splits = module.split_synthetic_curriculum(self.lessons)
         group_to_splits = {}
