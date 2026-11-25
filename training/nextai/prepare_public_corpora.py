@@ -314,24 +314,60 @@ def load_stream(repo: str, split: str, limit: int, seed: int):
     return itertools.islice(iter(dataset), max(0, limit))
 
 
-def read_native(path: str | None, domain: str) -> list[dict[str, Any]]:
+def read_native(
+    path: str | None,
+    domain: str,
+    application: str,
+    expected_split: str,
+) -> list[dict[str, Any]]:
     if not path:
         return []
     result = []
+    seen_ids = set()
     with Path(path).open("r", encoding="utf-8") as handle:
-        for index, line in enumerate(handle):
+        for index, line in enumerate(handle, 1):
             if not line.strip():
                 continue
             row = json.loads(line)
-            if isinstance(row.get("messages"), list) and len(row["messages"]) >= 2:
-                result.append({
-                    "record_id": str(row.get("record_id") or f"{domain}-{index}"),
-                    "domain": domain,
-                    "messages": row["messages"],
-                    "images": [],
-                    "source": "Next3D native training trace",
-                    "license": "see attached native source record",
-                })
+            record_id = str(row.get("record_id") or f"{domain}-{index}")
+            if record_id in seen_ids:
+                raise ValueError(f"Duplicate native trace record ID in {path}:{index}")
+            seen_ids.add(record_id)
+            if row.get("application") != application:
+                raise ValueError(
+                    f"Native trace {record_id} belongs to {row.get('application')!r}, expected {application!r}"
+                )
+            if row.get("split") != expected_split:
+                raise ValueError(
+                    f"Native trace {record_id} has split {row.get('split')!r}, expected {expected_split!r}; "
+                    "use separate prepare_native_sft train/validation/test files"
+                )
+            messages = row.get("messages")
+            if not isinstance(messages, list) or len(messages) < 3:
+                raise ValueError(f"Native trace {record_id} has no complete system/user/assistant conversation")
+            roles = [message.get("role") for message in messages if isinstance(message, dict)]
+            if not {"system", "user", "assistant"}.issubset(set(roles)):
+                raise ValueError(f"Native trace {record_id} is missing required conversation roles")
+            source = row.get("source") or {}
+            if not source.get("license") or source.get("terms_reviewed") is not True:
+                raise ValueError(f"Native trace {record_id} has no reviewed source licence")
+            privacy = row.get("privacy") or {}
+            if privacy.get("contains_personal_data", True) and privacy.get("redaction_status") != "complete":
+                raise ValueError(f"Native trace {record_id} has unredacted personal data")
+            result.append({
+                "record_id": record_id,
+                "domain": domain,
+                "messages": messages,
+                "images": [],
+                "source": source.get("source_type") or "Next3D native training trace",
+                "license": source["license"],
+                "attribution": source.get("attribution"),
+                "source_group_sha256": source.get("source_group_sha256"),
+                "application_version": row.get("application_version"),
+                "adapter_schema_version": row.get("adapter_schema_version"),
+                "privacy": privacy,
+                "source_split": expected_split,
+            })
     return result
 
 
@@ -1573,8 +1609,24 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         counts["ifc_model_validation_records"] = len(ifc_records["validation"])
         counts["ifc_model_test_records"] = len(ifc_records["test"])
 
-    groups["nextcad_native"] = read_native(args.nextcad_native, "nextcad_native")
-    groups["nextbim_native"] = read_native(args.nextbim_native, "nextbim_native")
+    native_specs = (
+        ("nextcad_native", "nextcad", "train", args.nextcad_native_train or args.nextcad_native),
+        ("nextcad_native", "nextcad", "validation", args.nextcad_native_validation),
+        ("nextcad_native", "nextcad", "test", args.nextcad_native_test),
+        ("nextbim_native", "nextbim", "train", args.nextbim_native_train or args.nextbim_native),
+        ("nextbim_native", "nextbim", "validation", args.nextbim_native_validation),
+        ("nextbim_native", "nextbim", "test", args.nextbim_native_test),
+    )
+    for domain, application, split, native_path in native_specs:
+        rows = read_native(native_path, domain, application, split)
+        if split == "train":
+            groups[domain].extend(rows)
+        elif split == "validation":
+            validation.extend(rows)
+        else:
+            tests.extend(rows)
+        if rows:
+            counts[f"{domain}_{split}"] = len(rows)
     synthetic_splits = split_synthetic_curriculum(make_synthetic_curriculum())
     for lesson in synthetic_splits["train"]:
         groups[lesson["domain"]].append(lesson)
@@ -1655,8 +1707,16 @@ def main() -> int:
                         help="Optional directory containing Swiss Dwellings train/validation/test JSONL and rendered images.")
     parser.add_argument("--ifc-model-corpus-dir", type=Path,
                         help="Optional directory containing IfcOpenShell-parsed IFC model train/validation/test JSONL and manifest.")
-    parser.add_argument("--nextcad-native")
-    parser.add_argument("--nextbim-native")
+    # Legacy flags are train-only. Pass all three prepared files to keep the
+    # native project's source lineage and held-out split separate.
+    parser.add_argument("--nextcad-native", help="Legacy alias for --nextcad-native-train only.")
+    parser.add_argument("--nextbim-native", help="Legacy alias for --nextbim-native-train only.")
+    parser.add_argument("--nextcad-native-train")
+    parser.add_argument("--nextcad-native-validation")
+    parser.add_argument("--nextcad-native-test")
+    parser.add_argument("--nextbim-native-train")
+    parser.add_argument("--nextbim-native-validation")
+    parser.add_argument("--nextbim-native-test")
     parser.add_argument("--seed", type=int, default=3407)
     args = parser.parse_args()
     if any(value < 0 for value in (
