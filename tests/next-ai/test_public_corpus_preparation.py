@@ -575,6 +575,15 @@ class GuidedDesignIntakeCurriculumTests(unittest.TestCase):
         self.assertTrue(all(len(value) == 1 for value in group_to_splits.values()))
         self.assertTrue(all(count == 3 for count in group_to_count.values()))
 
+    def test_guided_design_responses_match_nextai_runtime_json_contract(self):
+        for lesson in self.lessons:
+            with self.subTest(stage=lesson["stage"], domain=lesson["domain"]):
+                response = json.loads(lesson["completion"])
+                self.assertEqual(set(response), {"message", "plan"})
+                self.assertIsInstance(response["message"], str)
+                self.assertTrue(response["message"].strip())
+                self.assertEqual(response["plan"], [])
+
     def test_dialogue_records_have_three_distinct_stages_and_context(self):
         stages = {}
         for lesson in self.lessons:
