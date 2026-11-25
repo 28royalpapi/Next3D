@@ -186,6 +186,10 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         compile(source, str(trainer_path), "exec")
         self.assertIn("load_in_4bit=False", source)
         self.assertIn("finetune_vision_layers=True", source)
+        self.assertIn("num_train_epochs=args.num_train_epochs", source)
+        self.assertIn("max_steps=args.max_steps", source)
+        self.assertIn("bf16=use_bf16", source)
+        self.assertIn("fp16=not use_bf16", source)
         self.assertIn("held_out_test_metrics_by_domain", source)
         self.assertIn("test_set_used_for_training", source)
 
