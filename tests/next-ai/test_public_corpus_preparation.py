@@ -240,6 +240,34 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertIn("never assume", rules)
         self.assertIn("copyrighted", rules)
 
+    def test_design_execution_curriculum_uses_registered_native_tools_and_valid_plan_sizes(self):
+        lessons = module.make_design_execution_curriculum()
+        domains = {row["domain"] for row in lessons}
+        self.assertTrue({
+            "design_execution_residential_floorplan",
+            "design_execution_watchtower_concept",
+            "design_execution_parametric_mechanical_part",
+            "design_execution_edit_existing_model",
+            "design_execution_vehicle_package",
+            "design_execution_cylindrical_shaft",
+            "design_execution_spherical_component",
+            "design_execution_tapered_nozzle",
+        }.issubset(domains))
+        allowed = {
+            "create_draft_wire", "create_draft_text", "create_draft_dimension",
+            "create_arch_structure", "create_part_box", "create_arch_wall",
+            "create_partdesign_body", "create_partdesign_sketch", "add_sketch_polygon",
+            "add_sketch_circle", "create_partdesign_pad", "create_partdesign_pocket",
+            "edit_native_property", "create_part_cylinder", "create_part_sphere", "create_part_cone",
+        }
+        for lesson in lessons:
+            response = json.loads(lesson["completion"])
+            plan = response["plan"]
+            self.assertLessEqual(len(plan), 20, lesson["domain"])
+            for step in plan:
+                self.assertIn(step["tool"], allowed, lesson["domain"])
+                self.assertIsInstance(step["args"], dict)
+
     def test_synthetic_curriculum_is_split_without_record_overlap(self):
         lessons = module.make_synthetic_curriculum()
         splits = module.split_synthetic_curriculum(lessons)
