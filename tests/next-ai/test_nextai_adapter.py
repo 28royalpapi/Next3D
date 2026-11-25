@@ -138,6 +138,19 @@ class NativeToolSafetyTests(unittest.TestCase):
         self.assertIn("Ask only for unresolved or conflicting requirements", ui_source)
         self.assertIn("return an empty plan", ui_source)
 
+    def test_nextbim_installer_adds_guided_design_intake_to_native_assistant(self):
+        installer = (ROOT / "scripts/install-nextbim-ai-knowledge.py").read_text(encoding="utf-8")
+        for term in (
+            "Before an under-specified design task",
+            "master-bedroom counts",
+            "ensuite/shared/guest split",
+            "coordinate reference and datum",
+            "Carry confirmed answers forward",
+            "do not call modifying tools",
+        ):
+            self.assertIn(term, installer)
+        compile(installer, "install-nextbim-ai-knowledge.py", "exec")
+
     def test_coordinate_validation(self):
         self.assertEqual(freecad_tools._point([10, 20]), [10.0, 20.0, 0.0])
         with self.assertRaises(ValueError):
