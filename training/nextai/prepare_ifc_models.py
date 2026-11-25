@@ -350,7 +350,7 @@ def prepare(
     max_train: int = 160,
     max_validation: int = 24,
     max_test: int = 24,
-    max_file_bytes: int = 600 * 1024 * 1024,
+    max_file_bytes: int = 256 * 1024 * 1024,
     chunk_size: int = 64,
 ) -> dict[str, Any]:
     root = root.resolve()
@@ -422,7 +422,7 @@ def main() -> int:
     parser.add_argument("--max-train", type=int, default=160)
     parser.add_argument("--max-validation", type=int, default=24)
     parser.add_argument("--max-test", type=int, default=24)
-    parser.add_argument("--max-file-bytes", type=int, default=600 * 1024 * 1024)
+    parser.add_argument("--max-file-bytes", type=int, default=256 * 1024 * 1024)
     parser.add_argument("--chunk-size", type=int, default=64)
     args = parser.parse_args()
     if min(args.max_train, args.max_validation, args.max_test) < 0:
