@@ -333,9 +333,451 @@ def read_native(path: str | None, domain: str) -> list[dict[str, Any]]:
     return result
 
 
+def make_advanced_engineering_curriculum() -> list[dict[str, Any]]:
+    """Generate original, unit-aware CAD/BIM/engineering lessons with varied inputs.
+
+    These lessons teach concepts and neutral plans. They are not represented as
+    native FreeCAD/BIMCraft command traces, calculations or code-compliance proof.
+    """
+    lessons: list[dict[str, Any]] = []
+
+    for index in range(12):
+        width = 100 + (index % 6) * 20
+        height = 70 + (index % 5) * 10
+        thickness = 8 + (index % 4) * 2
+        hole_diameter = 6 + (index % 3) * 2
+        edge_offset = 18 + (index % 4) * 3
+        radius = 2 + (index % 3)
+        filling = "IfcWindow" if index % 2 == 0 else "IfcDoor"
+        storeys = 2 + index % 4
+        span_x = 5000 + (index % 4) * 500
+        span_y = 4000 + (index % 3) * 500
+        floor_height = 3000 + (index % 3) * 250
+        soil_depth = 5 + (index % 5) * 2
+        pipe_flow = 2.0 + (index % 5) * 0.5
+
+        lessons.append({
+            "domain": "cad_2d_entity_semantics",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                f"Prepare a precise 2D CAD plate profile {width} mm by {height} mm "
+                f"with two {hole_diameter} mm holes, each centre {edge_offset} mm "
+                "from its nearest vertical edge. Specify entities, coordinate "
+                "conventions, layers, dimensions and checks. Do not infer any "
+                "undimensioned geometry."
+            ),
+            "completion": {
+                "schema": "nextai.cad_2d_profile.v1",
+                "units": "mm",
+                "origin": [0, 0],
+                "outline": {
+                    "entity": "closed_polyline",
+                    "vertices": [[0, 0], [width, 0], [width, height], [0, height]],
+                    "closed": True,
+                    "layer": "P-PROFILE",
+                },
+                "holes": [
+                    {"entity": "circle", "centre": [edge_offset, height / 2], "diameter": hole_diameter, "layer": "P-HOLES"},
+                    {"entity": "circle", "centre": [width - edge_offset, height / 2], "diameter": hole_diameter, "layer": "P-HOLES"},
+                ],
+                "dimensions": [
+                    {"name": "overall_width", "value": width, "unit": "mm"},
+                    {"name": "overall_height", "value": height, "unit": "mm"},
+                    {"name": "hole_diameter", "value": hole_diameter, "unit": "mm"},
+                    {"name": "hole_edge_offset", "value": edge_offset, "unit": "mm"},
+                ],
+                "layers": {"P-PROFILE": "visible plate boundary", "P-HOLES": "hole geometry", "P-DIMS": "dimensions and extension lines"},
+                "validation": ["polyline closed", "two holes present", "hole centres symmetric about vertical centreline", "all dimensions preserve mm units"],
+            },
+        })
+
+        lessons.append({
+            "domain": "cad_coordinate_transforms",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                "Explain the difference between global and local coordinate systems "
+                "in a parametric CAD model. Show how a component located at a known "
+                "origin and rotated about its local Z axis is transformed, and explain "
+                "why the assembly parent coordinate frame must be preserved."
+            ),
+            "completion": {
+                "schema": "nextai.cad_coordinate_frame_lesson.v1",
+                "concepts": {
+                    "global_frame": "the shared project or assembly reference frame",
+                    "local_frame": "a component's own origin and orthogonal axes",
+                    "placement": "a rigid transform mapping local coordinates into the parent frame",
+                    "rotation": "changes orientation about a specified axis and angle",
+                    "translation": "changes the origin position without changing shape",
+                },
+                "safe_sequence": ["identify parent frame", "identify component local frame", "state units and rotation axis", "apply transform in the intended order", "inspect the transformed datum and geometry"],
+                "checks": ["axes remain orthogonal", "transform order is explicit", "units are consistent", "source component geometry is not destructively modified"],
+            },
+        })
+
+        lessons.append({
+            "domain": "cad_parametric_features",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                f"Plan a parametric plate {width} mm by {height} mm by {thickness} mm "
+                f"with two {hole_diameter} mm through-holes and a {radius} mm edge "
+                "fillet. Return an editable feature sequence, dependencies and checks."
+            ),
+            "completion": {
+                "schema": "nextai.cad_parametric_feature_tree.v1",
+                "units": "mm",
+                "features": [
+                    {"order": 1, "feature": "constrained_sketch", "profile": "rectangle", "width": width, "height": height},
+                    {"order": 2, "feature": "pad", "length": thickness, "depends_on": [1]},
+                    {"order": 3, "feature": "hole", "diameter": hole_diameter, "termination": "through_all", "quantity": 2, "depends_on": [1, 2]},
+                    {"order": 4, "feature": "fillet", "radius": radius, "target": "user-confirmed outer edges", "depends_on": [2, 3]},
+                ],
+                "design_intent": ["named driving dimensions", "fully constrained profile", "stable feature references", "editable history"],
+                "validation": ["sketch solver reports intended constraint state", "one valid solid", "two through-holes", "fillet succeeds", "recompute and save/reopen"],
+            },
+        })
+
+        lessons.append({
+            "domain": "cad_assembly_design",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                "Plan an editable two-component mechanical assembly consisting of a "
+                "base plate and a vertical support. Explain datum selection, component "
+                "placement, assembly constraints and interference checks without "
+                "assuming the CAD application's exact command names."
+            ),
+            "completion": {
+                "schema": "nextai.cad_assembly_plan.v1",
+                "components": [
+                    {"id": "base", "role": "fixed reference component", "datum": "bottom mounting plane and central axes"},
+                    {"id": "support", "role": "positioned component", "datum": "mounting face and centre plane"},
+                ],
+                "placement_strategy": ["ground the base in the assembly frame", "align support mounting face with base datum", "align required centre axes", "apply only the constraints needed to remove intended degrees of freedom"],
+                "constraints": ["coincident mounting planes", "concentric axes where circular interfaces exist", "orientation constraint to prevent unintended rotation"],
+                "checks": ["no over-constrained component", "remaining degrees of freedom are intentional", "clearance and interference tests pass", "component files and references resolve"],
+            },
+        })
+
+        lessons.append({
+            "domain": "cad_technical_documentation",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                "Prepare a manufacturing drawing plan for the plate described in "
+                f"this task: {width} mm by {height} mm, thickness {thickness} mm, "
+                f"two holes diameter {hole_diameter} mm. Include views, dimensions, "
+                "tolerances, units, projection convention and revision controls. "
+                "Do not invent tolerances or material."
+            ),
+            "completion": {
+                "schema": "nextai.cad_drawing_release_plan.v1",
+                "views": ["front", "top", "side", "isometric reference", "section only if needed to clarify internal features"],
+                "dimensions": ["overall width", "overall height", "thickness", "hole diameter", "hole centre offsets"],
+                "metadata": ["part identifier", "units mm", "scale", "projection convention confirmed by user", "revision", "material only when specified"],
+                "tolerances": "use explicitly supplied tolerances or the project-approved tolerance standard; do not invent values",
+                "checks": ["orthographic views agree", "dimensions are not duplicated or contradictory", "all manufacturing-critical geometry is defined", "revision status is visible"],
+            },
+        })
+
+        lessons.append({
+            "domain": "cad_interoperability",
+            "system": CAD_SYSTEM,
+            "prompt": (
+                "Explain how to choose between STEP, IGES, STL, OBJ, 3MF, DXF and "
+                "SVG when exchanging a CAD design. Distinguish editable boundary "
+                "representation, tessellated mesh, 2D vector drawing and parametric history."
+            ),
+            "completion": {
+                "schema": "nextai.cad_exchange_format_guide.v1",
+                "formats": {
+                    "STEP": "preferred neutral solid/surface product geometry exchange when supported",
+                    "IGES": "legacy curve and surface exchange; validate translation quality",
+                    "STL": "triangulated surface mesh for additive manufacturing and visualisation; no parametric feature history",
+                    "OBJ": "mesh and optional material exchange; not a native parametric CAD history",
+                    "3MF": "additive-manufacturing container with richer manufacturing metadata than basic STL",
+                    "DXF": "2D drawing geometry and supported annotations",
+                    "SVG": "2D vector graphics, not a general 3D solid exchange format",
+                },
+                "before_export": ["confirm units", "choose selected bodies or drawing", "check coordinate origin and orientation", "set mesh tolerance only for tessellated formats"],
+                "after_import": ["check units and bounding dimensions", "validate solids or mesh integrity", "inspect faces, edges and surfaces", "compare with source view", "record what information did not transfer"],
+            },
+        })
+
+        lessons.append({
+            "domain": "bim_spatial_hierarchy",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                f"Model the information hierarchy for a {storeys}-storey building. "
+                "Separate project, site, building, storeys, spaces, element types "
+                "and placed instances. Explain containment and aggregation."
+            ),
+            "completion": {
+                "schema": "nextai.bim_spatial_hierarchy.v1",
+                "hierarchy": ["project", "site", "building", "building storey", "space"],
+                "storeys": [{"name": f"Level {n + 1}", "elevation_mm": n * floor_height} for n in range(storeys)],
+                "rules": ["spatial containers are distinct from physical elements", "elements have persistent identities", "type definitions are not placed instances", "spatial containment and element aggregation are separate relationships"],
+                "validation": ["each element assigned to intended spatial context", "storey elevations and units consistent", "no duplicate global identifiers", "spaces and boundaries are valid"],
+            },
+        })
+
+        lessons.append({
+            "domain": "bim_type_instance_data",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Explain BIM type-versus-instance data using a door family. Identify "
+                "which properties are reusable type properties and which belong "
+                "to one placed door instance. Include identity, host and level."
+            ),
+            "completion": {
+                "schema": "nextai.bim_type_instance_lesson.v1",
+                "type_properties": ["nominal width and height", "frame construction", "manufacturer model", "fire/acoustic rating when certified"],
+                "instance_properties": ["unique element identifier", "actual location and orientation", "host wall/opening", "storey", "mark", "phase and status"],
+                "relationship": "Each placed instance references one reusable type definition while retaining its own identity and placement.",
+                "validation": ["unique instance identifiers", "required type properties populated", "host relationship valid", "instance dimensions do not contradict type constraints"],
+            },
+        })
+
+        lessons.append({
+            "domain": "bim_material_properties",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Describe a layered wall BIM specification and its information "
+                "requirements. Distinguish material identity, layer order, thickness, "
+                "function and property sets. Do not invent performance ratings."
+            ),
+            "completion": {
+                "schema": "nextai.bim_material_layer_set.v1",
+                "layers": [
+                    {"order": 1, "function": "external finish", "material": "user-specified", "thickness_mm": None},
+                    {"order": 2, "function": "structural or backing layer", "material": "user-specified", "thickness_mm": None},
+                    {"order": 3, "function": "insulation or cavity layer where specified", "material": "user-specified", "thickness_mm": None},
+                    {"order": 4, "function": "internal finish", "material": "user-specified", "thickness_mm": None},
+                ],
+                "required_data": ["material name and classification", "layer function", "thickness and unit", "thermal/acoustic/fire properties only from verified source data"],
+                "checks": ["layer order matches assembly direction", "thicknesses are positive when supplied", "total wall thickness reconciles", "property source and classification are recorded"],
+            },
+        })
+
+        lessons.append({
+            "domain": "bim_ifc_exchange_requirements",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Prepare an openBIM exchange acceptance plan for an IFC model. "
+                "Explain the roles of IFC schema validation, IDS information "
+                "requirements, BCF issue exchange and bSDD classification. Do not "
+                "claim the file passes until validation is run."
+            ),
+            "completion": {
+                "schema": "nextai.openbim_exchange_plan.v1",
+                "ifc": "exchange data schema for building objects, geometry, properties and relationships",
+                "ids": "machine-readable information delivery requirements for checking required entities and properties",
+                "bcf": "issue and viewpoint exchange for coordination findings",
+                "bsdd": "dictionary for consistent classifications, properties and definitions",
+                "validation_stages": ["check IFC syntax/schema", "check entity and relationship validity", "run IDS requirements", "inspect geometry and placements", "review BCF issues", "record software and schema version"],
+                "rule": "A valid IFC syntax check does not prove design adequacy or compliance with every project requirement.",
+            },
+        })
+
+        lessons.append({
+            "domain": "bim_georeferencing",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Explain how a BIM project coordinate system relates to local model "
+                "coordinates, survey coordinates, true north and a projected national "
+                "grid. List the information required before applying a coordinate transform."
+            ),
+            "completion": {
+                "schema": "nextai.bim_georeferencing_lesson.v1",
+                "frames": ["local element coordinates", "project/site coordinates", "survey control coordinates", "projected or geospatial reference system"],
+                "required_inputs": ["CRS identifier or EPSG code", "survey control points", "horizontal and vertical datum", "units", "rotation to true/grid north", "known translation and elevation offsets"],
+                "workflow": ["record the agreed CRS", "check survey control", "define model origin and orientation", "apply one documented transform", "test known control points", "export and re-import to verify"],
+                "validation": ["control-point residuals within project tolerance", "units and vertical datum correct", "no duplicate or conflicting transforms"],
+            },
+        })
+
+        lessons.append({
+            "domain": "bim_phasing_revisions",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Explain how BIM construction phases, design options, revisions and "
+                "demolition/new work status should be represented without losing "
+                "the history of the original building elements."
+            ),
+            "completion": {
+                "schema": "nextai.bim_phase_revision_lesson.v1",
+                "concepts": {
+                    "phase": "project stage or construction/demolition state assigned to model elements",
+                    "design_option": "alternative proposal kept separate for comparison and approval",
+                    "revision": "controlled change to a model or drawing deliverable",
+                    "issue_status": "coordination or approval state, not the same as construction phase",
+                },
+                "workflow": ["record existing conditions", "assign demolition and new-work phases explicitly", "keep alternatives identifiable", "track model revisions and approvals", "publish a coordinated issue-specific deliverable"],
+                "checks": ["existing elements retained in history", "phase filters produce expected views", "revisions trace to approved changes"],
+            },
+        })
+
+        lessons.append({
+            "domain": "engineering_structural_workflow",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Explain the structural load path for a framed building from floor "
+                "slabs through beams and columns to foundations and supporting ground. "
+                "List the inputs needed before any member sizing or code check."
+            ),
+            "completion": {
+                "schema": "nextai.structural_load_path_lesson.v1",
+                "load_path": ["floor and roof actions", "slabs or deck", "beams and girders", "columns or walls", "foundations", "bearing soil or rock"],
+                "checks": ["continuous load transfer", "stability in both principal directions", "lateral load-resisting system identified", "connection and support assumptions documented"],
+                "required_inputs": ["geometry and spans", "material properties", "permanent and variable actions", "wind and seismic criteria where applicable", "support and soil conditions", "design jurisdiction and code edition"],
+                "rule": "Do not size members or state compliance without a complete analysis model, verified loads and the applicable code edition.",
+            },
+        })
+
+        lessons.append({
+            "domain": "engineering_reinforced_concrete_workflow",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Prepare a code-aware reinforced concrete design workflow for a "
+                "structural member. Identify required inputs, analysis, design checks, "
+                "detailing and review stages. Do not invent dimensions, loads or code clauses."
+            ),
+            "completion": {
+                "schema": "nextai.reinforced_concrete_workflow.v1",
+                "stages": ["confirm design basis and code edition", "collect geometry and material strengths", "establish load cases and combinations from the adopted code", "analyse the structural model", "check strength and serviceability", "design reinforcement and anchorage", "detail cover, spacing, laps and curtailment", "independent design review and issue"],
+                "required_inputs": ["member type and support conditions", "section dimensions", "concrete and reinforcement grades", "actions and combinations", "exposure and fire requirements", "detailing and constructability constraints"],
+                "not_assumed": ["BS 8110 edition", "Eurocode edition and national annex", "load values", "material grades", "bar sizes"],
+                "validation": ["calculations trace to cited code clauses", "units reconcile", "detailing checks are complete", "qualified engineer reviews the design"],
+            },
+        })
+
+        lessons.append({
+            "domain": "engineering_geotechnical_workflow",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                f"Plan the geotechnical investigation for a proposed building with "
+                f"foundation influence depth extending to about {soil_depth} m. "
+                "Explain how boreholes, sampling, groundwater observations and "
+                "laboratory tests support foundation selection. Do not assume soil capacity."
+            ),
+            "completion": {
+                "schema": "nextai.geotechnical_investigation_plan.v1",
+                "investigation": ["review site history and geology", "prepare investigation layout based on structure and variability", "advance boreholes or trial pits to justified depths", "record strata and groundwater observations", "obtain representative samples", "perform suitable in-situ and laboratory tests", "prepare a factual and interpretative geotechnical report"],
+                "parameters_from_report": ["stratigraphy", "groundwater level and variation", "strength parameters", "compressibility and settlement parameters", "unit weight", "permeability", "aggressivity and chemical conditions"],
+                "foundation_checks": ["bearing resistance", "total and differential settlement", "sliding and overturning where relevant", "groundwater and construction effects", "nearby structures and services"],
+                "rule": "Do not invent allowable bearing pressure or recommend a foundation type without site-specific investigation and structural loads.",
+            },
+        })
+
+        lessons.append({
+            "domain": "engineering_water_and_drainage",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                f"Plan a drainage and water-services information model with a design "
+                f"flow supplied as {pipe_flow:.1f} L/s. Identify catchments, pipe runs, "
+                "levels, gradients, structures and outfall relationships. Do not guess "
+                "pipe diameter or a statutory minimum gradient."
+            ),
+            "completion": {
+                "schema": "nextai.water_drainage_information_plan.v1",
+                "design_flow": {"value": pipe_flow, "unit": "L/s", "origin": "user supplied in task"},
+                "objects": ["catchment", "pipe segment", "manhole or access chamber", "inlet or fixture", "outfall or connection"],
+                "required_properties": ["invert levels", "cover levels", "pipe material", "diameter", "design flow", "slope", "system type"],
+                "checks": ["flow direction consistent with inverts", "network connectivity checked", "cover and clearance checked", "hydraulic capacity analysed using adopted method", "outfall approval recorded"],
+                "missing_inputs": ["rainfall or fixture criteria", "catchment area", "roughness", "permitted discharge", "applicable jurisdiction and standard"],
+            },
+        })
+
+        lessons.append({
+            "domain": "engineering_survey_and_setting_out",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Explain the survey and setting-out information needed to transfer "
+                "a BIM/CAD building grid to a construction site. Include control points, "
+                "benchmarks, grid intersections, levels, tolerances and independent checks."
+            ),
+            "completion": {
+                "schema": "nextai.survey_setting_out_plan.v1",
+                "control": ["verified horizontal control points", "verified vertical benchmark", "coordinate reference system", "project grid and orientation"],
+                "setting_out": ["derive grid intersection coordinates", "set out offsets and building corners", "transfer level datums", "record instrument and method", "check independent backsight or closure"],
+                "checks": ["coordinate units explicit", "closure within project survey tolerance", "benchmark height source documented", "as-set-out values independently checked"],
+                "rule": "Do not treat arbitrary model origin coordinates as surveyed site coordinates.",
+            },
+        })
+
+        lessons.append({
+            "domain": "construction_project_controls",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Convert a building construction scope into a work breakdown structure "
+                "and a logic-linked programme. Explain dependencies, milestones, "
+                "critical path and progress evidence without inventing durations."
+            ),
+            "completion": {
+                "schema": "nextai.construction_controls_plan.v1",
+                "wbs": ["mobilisation and site establishment", "substructure", "superstructure", "envelope", "building services", "internal finishes", "testing and commissioning", "handover"],
+                "schedule_fields": ["activity id", "description", "duration", "predecessors", "successors", "calendar", "baseline dates", "actual dates", "responsible party"],
+                "rules": ["logic links must be explicit", "critical path is calculated from activity network", "baseline and actual progress are separate", "percent complete requires measurable evidence"],
+                "not_assumed": ["activity durations", "crew productivity", "procurement lead times", "weather allowances"],
+            },
+        })
+
+        lessons.append({
+            "domain": "construction_cost_and_quantities",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Explain how a BIM quantity take-off becomes a bill of quantities and "
+                "cost estimate. Distinguish model quantities, measurement rules, "
+                "rates, allowances and tender adjustments."
+            ),
+            "completion": {
+                "schema": "nextai.bim_cost_estimation_workflow.v1",
+                "sequence": ["define measurement rules and work sections", "filter model elements by classification and phase", "extract dimensions and quantities from validated native objects", "apply agreed deductions and waste rules", "map items to bill descriptions", "apply sourced rates and currency/date basis", "record preliminaries, risks and allowances separately", "review and reconcile"],
+                "quantity_sources": ["element count", "length", "area", "volume", "weight only where source data supports it"],
+                "required_metadata": ["measurement method", "unit", "currency", "rate source", "price date", "location", "tax and escalation basis"],
+                "rule": "A model quantity is not a complete cost estimate; never invent rates or market prices.",
+            },
+        })
+
+        lessons.append({
+            "domain": "construction_quality_and_safety",
+            "system": BIM_SYSTEM,
+            "prompt": (
+                "Prepare a combined construction quality-control and site safety "
+                "inspection plan for a concrete placement activity. Include hold points, "
+                "inspection evidence, hazards, controls and approval responsibilities."
+            ),
+            "completion": {
+                "schema": "nextai.construction_quality_safety_plan.v1",
+                "quality": ["approved drawings and method statement", "formwork and reinforcement inspection", "cover and embedded items inspection", "concrete delivery and mix record", "placement and compaction observation", "curing and test records", "nonconformance and corrective action"],
+                "safety": ["lifting and handling hazards", "work at height and edge protection", "plant and vehicle interface", "temporary works stability", "electrical and access hazards", "PPE and emergency arrangements"],
+                "hold_points": ["pre-pour inspection", "concrete acceptance", "post-placement review"],
+                "evidence": ["inspection request", "signed checklist", "test results", "photographs tied to location/date", "approved corrective-action closure"],
+                "rule": "Use the project's approved method statement, risk assessment and applicable law; this generic checklist does not replace site-specific safety planning.",
+            },
+        })
+
+    # A separate standards lesson teaches the student how to handle laws and codes
+    # without memorising stale or copyrighted clauses as if they were universal.
+    lessons.append({
+        "domain": "engineering_standards_and_regulations",
+        "system": BIM_SYSTEM,
+        "prompt": (
+            "A user asks whether a CAD/BIM design complies with a building or "
+            "engineering code but does not state the project country, code edition "
+            "or design basis. Explain how NextAI should proceed."
+        ),
+        "completion": {
+            "schema": "nextai.standards_compliance_protocol.v1",
+            "required_context": ["jurisdiction", "authority having jurisdiction", "standard or regulation title", "edition and amendments", "project type and scope", "design basis and verified inputs"],
+            "workflow": ["ask for missing jurisdiction and edition", "retrieve the authorised standard or official regulatory source", "record exact clause and source citation", "check the actual native model or engineering calculation", "report each pass, fail, warning and unverified item", "request qualified professional review where legally required"],
+            "rules": ["never assume BS 8110, Eurocodes or another code applies without confirmation", "never invent clause numbers or limits", "do not redistribute copyrighted standards without permission", "distinguish software validation from legal compliance and professional certification"],
+        },
+    })
+
+    return lessons
+
+
 def make_synthetic_curriculum() -> list[dict[str, Any]]:
     """Small, original, unit-aware lessons that cover gaps in public corpora."""
-    lessons = [
+    lessons = make_advanced_engineering_curriculum() + [
         {
             "domain": "cad_2d_drafting",
             "system": CAD_SYSTEM,
