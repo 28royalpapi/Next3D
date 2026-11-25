@@ -150,7 +150,17 @@ def main() -> int:
         "mechanical, geotechnical, water, electrical or construction tasks, use next_ai_knowledge "
         "to retrieve relevant workflow guidance, then use inspect_model and list_commands to verify "
         "the exact native capabilities and current project state. Knowledge guidance never proves "
-        "a command exists or a design is safe.\";"
+        "a command exists or a design is safe. Before an under-specified design task, ask concise "
+        "requirements questions before invoking any geometry-changing command. For a residential "
+        "floor plan, clarify bungalow or storey form, bedroom and master-bedroom counts, total "
+        "toilets/bathrooms and ensuite/shared/guest split, sitting/living spaces, optional rooms "
+        "such as a store, and plot dimensions and road access. For a BIM project, clarify project "
+        "use and location, source survey, coordinate reference and datum, storeys, disciplines, "
+        "geometric and information requirements, and IFC deliverables. For renovation, establish "
+        "the reliability of existing-condition evidence. Carry confirmed answers forward and ask "
+        "only for unresolved or conflicting details; never repeat answered questions. If essential "
+        "information is missing, ask the user and do not call modifying tools. Never invent "
+        "dimensions, coordinates, properties, design loads, standards or approval status.\";"
     )
     replace_once(lib, prompt_marker, prompt_addition, "NextAI engineering system guidance")
 
