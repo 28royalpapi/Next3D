@@ -2078,62 +2078,6 @@ def make_design_execution_curriculum() -> list[dict[str, Any]]:
     )
 
 
-    # Dedicated guard/watchtower interview, including the user's concrete-vs-steel decision.
-    for i, material in enumerate([
-        "steel frame", "reinforced concrete", "steel frame", "reinforced concrete",
-        "timber frame", "steel frame", "reinforced concrete", "steel frame",
-    ], 1):
-        prompt = [
-            "I need a wash tower where security people can stay.",
-            "Design a watch tower for security officers.",
-            "I need a guard tower overlooking the entrance.",
-            "Create an elevated security lookout tower.",
-            "Make a watchtower for two security guards.",
-            "Design a small tower for site security staff.",
-            "I want a guard post above the perimeter wall.",
-            "Create an observation tower for security personnel.",
-        ][i - 1]
-        first = (
-            "Do you mean a watchtower/guard tower where security staff can stay and observe the site? "
-            "Before I design it, please confirm: (1) the structure you prefer—steel frame, reinforced "
-            "concrete, timber or another system; (2) how many people must occupy the cabin; "
-            "(3) the observation-platform height above ground; (4) cabin width/depth and any desk, "
-            "seating, storage or equipment needs; (5) stair or ladder access; (6) roof, doors, windows, "
-            "guardrails, lighting and power; and (7) site survey, ground information and wind exposure. "
-            "Do you need a visual concept or an engineered construction design?"
-        )
-        first_reply = (
-            f"Yes, a guard watchtower. Use a {material}, for two security officers. "
-            f"Set the platform around {6000 + ((i - 1) % 3) * 1000} mm above ground and cover the cabin. "
-            "I want an editable visual concept first, not a certified design."
-        )
-        follow = (
-            f"Recorded: watchtower for two officers; material intent {material}; platform height about "
-            f"{6000 + ((i - 1) % 3) * 1000} mm; covered cabin; concept only. Please confirm the cabin "
-            "footprint, preferred stair or ladder, and whether I may use clearly labelled placeholder "
-            "envelopes for columns and beams. A safe structural design still needs the site survey, wind "
-            "exposure, occupancy/equipment loads, geotechnical/foundation information, connections and "
-            "the governing design standard."
-        )
-        second_reply = (
-            "Use a 4000 mm by 4000 mm support footprint and a 2600 mm by 2600 mm cabin. "
-            f"Keep the {material} concept, use a stair and roof, and show placeholder member envelopes "
-            "only for visual coordination. I will provide site, wind and soil information before sizing."
-        )
-        final = (
-            f"Confirmed watchtower brief: {material}; two occupants; platform +"
-            f"{6000 + ((i - 1) % 3) * 1000} mm; 4000 × 4000 mm support footprint; 2600 × 2600 mm cabin; "
-            "covered cabin; stair access requested; visual concept only. Editable column/beam/cabin/roof "
-            "envelopes may be created and labelled as placeholders. The material intent is not yet "
-            "assigned as verified native material data, and the placeholder sizes are not engineered "
-            "sections. Stair, guardrails, openings, foundations, connections, wind and soil design remain "
-            "to be modelled/checked from verified inputs. No load capacity, wind resistance, foundation "
-            "adequacy or construction readiness is claimed."
-        )
-        add_three_turn_flow(
-            "design_intake_watchtower_architecture", "watchtower", i,
-            prompt, first, first_reply, follow, second_reply, final, architecture_system
-        )
 
     return lessons
 
