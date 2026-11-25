@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -98,7 +99,7 @@ class IfcModelPreparationTests(unittest.TestCase):
         }):
             summary, chunks = ifc_prep.extract_model(FakeModel(), element_chunk_size=1)
 
-        self.assertEqual(summary["relationship_edges_extracted"], 6)
+        self.assertEqual(summary["relationship_edges_extracted"], 7)
         wall_chunk = next(chunk for chunk in chunks if chunk["elements"][0]["ifc_class"] == "IfcWall")
         door_chunk = next(chunk for chunk in chunks if chunk["elements"][0]["ifc_class"] == "IfcDoor")
         wall_edges = wall_chunk["relationships_touching_chunk"]
