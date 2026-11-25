@@ -43,6 +43,35 @@ For 2D drafting, the first student corpus therefore combines three different sou
 
 For manual-work observation, FreeCAD's macro recording and document/selection observer interfaces can provide the source events. In Next BIM, the UI and agents both act on the same BIMCraft Session and native command engine; observe the resulting model changes and active selection at the desktop frame boundary. In both applications, keep the stream local, opt-in, bounded and pauseable. Record object types, dimensions, constraints, relationships and command summaries; exclude unrelated desktop activity, free-text notes and personal project metadata unless the user explicitly shares them with a prompt.
 
+## Additional floor-plan and IFC model corpora
+
+### Swiss Dwellings v3.0.0 — priority architectural floor-plan corpus
+
+- Official release: [Zenodo DOI 10.5281/zenodo.7788422](https://zenodo.org/records/7788422); [dataset and licensing summary](https://archilyse.standfest.science/swiss-dwellings).
+- CC BY 4.0; attribute Standfest et al. / Archilyse AG and retain the DOI. The published archive is 931.9 MB. It contains more than 45,000 apartments and about 370,000 rooms across approximately 3,100 buildings.
+- `geometries.csv` contains semantic area, separator, opening and fixture geometry as WKT in metres, with local-site coordinates (+x east, +y north), floor/building/plan/unit identifiers, elevation and height. The source documentation says the digitised geometry passed manual QA, with maximum 5% apartment-area deviation and median deviation 1.2%.
+- **Implemented ingestion:** `training/nextai/prepare_swiss_dwellings.py` reads the CSV directly from the ZIP without extracting the whole archive, selects whole floors, renders local images and creates exact room-polygon labels, metric area/perimeter values and shared-boundary graphs. All floors from the same building remain in one split. The optional corpus can be merged with `prepare_public_corpora.py --swiss-dwellings-dir <prepared-folder>`.
+- Training use: visual-to-vector room understanding and architectural spatial semantics. The dataset is not a statutory design, not as-built truth for every building element and not a certified engineering design set. Do not infer door connectivity from a shared wall boundary. Location ratings, addresses and simulation columns are excluded from the student corpus.
+- The 931.9 MB archive is a development-time training source only. It is never bundled in Next3D.
+
+### GNI-BIM Dataset — diverse authored IFC models
+
+- [GitHub repository](https://github.com/ZijianWang-ZW/GNI-BIM-Dataset), [Zenodo record](https://zenodo.org/records/19722012).
+- The authors report 224 anonymised IFC building models, including 208 individual student submissions and 16 models from nine multi-discipline projects. The authors parsed 223 of them and report 290,877 physical element instances across 42 IfcElement subclasses. The dataset contents are CC BY 4.0; accompanying anonymisation code is MIT.
+- **Quality limitation:** the authors explicitly provide the student-coursework models "as is" with no guarantee of correctness, completeness or fitness for engineering use, and warn about third-party embedded product families. These files are useful for learning actual IFC structures and schema variety, not positive examples of design correctness. Parse, anonymise and validate each model; keep invalid/incomplete records quarantined.
+
+### Large-Scale IFC-Compliant Building Models — generated IFC coverage
+
+- [Zenodo DOI 10.5281/zenodo.20788324](https://doi.org/10.5281/zenodo.20788324).
+- The NLM Dataset Catalog describes 73,303 complete IFC4-compliant residential 3D building models generated through a deterministic IfcOpenShell-based rule pipeline. The catalogue lists CC BY 4.0.
+- This is an unusually large source of structured IFC residential model patterns. Because it is algorithmically generated and residential-only, use it to expand IFC schema/relationship coverage, not to imply coverage of all real-world BIM workflows or design quality. Inspect the archive, schema, per-file validity, source code and attribution before choosing a sample.
+
+### Other floor-plan data — rights status
+
+- [Modified Swiss Dwellings (MSD)](https://archilyse.standfest.science/modified-swiss-dwellings) is a CC BY 4.0 benchmark derived from Swiss Dwellings, with room polygons, semantic areas, openings and graph-oriented data. It is a useful later benchmark for building-complex generalisation; avoid training on its evaluation split.
+- CubiCasa5K and FloorPlanCAD include valuable annotated floor-plan examples but are published under non-commercial licences in their commonly used releases. They are not admitted to commercial NextAI training unless separate permissions are obtained.
+- HouseExpo's code repository is MIT, but its content is derived from SUNCG. The underlying dataset rights must be cleared before commercial training; code licence alone does not license the data.
+
 ## Engineering curriculum the model must learn
 
 ### CAD foundation (application-independent)
