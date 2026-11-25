@@ -1759,6 +1759,10 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "bim_revision_change_impact": 0.03,
         "construction_4d_sequence": 0.03,
         "civil_site_coordination": 0.03,
+        "engineering_beam_reactions_calculation": 0.035,
+        "engineering_fem_axial_bar_calculation": 0.035,
+        "engineering_pipe_continuity_calculation": 0.03,
+        "construction_concrete_quantity_calculation": 0.03,
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
