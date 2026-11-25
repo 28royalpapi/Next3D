@@ -133,7 +133,32 @@ def _example(record: dict[str, Any]) -> dict[str, Any]:
         {"role": "user", "content": json.dumps(context, ensure_ascii=False, sort_keys=True)},
         {"role": "assistant", "content": json.dumps(target, ensure_ascii=False, sort_keys=True)},
     ]
-    return {"messages": messages, "record_id": record["record_id"], "application": record["application"]}
+    source = record["source"]
+    privacy = record["privacy"]
+    source_group_sha256 = hashlib.sha256(_source_group(record).encode("utf-8")).hexdigest()
+    source_metadata = {
+        "source_type": source.get("source_type"),
+        "license": source.get("license"),
+        "attribution": source.get("attribution"),
+        "permission_status": source.get("permission_status"),
+        "terms_reviewed": source.get("terms_reviewed") is True,
+        "source_group_sha256": source_group_sha256,
+    }
+    privacy_metadata = {
+        "contains_personal_data": privacy.get("contains_personal_data"),
+        "redaction_status": privacy.get("redaction_status"),
+        "user_consent": privacy.get("user_consent") is True,
+    }
+    return {
+        "messages": messages,
+        "record_id": record["record_id"],
+        "application": record["application"],
+        "application_version": record["application_version"],
+        "adapter_schema_version": record.get("adapter_schema_version", "unknown"),
+        "split": record["split"],
+        "source": source_metadata,
+        "privacy": privacy_metadata,
+    }
 
 
 def prepare(input_path: Path, output_dir: Path) -> dict[str, Any]:
