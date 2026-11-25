@@ -393,6 +393,7 @@ def _create_step(doc, tool, args):
         "create_partdesign_pocket",
         "inspect_sketch",
         "inspect_partdesign_body",
+        "edit_native_property",
     }:
         return _partdesign_step(doc, tool, args)
 
