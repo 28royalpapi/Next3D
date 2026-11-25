@@ -47,6 +47,7 @@ class CapabilityCensusTests(unittest.TestCase):
                 "runtime_inventory": {
                     "global_command_registry_enumerated": True,
                     "workbenches": [{"id": wb, "toolbar_command_ids": ["Part_Box"], "menu_command_mapping": "not_exposed_by_pinned_python_workbench_wrapper"}],
+                    "python_api_enumeration_scope": "Public names of Python modules loaded after workbench activation.",
                     "commands": [{"id": "Part_Box", "menu_text": "Create box",
                                   "toolbar_workbenches": [wb], "ui_contexts": ["toolbar:Primitives"]}],
                     "python_api_modules": [{"name": "Part", "public_members": [
