@@ -1407,6 +1407,16 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def split_synthetic_curriculum(lessons: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """Hold out deterministic parameter variants instead of training on every authored lesson."""
+    result = {"train": [], "validation": [], "test": []}
+    for index, lesson in enumerate(lessons, 1):
+        bucket = index % 10
+        split = "test" if bucket == 0 else "validation" if bucket == 1 else "train"
+        result[split].append(lesson)
+    return result
+
+
 def read_swiss_dwellings_directory(path: Path) -> dict[str, list[dict[str, Any]]]:
     """Load pre-rendered, building-disjoint Swiss Dwellings records by split."""
     result = {"train": [], "validation": [], "test": []}
@@ -1556,8 +1566,14 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
 
     groups["nextcad_native"] = read_native(args.nextcad_native, "nextcad_native")
     groups["nextbim_native"] = read_native(args.nextbim_native, "nextbim_native")
-    for lesson in make_synthetic_curriculum():
+    synthetic_splits = split_synthetic_curriculum(make_synthetic_curriculum())
+    for lesson in synthetic_splits["train"]:
         groups[lesson["domain"]].append(lesson)
+    validation.extend(synthetic_splits["validation"])
+    tests.extend(synthetic_splits["test"])
+    counts["synthetic_train"] = len(synthetic_splits["train"])
+    counts["synthetic_validation"] = len(synthetic_splits["validation"])
+    counts["synthetic_test"] = len(synthetic_splits["test"])
     train = sample_balanced(groups, args.max_mixed_train, args.seed)
     random.Random(args.seed + 1).shuffle(validation)
     random.Random(args.seed + 2).shuffle(tests)
