@@ -1421,7 +1421,7 @@ def make_design_intake_curriculum() -> list[dict[str, Any]]:
             "to use clearly labelled concept placeholders, (4) the powertrain and drive "
             "layout if already chosen, (5) the exterior/interior components you want "
             "modelled, and (6) whether the deliverable is a visual concept, packaging "
-            "model, detailed assembly or manufacturing drawing. Do you have wheel and "
+            "model, detailed assembly or manufacturing drawings. Do you have wheel and "
             "tyre sizes, ground-clearance targets or battery/engine package dimensions?"
         )
         first_reply = (
@@ -1524,9 +1524,9 @@ def make_design_intake_curriculum() -> list[dict[str, Any]]:
         first = (
             f"I can organise the {assembly}. Please confirm: (1) the function and operating "
             f"sequence, (2) the required components (a starting list could be {components}), "
-            "(3) which components are existing parts versus new designs, (4) the mating faces, "
-            "axes, fastener patterns and interface dimensions, (5) which joints should be fixed, "
-            "revolute, prismatic or otherwise constrained, and (6) the expected motion range and "
+            "(3) which components are existing parts versus new designs, (4) which component is the reference component, (5) the mating faces, "
+            "axes, fastener patterns and interface dimensions, (6) which joints should be fixed, "
+            "revolute, prismatic or otherwise constrained, and (7) the expected motion range and "
             "service access. Do you need an exploded view or manufacturing drawings?"
         )
         first_reply = (
