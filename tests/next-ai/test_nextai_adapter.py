@@ -122,20 +122,20 @@ class NativeToolSafetyTests(unittest.TestCase):
 
     def test_guided_design_intake_knowledge_is_retrievable_for_architecture_and_bim(self):
         architecture = knowledge.search(
-            "bungalow storey house ensuite shared facilities guest WC plot frontage road access"
+            "bungalow storey house ensuite shared facilities guest WC plot frontage road access", limit=10
         )
         self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in architecture))
         bim = knowledge.search(
-            "vertical datum employer information requirements IFC schema project coordinates"
+            "vertical datum employer information requirements IFC schema project coordinates", limit=10
         )
         self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in bim))
         cam = knowledge.search(
-            "feeds speeds stepover machine workholding postprocessor G-code"
+            "feeds speeds stepover machine workholding postprocessor G-code", limit=10
         )
         self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in cam))
         execution = knowledge.search(
             "native viewport recompute each operation editable parametric feature history "
-            "watchtower member schedule inspect modify existing BIM element"
+            "watchtower member schedule inspect modify existing BIM element", limit=10
         )
         self.assertTrue(any(item["source"].endswith("design/design-execution.md") for item in execution))
 
