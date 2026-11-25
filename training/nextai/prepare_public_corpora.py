@@ -2079,6 +2079,79 @@ def make_design_execution_curriculum() -> list[dict[str, Any]]:
 
 
 
+    # Vehicle package concept: teach the student to select native primitives
+    # by geometric role and build the model as separately editable components.
+    vehicle_plan = [
+        {"tool": "create_part_box", "args": {
+            "length": 4200, "width": 1800, "height": 250, "origin": [0,0,0],
+            "label": "CH01 — chassis envelope 4200×1800×250 mm — concept only"
+        }},
+        {"tool": "create_part_box", "args": {
+            "length": 3200, "width": 1400, "height": 1000, "origin": [500,200,600],
+            "label": "BD01 — passenger body envelope 3200×1400×1000 mm — concept only"
+        }},
+    ]
+    for mark, x, y in (
+        ("WH01", 700, -220), ("WH02", 3500, -220),
+        ("WH03", 700, 1800), ("WH04", 3500, 1800),
+    ):
+        vehicle_plan.append({"tool": "create_part_cylinder", "args": {
+            "radius": 350, "height": 220, "origin": [x,y,350], "axis": [0,1,0],
+            "label": f"{mark} — wheel envelope Ø700×220 mm — concept only"
+        }})
+    vehicle_plan.extend([
+        {"tool": "create_draft_dimension", "args": {
+            "start": [0,0,0], "end": [4200,0,0], "dimension_line_point": [2100,-700,0],
+            "label": "Vehicle package length — 4200 mm"
+        }},
+        {"tool": "create_draft_dimension", "args": {
+            "start": [0,0,0], "end": [0,1800,0], "dimension_line_point": [-700,900,0],
+            "label": "Chassis package width — 1800 mm"
+        }},
+        {"tool": "create_draft_text", "args": {
+            "text": "VEHICLE PACKAGE CONCEPT — NOT A ROAD-READY DESIGN\n"
+                    "CH01 chassis envelope; BD01 body envelope; WH01-WH04 wheel envelopes.\n"
+                    "No suspension, steering, braking, drivetrain, crash structure, materials, "
+                    "clearances or regulatory validation are included.",
+            "position": [4500,0,0], "height": 160, "label": "Vehicle concept scope and component schedule"
+        }}
+    ])
+    add(
+        "design_execution_vehicle_package",
+        "The user approved a simple editable vehicle packaging concept with these explicit dimensions: chassis envelope 4200×1800×250 mm; passenger body envelope 3200×1400×1000 mm at [500,200,600] mm; four wheel envelopes diameter 700 mm and width 220 mm, with wheel centres at x=700/3500 mm and z=350 mm on both sides of the chassis. Use separate native Part boxes for chassis/body and native cylinders for wheels. Add dimensions and a component note. Do not claim suspension, steering, brakes, powertrain, crashworthiness or road legality.",
+        "I will create separate editable chassis, body and four wheel-envelope components. Cylinders are appropriate for the wheel envelopes, while boxes are only packaging placeholders for the chassis and body. I will add the overall package dimensions and a note identifying the systems that are not modelled. This is not a functional or road-ready vehicle.",
+        vehicle_plan,
+    )
+
+    # Teach primitive selection from geometry intent rather than using a box
+    # for every object. All dimensions below are explicit concept inputs.
+    add(
+        "design_execution_cylindrical_shaft",
+        "Create an editable native shaft concept in NextCAD. Approved dimensions: radius 20 mm, length 240 mm, origin [0,0,0], axis [0,0,1]. Use the correct native primitive and label it SH01. Do not infer material, fit or torque capacity.",
+        "A shaft is rotationally symmetric, so I will use a native editable Part cylinder with a 20 mm radius and 240 mm length along the Z axis. Material, fit, torque capacity and tolerances remain unspecified.",
+        [{"tool": "create_part_cylinder", "args": {
+            "radius": 20, "height": 240, "origin": [0,0,0], "axis": [0,0,1],
+            "label": "SH01 — shaft concept Ø40×240 mm"
+        }}],
+    )
+    add(
+        "design_execution_spherical_component",
+        "Create an editable native spherical knob concept. The user approved a 35 mm radius and centre [0,0,0]. Use the native sphere primitive and label it KN01. Do not infer material or ergonomic suitability.",
+        "A spherical knob is best represented by a native editable Part sphere, not a faceted picture or a rectangular block. I will use the approved 35 mm radius and centre. Material and ergonomic suitability remain open.",
+        [{"tool": "create_part_sphere", "args": {
+            "radius": 35, "center": [0,0,0], "label": "KN01 — spherical knob concept R35 mm"
+        }}],
+    )
+    add(
+        "design_execution_tapered_nozzle",
+        "Create an editable native tapered nozzle concept in NextCAD. Approved dimensions: base radius 40 mm, tip radius 10 mm, height 120 mm, origin [0,0,0], axis [0,0,1]. Use the correct native primitive and label NZ01. Do not infer flow capacity, pressure rating or material.",
+        "A tapered nozzle is represented by a native editable Part cone/frustum with two end radii. I will use the approved 40 mm and 10 mm radii over 120 mm height. This geometry alone does not establish flow capacity, pressure rating or material suitability.",
+        [{"tool": "create_part_cone", "args": {
+            "radius1": 40, "radius2": 10, "height": 120, "origin": [0,0,0], "axis": [0,0,1],
+            "label": "NZ01 — tapered nozzle concept R40/R10×120 mm"
+        }}],
+    )
+
     return lessons
 
 
