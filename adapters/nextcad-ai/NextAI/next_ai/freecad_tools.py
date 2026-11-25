@@ -263,10 +263,12 @@ def _create_step(doc, tool, args):
             baseline,
             height=height,
             width=width,
-            name=str(args.get("label", "NextAI Wall"))[:120],
+            name="NextAIWall",
         )
         if wall is None:
             raise RuntimeError("FreeCAD did not create the Arch wall.")
+        if args.get("label"):
+            wall.Label = str(args["label"])[:120]
         return {"created": wall.Name, "label": wall.Label, "type": wall.TypeId}
 
     if tool == "create_part_box":
@@ -348,14 +350,15 @@ def _create_step(doc, tool, args):
         length = _number(args.get("length"), "length", 25.0, 20_000.0)
         width = _number(args.get("width"), "width", 25.0, 20_000.0)
         height = _number(args.get("height"), "height", 25.0, 100_000.0)
-        obj = Arch.makeStructure(length=length, width=width, height=height,
-                                 name=str(args.get("label", "NextAI Structure"))[:120])
+        obj = Arch.makeStructure(length=length, width=width, height=height, name="NextAIStructure")
         if obj is None:
             raise RuntimeError("FreeCAD did not create the Arch structural element.")
         obj.Placement = App.Placement(
             App.Vector(*_point(args.get("origin", [0, 0, 0]), "origin")),
             App.Rotation(),
         )
+        if args.get("label"):
+            obj.Label = str(args["label"])[:120]
         return {"created": obj.Name, "label": obj.Label, "type": obj.TypeId}
 
     if tool == "activate_workbench":
