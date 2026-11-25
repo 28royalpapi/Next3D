@@ -22,6 +22,55 @@ class IfcModelPreparationTests(unittest.TestCase):
         self.assertIsNone(ifc_prep._safe_scalar("OwnerPhone", 2348012345678))
         self.assertIsNone(ifc_prep._safe_scalar("GlobalId", "2O2f$k9v5E7u"))
 
+    def test_local_placement_keeps_parent_relative_axes_and_origin(self):
+        class FakeIfc:
+            def __init__(self, ifc_class, **attrs):
+                self._ifc_class = ifc_class
+                for key, value in attrs.items():
+                    setattr(self, key, value)
+
+            def is_a(self):
+                return self._ifc_class
+
+        location = FakeIfc("IfcCartesianPoint", Coordinates=[1200, 2400, 300])
+        axis = FakeIfc("IfcDirection", DirectionRatios=[0, 0, 1])
+        ref_direction = FakeIfc("IfcDirection", DirectionRatios=[0, 1, 0])
+        relative = FakeIfc("IfcAxis2Placement3D", Location=location, Axis=axis, RefDirection=ref_direction)
+        parent = FakeIfc("IfcLocalPlacement")
+        placement = FakeIfc("IfcLocalPlacement", PlacementRelTo=parent, RelativePlacement=relative)
+        element = FakeIfc("IfcWall", ObjectPlacement=placement)
+
+        result = ifc_prep._local_placement_summary(element)
+        self.assertEqual(result["placement_class"], "IfcLocalPlacement")
+        self.assertEqual(result["relative_to_class"], "IfcLocalPlacement")
+        self.assertEqual(result["origin_in_parent_frame"], [1200.0, 2400.0, 300.0])
+        self.assertEqual(result["z_axis"], [0.0, 0.0, 1.0])
+        self.assertEqual(result["x_axis"], [0.0, 1.0, 0.0])
+        self.assertIn("not transformed to site/world coordinates", result["coordinate_frame"])
+
+    def test_representation_summary_keeps_geometry_representation_types(self):
+        class FakeIfc:
+            def __init__(self, ifc_class):
+                self._ifc_class = ifc_class
+
+            def is_a(self):
+                return self._ifc_class
+
+        items = [FakeIfc("IfcExtrudedAreaSolid"), FakeIfc("IfcMappedItem")]
+        representation = FakeIfc("IfcShapeRepresentation")
+        representation.RepresentationIdentifier = "Body"
+        representation.RepresentationType = "SweptSolid"
+        representation.Items = items
+        product_rep = FakeIfc("IfcProductDefinitionShape")
+        product_rep.Representations = [representation]
+        element = FakeIfc("IfcWall")
+        element.Representation = product_rep
+
+        result = ifc_prep._representation_summary(element)
+        self.assertEqual(result[0]["identifier"], "Body")
+        self.assertEqual(result[0]["representation_type"], "SweptSolid")
+        self.assertEqual(result[0]["item_classes"], ["IfcExtrudedAreaSolid", "IfcMappedItem"])
+
     def test_paired_architecture_and_structure_files_share_one_split_group(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
