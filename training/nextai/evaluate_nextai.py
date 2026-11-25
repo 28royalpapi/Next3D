@@ -106,7 +106,7 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def prompt_for(row: dict[str, Any]) -> tuple[str, str, list[str]]:
+def prompt_for(row: dict[str, Any]) -> tuple[str, str, list[str], str]:
     system = str(row.get("system") or "")
     prompt = str(row.get("prompt") or "")
     expected = str(row.get("completion") or "")
@@ -135,7 +135,7 @@ def prompt_for(row: dict[str, Any]) -> tuple[str, str, list[str]]:
                         if isinstance(part, dict) and part.get("type") == "text"
                     )
     images = [str(path) for path in (row.get("images") or []) if path]
-    return system, prompt, images
+    return system, prompt, images, expected
 
 
 def main() -> int:
@@ -172,8 +172,12 @@ def main() -> int:
     metrics_by_domain: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for index, row in enumerate(rows):
-        system, prompt, image_paths = prompt_for(row)
-        expected = str(row.get("completion") or "")
+        system, prompt, image_paths, expected = prompt_for(row)
+        if not expected.strip():
+            raise RuntimeError(
+                f"Held-out record {row.get('record_id', index)!r} has no assistant reference output; "
+                "refusing to report misleading evaluation metrics."
+            )
         user_content = []
         images = []
         for image_path in image_paths:

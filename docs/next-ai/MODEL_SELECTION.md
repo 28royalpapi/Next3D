@@ -30,7 +30,9 @@ For visual input, the model reads supported drawings/images; it does not generat
 
 ## Training decision
 
-Start from the instruction-tuned Qwen3.5-0.8B checkpoint for supervised fine-tuning, not the pretraining-only Base checkpoint. Use a separate BF16 LoRA training environment as described in training/nextai. The first pass teaches text-to-native-tool planning and keeps vision weights frozen. Add drawing/image training only when dimension-level ground truth exists.
+Start from the instruction-tuned `Qwen/Qwen3.5-0.8B` checkpoint for supervised fine-tuning, not the pretraining-only Base checkpoint. Use the separate GPU training environment in `training/nextai`: BF16 when supported, FP16 otherwise, with rank-16 LoRA adapted on both the vision and language pathways as configured in `train_nextai.py`. This is a multimodal training recipe, not a claim that every vision capability is already learned.
+
+Include image examples only when the associated labels have reliable ground truth (for example, known vector geometry, dimensions, scale, units, feature identity or verified model state). Never infer exact dimensions from an unscaled screenshot. When image-grounded labels are unavailable, keep those examples text-only; do not count text-only SFT as evidence of improved drawing comprehension. Preserve the unmodified base checkpoint, save the adapter and training configuration, and benchmark the trained candidate against the untouched checkpoint on the same held-out test split.
 
 Train on verified native project traces, not manuals alone:
 - a human request and confirmed unit-aware specification;
