@@ -136,7 +136,7 @@ def search(query: str, mod_root: Path | None = None, limit: int = 6):
                     best = (score, passage)
             if best is not None:
                 try:
-                    relative = str(path.relative_to(root))
+                    relative = path.relative_to(root).as_posix()
                 except ValueError:
                     relative = path.name
                 results.append({
