@@ -454,5 +454,118 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertEqual(domains, {"cad_visual", "bim_ifc_knowledge"})
 
 
+
+class GuidedDesignIntakeCurriculumTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.lessons = module.make_design_intake_curriculum()
+        cls.by_domain = {}
+        for lesson in cls.lessons:
+            cls.by_domain.setdefault(lesson["domain"], []).append(lesson)
+
+    def test_residential_floorplan_interviews_for_the_requested_room_programme(self):
+        rows = self.by_domain["design_intake_architecture"]
+        self.assertEqual(len(rows), 36)
+        first = rows[0]
+        self.assertIn("3-bedroom floor plan", first["prompt"])
+        for required_question in (
+            "bungalow or a storey house",
+            "How many master bedrooms",
+            "How many toilets/bathrooms",
+            "one sitting room",
+            "store",
+            "plot width and depth",
+        ):
+            self.assertIn(required_question.lower(), first["completion"].lower())
+
+        follow_up = rows[1]["completion"].lower()
+        self.assertIn("i will not ask you to repeat", follow_up)
+        self.assertIn("plot width and depth", follow_up)
+        self.assertIn("preliminary room sizes", follow_up)
+
+        final = rows[2]["completion"].lower()
+        self.assertIn("bedrooms: 3", final)
+        self.assertIn("master bedrooms:", final)
+        self.assertIn("toilets/bathrooms:", final)
+        self.assertIn("ensuite", final)
+        self.assertIn("shared/guest", final)
+        self.assertIn("road on the shorter frontage", final)
+        self.assertIn("will not claim permit approval", final)
+
+    def test_vehicle_cad_intake_distinguishes_concept_from_roadworthy_design(self):
+        rows = self.by_domain["design_intake_vehicle_cad"]
+        self.assertEqual(len(rows), 30)
+        self.assertEqual(rows[0]["prompt"], "Design a car in CAD.")
+        first = rows[0]["completion"].lower()
+        for term in ("vehicle type", "occupants", "wheelbase", "powertrain", "manufacturing drawings"):
+            self.assertIn(term, first)
+        follow_up = rows[1]["completion"].lower()
+        self.assertIn("target vehicle envelope", follow_up)
+        self.assertIn("editable parameters", follow_up)
+        final = rows[2]["completion"].lower()
+        self.assertIn("editable exterior and packaging concept", final)
+        self.assertIn("not a roadworthy vehicle design", final)
+        self.assertIn("crashworthiness", final)
+
+    def test_mechanical_part_and_assembly_intakes_ask_for_interfaces(self):
+        part = self.by_domain["design_intake_mechanical_part"]
+        assembly = self.by_domain["design_intake_assembly_cad"]
+        self.assertEqual(len(part), 30)
+        self.assertEqual(len(assembly), 24)
+        self.assertIn("mating dimensions", part[0]["completion"])
+        self.assertIn("expected loads", part[0]["completion"])
+        self.assertIn("named parameters", part[2]["completion"])
+        self.assertIn("reference component", assembly[0]["completion"])
+        self.assertIn("degrees of freedom", assembly[2]["completion"].lower())
+
+    def test_bim_new_build_and_renovation_intakes_collect_model_information(self):
+        new_build = self.by_domain["design_intake_bim_new_build"]
+        renovation = self.by_domain["design_intake_bim_renovation"]
+        self.assertEqual(len(new_build), 30)
+        self.assertEqual(len(renovation), 24)
+        for term in ("project location", "coordinate reference", "disciplines", "IFC schema", "classification"):
+            self.assertIn(term.lower(), new_build[0]["completion"].lower())
+        self.assertIn("information requirements", new_build[1]["completion"].lower())
+        self.assertIn("as-built", renovation[1]["completion"].lower())
+        self.assertIn("measured survey", renovation[2]["completion"].lower())
+        self.assertIn("uncertain geometry flagged", renovation[2]["completion"].lower())
+
+    def test_commercial_enclosure_and_infrastructure_design_families_are_present(self):
+        expected = {
+            "design_intake_commercial_architecture": 24,
+            "design_intake_sheet_metal_cad": 24,
+            "design_intake_civil_infrastructure": 24,
+        }
+        for domain, count in expected.items():
+            self.assertEqual(len(self.by_domain[domain]), count)
+        self.assertIn("existing floor plan", self.by_domain["design_intake_commercial_architecture"][1]["completion"].lower())
+        self.assertIn("flat-pattern", self.by_domain["design_intake_sheet_metal_cad"][2]["completion"].lower())
+        self.assertIn("verified survey", self.by_domain["design_intake_civil_infrastructure"][1]["completion"].lower())
+        self.assertIn("schematic coordination model", self.by_domain["design_intake_civil_infrastructure"][2]["completion"].lower())
+
+    def test_all_three_turns_for_one_design_scenario_remain_in_one_split(self):
+        splits = module.split_synthetic_curriculum(self.lessons)
+        group_to_splits = {}
+        group_to_count = {}
+        for split, rows in splits.items():
+            for row in rows:
+                group = row["split_group"]
+                group_to_splits.setdefault(group, set()).add(split)
+                group_to_count[group] = group_to_count.get(group, 0) + 1
+        self.assertEqual(len(group_to_splits), len(self.lessons) // 3)
+        self.assertTrue(all(len(value) == 1 for value in group_to_splits.values()))
+        self.assertTrue(all(count == 3 for count in group_to_count.values()))
+
+    def test_dialogue_records_have_three_distinct_stages_and_context(self):
+        stages = {}
+        for lesson in self.lessons:
+            stages.setdefault(lesson["split_group"], []).append(lesson["stage"])
+        for values in stages.values():
+            self.assertEqual(values, [
+                "initial_clarification",
+                "context_aware_follow_up",
+                "confirmed_design_brief",
+            ])
+
 if __name__ == "__main__":
     unittest.main()
