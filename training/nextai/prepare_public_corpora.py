@@ -2668,8 +2668,6 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
             },
         })
 
-    lessons.extend(make_design_intake_curriculum())
-
     records = []
     for index, lesson in enumerate(lessons):
         completion = lesson["completion"]
