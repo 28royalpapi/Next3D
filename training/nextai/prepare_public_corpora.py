@@ -1489,6 +1489,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     }
     validation, tests, quarantine = [], [], []
     counts = Counter()
+    ifc_model_manifest = None
 
     cad_limits = [
         ("train", args.max_cad_train, "train"),
@@ -1544,7 +1545,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         counts["swiss_dwellings_test"] = len(swiss_records["test"])
 
     if args.ifc_model_corpus_dir:
-        ifc_records, ifc_manifest = read_ifc_model_corpus(args.ifc_model_corpus_dir)
+        ifc_records, ifc_model_manifest = read_ifc_model_corpus(args.ifc_model_corpus_dir)
         for record in ifc_records["train"]:
             groups[record["domain"]].append(record)
         validation.extend(ifc_records["validation"])
@@ -1597,6 +1598,16 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "Optional IFC model records are split by source model or paired project team; free-text names and original GlobalIds are excluded.",
         ],
     }
+    if ifc_model_manifest:
+        manifest["sources"].append({
+            "repo": ifc_model_manifest.get("source"),
+            "doi": ifc_model_manifest.get("doi"),
+            "license": ifc_model_manifest.get("license"),
+            "purpose": "Parsed IFC model hierarchy, object classes, safe properties, materials and explicit relationships",
+            "model_files": ifc_model_manifest.get("model_files"),
+            "records": ifc_model_manifest.get("training_records"),
+        })
+
     out.mkdir(parents=True, exist_ok=True)
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest
