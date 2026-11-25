@@ -1358,6 +1358,8 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "construction_cost_and_quantities": 0.03,
         "construction_quality_and_safety": 0.03,
         "swiss_dwellings_floorplan": 0.09,
+        "ifc_model_summary": 0.06,
+        "ifc_element_inventory": 0.08,
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
@@ -1430,6 +1432,36 @@ def read_swiss_dwellings_directory(path: Path) -> dict[str, list[dict[str, Any]]
     return result
 
 
+def read_ifc_model_corpus(path: Path) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
+    """Read IFC model summaries and element inventories prepared by IfcOpenShell."""
+    manifest_path = path / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"IFC model corpus manifest not found: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("test_not_used_for_training") is not True:
+        raise ValueError("IFC model corpus must declare its test split as held out")
+    result = {"train": [], "validation": [], "test": []}
+    for split in result:
+        source_path = path / f"{split}.jsonl"
+        if not source_path.is_file():
+            raise FileNotFoundError(f"IFC model corpus {split} file not found: {source_path}")
+        with source_path.open("r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                if row.get("domain") not in {"ifc_model_summary", "ifc_element_inventory"}:
+                    raise ValueError(f"Unexpected IFC model domain at {source_path}:{line_number}")
+                if row.get("source") != manifest.get("source"):
+                    raise ValueError(f"IFC model source mismatch at {source_path}:{line_number}")
+                if row.get("license") != manifest.get("license") or not row.get("source_doi"):
+                    raise ValueError(f"IFC model licence or DOI missing at {source_path}:{line_number}")
+                if not row.get("source_file_sha256") or not row.get("split_group"):
+                    raise ValueError(f"IFC model provenance or split group missing at {source_path}:{line_number}")
+                result[split].append(row)
+    return result, manifest
+
+
 def prepare(args: argparse.Namespace) -> dict[str, Any]:
     out = Path(args.output_dir).resolve()
     assets = out / "assets"
@@ -1452,6 +1484,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "engineering_survey_and_setting_out": [], "engineering_standards_and_regulations": [],
         "construction_project_controls": [], "construction_cost_and_quantities": [],
         "construction_quality_and_safety": [], "swiss_dwellings_floorplan": [],
+        "ifc_model_summary": [], "ifc_element_inventory": [],
         "nextcad_native": [], "nextbim_native": [],
     }
     validation, tests, quarantine = [], [], []
@@ -1510,6 +1543,16 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         counts["swiss_dwellings_validation"] = len(swiss_records["validation"])
         counts["swiss_dwellings_test"] = len(swiss_records["test"])
 
+    if args.ifc_model_corpus_dir:
+        ifc_records, ifc_manifest = read_ifc_model_corpus(args.ifc_model_corpus_dir)
+        for record in ifc_records["train"]:
+            groups[record["domain"]].append(record)
+        validation.extend(ifc_records["validation"])
+        tests.extend(ifc_records["test"])
+        counts["ifc_model_train_records"] = len(ifc_records["train"])
+        counts["ifc_model_validation_records"] = len(ifc_records["validation"])
+        counts["ifc_model_test_records"] = len(ifc_records["test"])
+
     groups["nextcad_native"] = read_native(args.nextcad_native, "nextcad_native")
     groups["nextbim_native"] = read_native(args.nextbim_native, "nextbim_native")
     for lesson in make_synthetic_curriculum():
@@ -1532,6 +1575,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": BIM_DATASET, "license": "MIT", "purpose": "IFC/BIM instruction lessons; source must claim validation and score >=4.5"},
             {"repo": BIM_QA_DATASET, "license": "CC-BY-4.0", "attribution": "Dietmar2020", "purpose": "IFC/BIM conceptual QA"},
             {"repo": "Swiss Dwellings v3.0.0", "doi": "10.5281/zenodo.7788422", "license": "CC-BY-4.0", "attribution": "Standfest et al., Archilyse AG", "purpose": "Image-grounded architectural floor-plan geometry, room typology and shared-boundary relationships; optional training-only corpus"},
+            {"repo": "optional IFC model corpus", "license": "manifest-declared", "purpose": "Parsed IFC2x3/IFC4 model hierarchy, element classes, safe properties, materials and relationships; no original GlobalIds or free-text personal metadata"},
             {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, BIM concepts and construction workflows"},
         ],
         "source_counts": dict(counts),
@@ -1550,6 +1594,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "Standards remain versioned retrieval references, not copied wholesale into model weights.",
             "Swiss Dwellings images and vector labels are a training-only optional corpus; the 931.9 MB source archive is not part of the runtime package.",
             "Swiss Dwellings floors from the same building are kept in one data split to prevent train/test leakage.",
+            "Optional IFC model records are split by source model or paired project team; free-text names and original GlobalIds are excluded.",
         ],
     }
     out.mkdir(parents=True, exist_ok=True)
@@ -1572,6 +1617,8 @@ def main() -> int:
     parser.add_argument("--max-test", type=int, default=1200)
     parser.add_argument("--swiss-dwellings-dir", type=Path,
                         help="Optional directory containing Swiss Dwellings train/validation/test JSONL and rendered images.")
+    parser.add_argument("--ifc-model-corpus-dir", type=Path,
+                        help="Optional directory containing IfcOpenShell-parsed IFC model train/validation/test JSONL and manifest.")
     parser.add_argument("--nextcad-native")
     parser.add_argument("--nextbim-native")
     parser.add_argument("--seed", type=int, default=3407)
