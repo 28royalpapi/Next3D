@@ -108,7 +108,9 @@ def main() -> int:
     )
     model = FastVisionModel.get_peft_model(
         model,
-        finetune_vision_layers=False,
+        # CAD is visual as well as parametric. Adapt the vision pathway with
+        # LoRA too, while preserving the frozen base weights and compact export.
+        finetune_vision_layers=True,
         finetune_language_layers=True,
         finetune_attention_modules=True,
         finetune_mlp_modules=True,
@@ -186,7 +188,8 @@ def main() -> int:
     result = {
         "base_model": args.base_model,
         "method": "BF16 LoRA SFT",
-        "vision_encoder_weights_frozen": True,
+        "vision_encoder_weights_frozen": False,
+        "vision_encoder_lora_adapted": True,
         "language_layers_trainable": True,
         "train_records": len(train_rows),
         "validation_records": len(validation_rows),
