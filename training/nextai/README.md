@@ -4,6 +4,21 @@ The only runtime student is Qwen3.5-0.8B. The larger CAD and BIM teacher models 
 
 ## Comprehensive capability programme
 
+The implementation standard is documented in [COMPLETE_NATIVE_CAPABILITY_STANDARD.md](./COMPLETE_NATIVE_CAPABILITY_STANDARD.md). It defines full source/runtime discovery for both applications, ten learning obligations per native command, and separate counts for discovered capabilities, lessons, native execution and mastery.
+
+Run the inventory builder against the pinned source catalogues:
+
+```bash
+python training/nextai/capability_census.py \\
+  --bim-catalog docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json \\
+  --nextcad-source-index docs/next-ai/catalogs/NEXTCAD_WORKBENCH_SOURCE_INDEX.v1.json \\
+  --expected-nextcad-commit 00cb280454069966a2fb0a8e7dc184c46e7b38b3 \\
+  --expected-nextbim-commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b \\
+  --output-dir /workspace/nextai-capability-census
+```
+
+To add the complete live NextCAD command registry, run `training/nextai/discover_nextcad_runtime.FCMacro` inside the pinned NextCAD GUI with `NEXT3D_CAPABILITY_REPORT` and `NEXT3D_NEXTCAD_SOURCE_COMMIT` set. The macro is read-only with respect to the active model.
+
 The next curriculum phase is specified in [COMPREHENSIVE_CAPABILITY_CURRICULUM.md](./COMPREHENSIVE_CAPABILITY_CURRICULUM.md). It defines a full native capability census, atomic and compound skills, complete projects, high-rise floor variation, product/mechanical design, revisions and recovery, plus 10,000-case and 100,000-case milestones per application. These are future targets, not current counts. It also defines evidence levels so authored lessons, schema-checked plans, native-executed traces and independently validated results are reported separately.
 
 ## Data sources and admission
