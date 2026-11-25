@@ -201,6 +201,22 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertIn("never assume", rules)
         self.assertIn("copyrighted", rules)
 
+    def test_synthetic_curriculum_is_split_without_record_overlap(self):
+        lessons = module.make_synthetic_curriculum()
+        splits = module.split_synthetic_curriculum(lessons)
+        ids = {
+            split: {row["record_id"] for row in rows}
+            for split, rows in splits.items()
+        }
+        self.assertTrue(ids["train"].isdisjoint(ids["validation"]))
+        self.assertTrue(ids["train"].isdisjoint(ids["test"]))
+        self.assertTrue(ids["validation"].isdisjoint(ids["test"]))
+        self.assertEqual(len(ids["train"]) + len(ids["validation"]) + len(ids["test"]), len(lessons))
+        self.assertGreater(len(splits["validation"]), 0)
+        self.assertGreater(len(splits["test"]), 0)
+        for split in splits.values():
+            self.assertTrue(all(row["completion"] for row in split))
+
     def test_swiss_dwellings_directory_admits_only_matching_building_split_records(self):
         import tempfile
 
