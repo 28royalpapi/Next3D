@@ -25,7 +25,7 @@ The builder streams the CAD dataset's published `train`, `validation` and `test`
 
 ## Train
 
-The trainer follows the Unsloth Qwen3.5-0.8B vision recipe with BF16/FP16 LoRA (depending on GPU hardware), vision encoder weights frozen in the first pass, and language/attention/MLP layers trainable. It does not use QLoRA. Begin with a small run to check memory and loss before a longer experiment.
+The trainer follows the Unsloth Qwen3.5-0.8B vision recipe with BF16/FP16 LoRA (depending on GPU hardware), vision and language pathways both receive LoRA adapters, with the base checkpoint weights retained. It does not use QLoRA. Begin with a small run to check memory and loss before a longer experiment.
 
     pip install --upgrade unsloth unsloth_zoo
     pip install --upgrade transformers trl datasets peft accelerate bitsandbytes pillow
