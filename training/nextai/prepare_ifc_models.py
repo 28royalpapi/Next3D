@@ -181,11 +181,34 @@ def extract_model(model: Any, element_chunk_size: int = 64) -> tuple[dict[str, A
             spatial_counts[ifc_class] = 0
 
     elements = []
+    # Element IDs and all non-element relationship endpoints use generated local
+    # surrogate IDs. This preserves IFC graph topology without emitting source
+    # GlobalIds, STEP line numbers or file-specific identifiers.
     id_map: dict[int, str] = {}
+    entity_type_map: dict[str, str] = {}
+    external_endpoints: dict[str, dict[str, str]] = {}
     raw_elements = sorted(model.by_type("IfcElement"), key=lambda item: item.id())
     for index, element in enumerate(raw_elements, 1):
         local_id = f"e{index:06d}"
         id_map[element.id()] = local_id
+        entity_type_map[local_id] = element.is_a()
+
+    def endpoint_ref(entity: Any) -> str | None:
+        if entity is None or not hasattr(entity, "id"):
+            return None
+        step_id = entity.id()
+        if step_id in id_map:
+            return id_map[step_id]
+        if step_id not in id_map:
+            # IDs are stable only inside this parser run and are never exported.
+            local_id = f"x{len(external_endpoints) + 1:07d}"
+            id_map[step_id] = local_id
+            entity_type_map[local_id] = entity.is_a()
+            external_endpoints[local_id] = {
+                "local_id": local_id,
+                "ifc_class": entity.is_a(),
+            }
+        return id_map[step_id]
 
     for index, element in enumerate(raw_elements, 1):
         local_id = id_map[element.id()]
@@ -231,18 +254,16 @@ def extract_model(model: Any, element_chunk_size: int = 64) -> tuple[dict[str, A
             left_name, right_name, relation_type = relationship_accessors[ifc_class]
             left = getattr(relation, left_name, None)
             right = getattr(relation, right_name, None)
-            left_id = id_map.get(left.id()) if left is not None and hasattr(left, "id") else None
+            left_id = endpoint_ref(left)
             right_values = right if isinstance(right, (list, tuple)) else [right]
             for right_value in right_values:
-                right_id = (
-                    id_map.get(right_value.id())
-                    if right_value is not None and hasattr(right_value, "id")
-                    else None
-                )
+                right_id = endpoint_ref(right_value)
                 if left_id and right_id:
                     relationship_rows.append({
                         "source": left_id,
+                        "source_class": entity_type_map[left_id],
                         "target": right_id,
+                        "target_class": entity_type_map[right_id],
                         "relation": relation_type,
                         "ifc_relationship": ifc_class,
                     })
@@ -264,6 +285,7 @@ def extract_model(model: Any, element_chunk_size: int = 64) -> tuple[dict[str, A
         "limitations": [
             "Parsing does not prove geometric validity, model completeness, design adequacy or statutory compliance.",
             "Only numeric values and a small allow-list of safe IFC enumeration properties are retained; free-text names and personal metadata are omitted.",
+            "Relationships preserve connections to external type, material, property-set and spatial endpoints using generated local references; endpoint labels and source identifiers are not emitted.",
             "Element identifiers are remapped to local surrogate IDs; original GlobalIds and file paths are not emitted.",
         ],
     }
@@ -271,17 +293,29 @@ def extract_model(model: Any, element_chunk_size: int = 64) -> tuple[dict[str, A
     for start in range(0, len(elements), element_chunk_size):
         subset = elements[start : start + element_chunk_size]
         included = {item["local_id"] for item in subset}
+        # Keep any relationship touching this chunk. The other endpoint may be
+        # a type object, material, property set, spatial container, or an element
+        # stored in another chunk; preserve its class and local surrogate ID.
         edges = [
             edge for edge in relationship_rows
-            if edge["source"] in included and edge["target"] in included
+            if edge["source"] in included or edge["target"] in included
         ]
+        external = {}
+        for edge in edges:
+            for endpoint_id in (edge["source"], edge["target"]):
+                if endpoint_id not in included:
+                    external[endpoint_id] = external_endpoints.get(
+                        endpoint_id,
+                        {"local_id": endpoint_id, "ifc_class": entity_type_map[endpoint_id]},
+                    )
         chunks.append({
             "schema": "nextai.ifc_element_inventory.v1",
             "ifc_schema": schema,
             "element_chunk_start": start,
             "elements": subset,
-            "relationships_within_chunk": edges,
-            "note": "Relationships to entities outside this chunk are not shown in this chunk.",
+            "relationships_touching_chunk": edges,
+            "external_relationship_endpoints": sorted(external.values(), key=lambda row: row["local_id"]),
+            "note": "Relationship edges may refer to external endpoints. IDs are generated local references, not source GlobalIds.",
         })
     return summary, chunks
 
