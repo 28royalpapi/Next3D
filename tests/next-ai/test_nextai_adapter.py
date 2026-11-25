@@ -117,6 +117,23 @@ class NativeToolSafetyTests(unittest.TestCase):
         self.assertTrue(result)
         self.assertTrue(any(item["source"].startswith("nextai/") for item in result))
 
+    def test_guided_design_intake_knowledge_is_retrievable_for_architecture_and_bim(self):
+        architecture = knowledge.search(
+            "three bedroom bungalow master bedrooms toilets ensuites shared store plot dimensions"
+        )
+        self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in architecture))
+        bim = knowledge.search(
+            "BIM project coordinate reference IFC schema LOD asset information requirements"
+        )
+        self.assertTrue(any(item["source"].endswith("design/design-intake.md") for item in bim))
+
+    def test_nextcad_runtime_prompt_requires_context_aware_design_clarification(self):
+        ui_source = (ROOT / "adapters/nextcad-ai/NextAI/next_ai/ui.py").read_text(encoding="utf-8")
+        self.assertIn("DESIGN INTAKE BEFORE MODELLING", ui_source)
+        self.assertIn("number of master bedrooms", ui_source)
+        self.assertIn("Ask only for unresolved or conflicting requirements", ui_source)
+        self.assertIn("return an empty plan", ui_source)
+
     def test_coordinate_validation(self):
         self.assertEqual(freecad_tools._point([10, 20]), [10.0, 20.0, 0.0])
         with self.assertRaises(ValueError):
