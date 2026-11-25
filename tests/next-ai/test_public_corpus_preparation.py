@@ -595,5 +595,119 @@ class GuidedDesignIntakeCurriculumTests(unittest.TestCase):
                 "confirmed_design_brief",
             ])
 
+class DesignExecutionCurriculumTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.lessons = module.make_design_execution_curriculum()
+        cls.by_domain = {row["domain"]: row for row in cls.lessons}
+
+        import ast
+        registry_path = SCRIPT.parents[2] / "adapters/nextcad-ai/NextAI/next_ai/tool_registry.py"
+        tree = ast.parse(registry_path.read_text(encoding="utf-8"))
+        assignment = next(
+            node for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "TOOLS" for target in node.targets)
+        )
+        cls.tool_registry = ast.literal_eval(assignment.value)
+        cls.tool_by_name = {item["name"]: item for item in cls.tool_registry}
+
+    def test_watchtower_intake_asks_structure_occupancy_and_site_questions(self):
+        rows = [
+            row for row in module.make_design_intake_curriculum()
+            if row["domain"] == "design_intake_watchtower_architecture"
+        ]
+        self.assertEqual(len(rows), 24)
+        first = json.loads(rows[0]["completion"])["message"].lower()
+        for term in ("steel frame", "reinforced concrete", "occupy the cabin", "observation-platform height",
+                     "stair or ladder", "wind", "ground information"):
+            self.assertIn(term, first)
+        final = json.loads(rows[2]["completion"])["message"].lower()
+        self.assertIn("visual concept only", final)
+        self.assertIn("not engineered", final)
+        self.assertIn("foundation", final)
+
+    def test_design_execution_examples_use_real_registered_tools_and_valid_arguments(self):
+        expected_domains = {
+            "design_execution_residential_floorplan",
+            "design_execution_watchtower_concept",
+            "design_execution_parametric_mechanical_part",
+            "design_execution_edit_existing_model",
+        }
+        self.assertEqual(set(self.by_domain), expected_domains)
+        for domain, lesson in self.by_domain.items():
+            response = json.loads(lesson["completion"])
+            self.assertEqual(set(response), {"message", "plan"})
+            self.assertIsInstance(response["message"], str)
+            plan = response["plan"]
+            self.assertTrue(1 <= len(plan) <= 20)
+            for step in plan:
+                self.assertEqual(set(step), {"tool", "args"})
+                self.assertIn(step["tool"], self.tool_by_name)
+                self.assertIsInstance(step["args"], dict)
+                schema = self.tool_by_name[step["tool"]]["parameters"]
+                properties = schema.get("properties", {})
+                self.assertTrue(set(step["args"]).issubset(properties))
+                self.assertTrue(set(schema.get("required", [])).issubset(step["args"]))
+
+    def test_residential_floorplan_plan_builds_named_editable_zones_and_annotations(self):
+        response = json.loads(self.by_domain["design_execution_residential_floorplan"]["completion"])
+        names = [step["tool"] for step in response["plan"]]
+        self.assertEqual(names.count("create_draft_wire"), 9)
+        self.assertEqual(names.count("create_draft_text"), 8)
+        self.assertEqual(names.count("create_draft_dimension"), 2)
+        labels = [step["args"].get("label", "") for step in response["plan"]]
+        self.assertTrue(any("Master bedroom" in label for label in labels))
+        self.assertTrue(any("Bedroom 2" in label for label in labels))
+        self.assertTrue(any("Bedroom 3" in label for label in labels))
+        self.assertTrue(any("Shared bathroom" in label for label in labels))
+        self.assertIn("not yet modelled or verified", response["message"])
+
+    def test_watchtower_plan_creates_native_component_envelopes_and_member_schedule(self):
+        response = json.loads(self.by_domain["design_execution_watchtower_concept"]["completion"])
+        plan = response["plan"]
+        names = [step["tool"] for step in plan]
+        self.assertEqual(names.count("create_arch_structure"), 4)
+        self.assertEqual(names.count("create_part_box"), 6)
+        self.assertEqual(names.count("create_arch_wall"), 4)
+        self.assertEqual(names.count("create_draft_dimension"), 2)
+        self.assertEqual(names.count("create_draft_text"), 1)
+        labels = [step["args"].get("label", "") for step in plan]
+        self.assertTrue(any(label.startswith("C01") for label in labels))
+        self.assertTrue(any(label.startswith("B01") for label in labels))
+        schedule = next(step for step in plan if step["tool"] == "create_draft_text")
+        self.assertIn("NOT engineered sizes", schedule["args"]["text"])
+        self.assertIn("foundations", response["message"].lower())
+        self.assertIn("not structurally designed", response["message"].lower())
+
+    def test_parametric_part_plan_uses_body_sketch_pad_and_pocket_in_order(self):
+        response = json.loads(self.by_domain["design_execution_parametric_mechanical_part"]["completion"])
+        names = [step["tool"] for step in response["plan"]]
+        self.assertEqual(names, [
+            "create_partdesign_body",
+            "create_partdesign_sketch",
+            "add_sketch_polygon",
+            "create_partdesign_pad",
+            "create_partdesign_sketch",
+            "add_sketch_circle",
+            "add_sketch_circle",
+            "add_sketch_circle",
+            "add_sketch_circle",
+            "create_partdesign_pocket",
+        ])
+        pocket = response["plan"][-1]["args"]
+        self.assertTrue(pocket["through_all"])
+        self.assertFalse(pocket["reversed"])
+        self.assertIn("material, tolerances, loads", response["message"].lower())
+
+    def test_edit_example_modifies_existing_element_without_creating_duplicate(self):
+        response = json.loads(self.by_domain["design_execution_edit_existing_model"]["completion"])
+        self.assertEqual([step["tool"] for step in response["plan"]], ["edit_native_property"] * 3)
+        self.assertEqual([step["args"]["property_name"] for step in response["plan"]],
+                         ["Width", "Height", "Label"])
+        self.assertTrue(all(step["args"]["object_name"] == "B01Beam" for step in response["plan"]))
+        self.assertIn("will not create a duplicate", response["message"].lower())
+
+
 if __name__ == "__main__":
     unittest.main()
