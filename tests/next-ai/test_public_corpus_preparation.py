@@ -227,6 +227,45 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.read_swiss_dwellings_directory(root)
 
+    def test_ifc_model_corpus_reader_requires_provenance_and_keeps_splits(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest = {
+                "source": "GNI-BIM Dataset",
+                "doi": "10.5281/zenodo.19722012",
+                "license": "CC-BY-4.0",
+                "test_not_used_for_training": True,
+            }
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            for split in ("train", "validation", "test"):
+                row = {
+                    "domain": "ifc_model_summary",
+                    "source": manifest["source"],
+                    "source_doi": manifest["doi"],
+                    "license": manifest["license"],
+                    "source_file_sha256": "a" * 64,
+                    "split_group": f"group-{split}",
+                    "images": [],
+                }
+                (root / f"{split}.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+            rows, loaded_manifest = module.read_ifc_model_corpus(root)
+            self.assertEqual(loaded_manifest["source"], "GNI-BIM Dataset")
+            self.assertEqual({key: len(value) for key, value in rows.items()},
+                             {"train": 1, "validation": 1, "test": 1})
+
+            bad = {
+                "domain": "ifc_element_inventory",
+                "source": manifest["source"],
+                "license": manifest["license"],
+                "source_file_sha256": "b" * 64,
+                "split_group": "group-bad",
+            }
+            (root / "test.jsonl").write_text(json.dumps(bad) + "\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                module.read_ifc_model_corpus(root)
+
     def test_training_script_compiles_and_keeps_full_precision_lora(self):
         trainer_path = SCRIPT.parents[0] / "train_nextai.py"
         source = trainer_path.read_text(encoding="utf-8")
