@@ -15,11 +15,27 @@ The only runtime student is Qwen3.5-0.8B. The larger CAD and BIM teacher models 
 
 Install the training-only data libraries:
 
-    pip install datasets pillow
+    pip install datasets pillow shapely ifcopenshell
 
 Prepare a bounded mixed corpus outside the app:
 
-    python training/nextai/prepare_public_corpora.py --output-dir /workspace/nextai-corpus --max-cad-train 2500 --max-bim-train 30000 --max-mixed-train 24000
+    python training/nextai/prepare_public_corpora.py --output-dir /workspace/nextai-corpus --max-cad-train 2500 --max-bim-train 30000 --max-mixed-train 24000 --swiss-dwellings-dir /workspace/swiss-dwellings-corpus --ifc-model-corpus-dir /workspace/gni-ifc-corpus
+
+### Optional real architectural and IFC model lessons
+
+Swiss Dwellings v3.0.0 adds real 2D floor-plan images rendered from metric vector geometry. Download the 931.9 MB ZIP from [Zenodo](https://zenodo.org/records/7788422) into the external training workspace, then prepare it:
+
+    python training/nextai/prepare_swiss_dwellings.py --zip /workspace/swiss-dwellings-v3.0.0.zip --output-dir /workspace/swiss-dwellings-corpus --max-train 600 --max-validation 60 --max-test 60
+
+The optional records are split by building, not by individual floor, so floors from one building cannot leak between train and test. Room polygons, labels, calculated area/perimeter and shared-boundary relationships are derived from the original WKT in metres. The model is explicitly told that a shared wall is not proof of a door or passable connection.
+
+For IFC model understanding, the local IFC parser uses IfcOpenShell to extract schema, spatial structure, element classes, material assignments, safe numeric properties and explicit IFC relationships. For the GNI-BIM dataset, download [2025_BIMfundamentals.zip](https://zenodo.org/records/19722012) and [2026_BIMprojects.zip](https://zenodo.org/records/19722012) from Zenodo, extract them into one folder, and run:
+
+    python training/nextai/prepare_ifc_models.py --root /workspace/gni-ifc --output-dir /workspace/gni-ifc-corpus --source-name "GNI-BIM Dataset" --doi 10.5281/zenodo.19722012 --license CC-BY-4.0
+
+Then pass the prepared folders to the main corpus builder using `--swiss-dwellings-dir` and `--ifc-model-corpus-dir`. Both raw corpora and all parsed/rendered assets remain external training data; they are not part of the application package. IFC parsing does not prove student models are correct or engineering-compliant.
+
+The [GNI-BIM dataset](https://github.com/ZijianWang-ZW/GNI-BIM-Dataset) includes 224 IFC models, but its authors explicitly disclaim correctness and completeness. It is used for IFC structure, relationships and property vocabulary, not as engineering truth. A separate 73,303-model IFC4 dataset is also documented in the source register as a later broad-coverage option; its generated residential scope should not be confused with diverse real project design examples.
 
 The builder streams the CAD dataset's published `train`, `validation` and `test` splits (not a guessed `val` split name), decodes its eight Hugging Face image views, and adds a Next3D-authored curriculum for 2D drafting, constrained sketches, 3D feature order, technical documentation, explicit three-bedroom/two-bathroom floor-plan geometry, structural grids and framing relationships, MEP system connectivity, clash coordination, quantity schedules, IFC relationships and construction handover. These are neutral design-intent lessons, not claims of native execution or engineering/code compliance. Optional validated native trace files can be supplied with --nextcad-native and --nextbim-native. Training and validation are separate from the untouched test split. The manifest records source licences, counts, and domain mix.
 
