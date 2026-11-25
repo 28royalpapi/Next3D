@@ -921,14 +921,95 @@ def _partdesign_step(doc, tool, args):
             ],
         }
 
+    if tool == "edit_native_property":
+        object_name = str(args.get("object_name", "")).strip()
+        property_name = str(args.get("property_name", "")).strip()
+        value = args.get("value")
+        if not object_name or len(object_name) > 120:
+            raise ValueError("A valid native object name is required.")
+        obj = doc.getObject(object_name)
+        if obj is None:
+            raise ValueError(f"Native object '{object_name}' was not found in the active document.")
+
+        if property_name == "Label":
+            if not isinstance(value, str) or not value.strip() or len(value) > 120:
+                raise ValueError("Label must be a non-empty string of at most 120 characters.")
+            before = str(obj.Label)
+            obj.Label = value.strip()
+            doc.recompute()
+            return {
+                "edited": obj.Name,
+                "property": "Label",
+                "before": before,
+                "after": str(obj.Label),
+                "object": _object_summary(obj),
+            }
+
+        editable_by_type = {
+            "Part::Box": {"Length", "Width", "Height"},
+            "Part::Cylinder": {"Radius", "Height"},
+            "Part::Cone": {"Radius1", "Radius2", "Height"},
+            "Arch::Wall": {"Height", "Width"},
+            "Arch::Structure": {"Length", "Width", "Height"},
+            "PartDesign::Pad": {"Length"},
+            "PartDesign::Pocket": {"Length"},
+        }
+        permitted = editable_by_type.get(str(obj.TypeId), set())
+        if property_name not in permitted or property_name not in list(obj.PropertiesList):
+            raise ValueError(
+                f"Property '{property_name}' is not an approved editable dimension for {obj.TypeId}."
+            )
+        property_type = str(obj.getTypeIdOfProperty(property_name))
+        if property_type not in {"App::PropertyLength", "App::PropertyDistance", "App::PropertyFloat"}:
+            raise ValueError(
+                f"Property '{property_name}' has unsupported type {property_type}; no edit was made."
+            )
+        get_editor_mode = getattr(obj, "getEditorMode", None)
+        if callable(get_editor_mode):
+            try:
+                if int(get_editor_mode(property_name)) & 1:
+                    raise ValueError(f"Property '{property_name}' is read-only.")
+            except ValueError:
+                raise
+            except Exception as exc:
+                raise ValueError(
+                    f"Could not confirm that '{property_name}' is editable: {str(exc)[:160]}"
+                ) from None
+
+        new_value = _number(value, property_name, 0.001, 1_000_000.0)
+        current = getattr(obj, property_name)
+        before = float(getattr(current, "Value", current))
+        setattr(obj, property_name, new_value)
+        doc.recompute()
+        state = list(getattr(obj, "State", []) or [])
+        if "Invalid" in state:
+            raise RuntimeError(
+                f"Editing {obj.Name}.{property_name} made the native object invalid; the transaction will roll back."
+            )
+        shape = getattr(obj, "Shape", None)
+        if shape is not None and not shape.isNull() and not shape.isValid():
+            raise RuntimeError(
+                f"Editing {obj.Name}.{property_name} produced invalid geometry; the transaction will roll back."
+            )
+        current = getattr(obj, property_name)
+        after = float(getattr(current, "Value", current))
+        return {
+            "edited": obj.Name,
+            "property": property_name,
+            "before": before,
+            "after": after,
+            "object": _object_summary(obj),
+        }
+
     raise ValueError(f"Unknown PartDesign NextAI tool: {tool}")
 
 
-def execute_plan(token, plan):
-    """Execute an approved plan in one FreeCAD undo transaction."""
+def execute_plan(token, plan, progress_callback=None):
+    """Execute an approved plan in one undo transaction, refreshing the native viewport per step."""
     doc = _assert_turn(token)
     if not isinstance(plan, list) or not 1 <= len(plan) <= 20:
         raise ValueError("A native plan must contain between 1 and 20 steps.")
+    _App, Gui = _apps()
     doc.openTransaction("Next AI: approved design operation")
     results = []
     try:
@@ -939,12 +1020,33 @@ def execute_plan(token, plan):
             tool = step.get("tool")
             if not isinstance(tool, str):
                 raise ValueError(f"Plan step {index} has no tool name.")
-            results.append({"step": index, **_create_step(doc, tool, step.get("args", {}))})
+            if progress_callback is not None:
+                progress_callback(index, len(plan), tool, "starting")
+            result = _create_step(doc, tool, step.get("args", {}))
+            # Recompute and repaint after every real native operation. This makes
+            # approved multi-step plans visibly build in the open CAD viewport.
+            doc.recompute()
+            try:
+                Gui.updateGui()
+            except Exception:
+                pass
+            results.append({"step": index, **result})
+            if progress_callback is not None:
+                progress_callback(index, len(plan), tool, "completed")
         doc.recompute()
+        try:
+            Gui.updateGui()
+        except Exception:
+            pass
         doc.commitTransaction()
     except Exception:
         try:
             doc.abortTransaction()
+            try:
+                doc.recompute()
+                Gui.updateGui()
+            except Exception:
+                pass
         finally:
             raise
     return {"success": True, "document": _doc_summary(doc), "results": results}
