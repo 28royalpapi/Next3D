@@ -239,7 +239,7 @@ def discover_selected_floors(
     return selected, {"csv_rows_scanned": row_count, **{f"{key}_floor_keys": len(value) for key, value in pools.items()}}
 
 
-def _room_adjacency(rooms: list[dict[str, Any]], raw_geometries: list[Any]) -> list[dict[str, Any]]:
+def _room_adjacency(rooms: list[dict[str, Any]]) -> list[dict[str, Any]]:
     links = []
     for i in range(len(rooms)):
         for j in range(i + 1, len(rooms)):
@@ -325,7 +325,7 @@ def prepare(
             record_id = f"swiss-floor-{_stable_hash(':'.join(key))[:16]}"
             image_path = asset_root / split / f"{record_id}.png"
             try:
-                render_floor(raw_rows, image_path, image_size)
+                render_floor([row for row, _geometry, _entity in parsed], image_path, image_size)
             except Exception as exc:
                 quarantined.append({"record_id": record_id, "reason": f"render failed: {str(exc)[:180]}"})
                 continue
@@ -345,7 +345,7 @@ def prepare(
                 room["_geometry"] = geometry
                 rooms.append(room)
 
-            adjacency = _room_adjacency(rooms, valid_geometries)
+            adjacency = _room_adjacency(rooms)
             counts = Counter(
                 f"{entity['entity_type']}:{entity['entity_subtype']}"
                 for _row, _geometry, entity in parsed
@@ -422,7 +422,7 @@ def prepare(
         "doi": SOURCE_DOI,
         "license": SOURCE_LICENSE,
         "attribution": ATTRIBUTION,
-        "source_archive_size_bytes": 976_119_800,
+        "source_archive_size_label": "931.9 MB as displayed by Zenodo; the actual downloaded file size is recorded separately if available",
         "training_source_only_not_runtime_dependency": True,
         "split_by_building_to_prevent_floor_leakage": True,
         "discovery": discovery_stats,
