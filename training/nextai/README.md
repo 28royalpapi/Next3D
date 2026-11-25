@@ -37,7 +37,18 @@ Then pass the prepared folders to the main corpus builder using `--swiss-dwellin
 
 The [GNI-BIM dataset](https://github.com/ZijianWang-ZW/GNI-BIM-Dataset) includes 224 IFC models, but its authors explicitly disclaim correctness and completeness. It is used for IFC structure, relationships and property vocabulary, not as engineering truth. A separate 73,303-model IFC4 dataset is also documented in the source register as a later broad-coverage option; its generated residential scope should not be confused with diverse real project design examples.
 
-The builder streams the CAD dataset's published `train`, `validation` and `test` splits (not a guessed `val` split name), decodes its eight Hugging Face image views, and adds a Next3D-authored curriculum for 2D drafting, constrained sketches, 3D feature order, technical documentation, explicit three-bedroom/two-bathroom floor-plan geometry, structural grids and framing relationships, MEP system connectivity, clash coordination, quantity schedules, IFC relationships and construction handover. These are neutral design-intent lessons, not claims of native execution or engineering/code compliance. Optional validated native trace files can be supplied with --nextcad-native and --nextbim-native. Training and validation are separate from the untouched test split. The manifest records source licences, counts, and domain mix.
+Validated native project traces from both applications can be added without mixing them into the wrong application or held-out split. First run `prepare_native_sft.py` over approved native records to produce separate `train.jsonl`, `validation.jsonl` and `test.jsonl`. Then pass the six corresponding paths:
+
+    --nextcad-native-train /workspace/nextcad-sft/train.jsonl
+    --nextcad-native-validation /workspace/nextcad-sft/validation.jsonl
+    --nextcad-native-test /workspace/nextcad-sft/test.jsonl
+    --nextbim-native-train /workspace/nextbim-sft/train.jsonl
+    --nextbim-native-validation /workspace/nextbim-sft/validation.jsonl
+    --nextbim-native-test /workspace/nextbim-sft/test.jsonl
+
+Each record retains the producing application, source licence, privacy status and source-group hash. The corpus builder rejects a native record assigned to the wrong application or split. The older `--nextcad-native` and `--nextbim-native` flags remain train-only compatibility aliases.
+
+The builder streams the CAD dataset's published `train`, `validation` and `test` splits (not a guessed `val` split name), decodes its eight Hugging Face image views, and adds a Next3D-authored curriculum for 2D drafting, constrained sketches, 3D feature order, technical documentation, explicit three-bedroom/two-bathroom floor-plan geometry, structural grids and framing relationships, MEP system connectivity, clash coordination, quantity schedules, IFC relationships and construction handover. These are neutral design-intent lessons, not claims of native execution or engineering/code compliance. Optional validated native trace files can be supplied using the application- and split-specific flags above. Training and validation are separate from the untouched test split. The manifest records source licences, counts, and domain mix.
 
 ## Train
 
