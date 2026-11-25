@@ -343,6 +343,21 @@ TOOLS = [
         },
         "read_only": False,
     },
+    {
+        "name": "edit_native_property",
+        "description": "Edit an existing native object dimension or its Label. Use the actual object Name from inspect_document; geometry is recomputed and validated.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "minLength": 1, "maxLength": 120},
+                "property_name": {"type": "string", "enum": ["Length", "Width", "Height", "Radius", "Radius1", "Radius2", "Label"]},
+                "value": {"type": ["number", "string"]}
+            },
+            "required": ["object_name", "property_name", "value"],
+            "additionalProperties": False
+        },
+        "read_only": False
+    },
 ]
 
 
@@ -355,9 +370,9 @@ def read_context(query: str = ""):
     }
 
 
-def execute_approved_plan(token, plan):
+def execute_approved_plan(token, plan, progress_callback=None):
     allowed = {tool["name"] for tool in TOOLS if not tool["read_only"]}
     for step in plan:
         if not isinstance(step, dict) or step.get("tool") not in allowed:
             raise ValueError("The plan contains a tool that is not in the approved NextCAD registry.")
-    return freecad_tools.execute_plan(token, plan)
+    return freecad_tools.execute_plan(token, plan, progress_callback=progress_callback)
