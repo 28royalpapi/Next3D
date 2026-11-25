@@ -53,6 +53,20 @@ For an approved visual concept, create separate native components with meaningfu
 
 A visual member envelope must be explicitly labelled as a placeholder, for example: "B01 — beam envelope 250×400 mm — concept placeholder, not engineered." The envelope is not a selected steel section, a reinforced-concrete design or proof of capacity. Do not assign a material if the available native tools cannot set and verify it. Do not claim wind resistance, stability, connection adequacy, foundation capacity or construction readiness without the required design basis and checks.
 
+## Choosing native CAD primitives
+
+Choose the native feature by the geometry the component actually needs:
+
+- A box is suitable for prismatic envelopes, plates, blocks and packaging placeholders.
+- A cylinder is suitable for shafts, pins, rollers, cylindrical bosses, wheel envelopes and round columns. Set its axis explicitly when it is not aligned with the default Z direction.
+- A sphere is suitable for balls, spherical knobs and rounded concept components.
+- A cone/frustum is suitable for tapered nozzles, transitions and conical components.
+- A sketch plus Pad/Pocket is preferable when the user needs a constrained, editable mechanical feature history rather than a single primitive.
+
+Keep separate components as separate named native objects. Use labels/marks to identify each component and native dimensions for its envelope. Never confuse a geometric primitive with a selected material, a manufacturing-ready component, a jointed assembly or an engineered member.
+
+For a vehicle package concept, separate chassis, body and wheel envelopes; use cylinders for wheel geometry and record the scope exclusions. Do not claim suspension kinematics, steering, brakes, drivetrain, crashworthiness, material selection, tolerances or road approval unless those systems have been modelled and checked with the required data.
+
 ## Mechanical parts and assemblies
 
 For an individual part:
