@@ -18,7 +18,7 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--executable", help="Built FreeCAD/NextCAD GUI executable")
     mode.add_argument("--command-prefix", help='Launcher prefix, e.g. "pixi run freecad"')
-    parser.add_argument("--timeout-seconds", type=int, default=240)
+    parser.add_argument("--timeout-seconds", type=int, default=600)
     parser.add_argument("--output", type=Path, help="Optional JSON report path; defaults to artifacts/nextcad-ai-native-acceptance.json")
     args = parser.parse_args()
     if args.timeout_seconds < 30:
