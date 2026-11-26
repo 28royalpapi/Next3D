@@ -85,13 +85,30 @@ class PrepareNativeSftTests(unittest.TestCase):
             self.assertEqual(summary["train"], 1)
             example = json.loads((out / "train.jsonl").read_text(encoding="utf-8"))
             target = json.loads(example["messages"][2]["content"])
-            self.assertEqual(target["steps"][0]["tool"], "create_box")
-            self.assertEqual(target["steps"][0]["arguments"]["length"], 100)
+            self.assertEqual(target["message"], "I have a confirmed specification and will carry out the approved native CAD plan.")
+            self.assertEqual(target["plan"][0]["tool"], "create_box")
+            self.assertEqual(target["plan"][0]["args"]["length"], 100)
+            self.assertEqual(target["tool_schema_version"], "1.0")
             self.assertEqual(example["split"], "train")
             self.assertEqual(example["source"]["license"], "Apache-2.0")
             self.assertTrue(example["source"]["terms_reviewed"])
             self.assertEqual(example["privacy"]["redaction_status"], "not_needed")
             self.assertEqual(len(example["source"]["source_group_sha256"]), 64)
+
+    def test_nextbim_native_trace_keeps_its_application_specific_steps_contract(self):
+        item = make_record("bim-record", "train", "bim-project")
+        item["application"] = "nextbim"
+        item["operations"][0]["tool"] = "wall"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "records.jsonl"
+            source.write_text(json.dumps(item) + "\\n", encoding="utf-8")
+            module.prepare(source, root / "out")
+            example = json.loads((root / "out/train.jsonl").read_text(encoding="utf-8"))
+            target = json.loads(example["messages"][2]["content"])
+            self.assertIn("steps", target)
+            self.assertNotIn("plan", target)
+            self.assertEqual(target["steps"][0]["tool"], "wall")
 
     def test_failed_native_validation_is_quarantined(self):
         item = make_record()
