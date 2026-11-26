@@ -2707,7 +2707,7 @@ def make_local_skill_curriculum() -> list[dict[str, Any]]:
                     "Evidence status: L0 authored knowledge only. No native operation was executed "
                     "and no geometry or engineering design is thereby validated."
                 ),
-                "split_group": f"nextai-skill-{name}-{slug}-{index:02d}",
+                "split_group": f"nextai-skill-{name}",
                 "stage": "local_skill_knowledge",
                 "skill_name": name,
                 "skill_section": heading,
