@@ -235,7 +235,7 @@ try:
         return digest.hexdigest()
 
     def build_training_record(record_id, prompt, operations, before_state, after_summary,
-                              after_state_hash, artifact_path, checks):
+                              after_state_hash, artifact_path, checks, parameters):
         artifact_hash = sha256_file(artifact_path)
         return {
             "schema_version": "1.0.0",
@@ -252,11 +252,7 @@ try:
                 "design_rationale": "Synthetic automated native-adapter acceptance; not a functional engineering design.",
             },
             "specification": {
-                "parameters": [
-                    {"name": "length_unit", "value": "mm", "unit": "unit", "description": "Native model length unit", "origin": "derived", "confirmed": True},
-                    {"name": "linear_pattern_occurrences", "value": 3, "unit": "count", "description": "Linear pattern occurrences", "origin": "derived", "confirmed": True},
-                    {"name": "polar_pattern_occurrences", "value": 4, "unit": "count", "description": "Circular pattern occurrences", "origin": "derived", "confirmed": True},
-                ],
+                "parameters": parameters,
                 "constraints": ["All modelled lengths are millimetres.", "Patterned bodies must be one valid solid."],
                 "assumptions": ["No material, load, tolerance, manufacturing or statutory design claim is made."],
                 "unresolved_questions": [],
@@ -352,6 +348,20 @@ try:
             stage_state_hash,
             stage_project,
             stage_a_checks,
+            [
+                {"name": "base_length", "value": 20, "unit": "mm", "description": "Base block X dimension", "origin": "derived", "confirmed": True},
+                {"name": "base_width", "value": 20, "unit": "mm", "description": "Base block Y dimension", "origin": "derived", "confirmed": True},
+                {"name": "base_height", "value": 10, "unit": "mm", "description": "Base block Z dimension", "origin": "derived", "confirmed": True},
+                {"name": "cutter_length", "value": 10, "unit": "mm", "description": "Boolean cutter X dimension", "origin": "derived", "confirmed": True},
+                {"name": "cutter_width", "value": 10, "unit": "mm", "description": "Boolean cutter Y dimension", "origin": "derived", "confirmed": True},
+                {"name": "cutter_height", "value": 10, "unit": "mm", "description": "Boolean cutter Z dimension", "origin": "derived", "confirmed": True},
+                {"name": "cutter_offset_x", "value": 5, "unit": "mm", "description": "Boolean cutter X offset", "origin": "derived", "confirmed": True},
+                {"name": "cutter_offset_y", "value": 5, "unit": "mm", "description": "Boolean cutter Y offset", "origin": "derived", "confirmed": True},
+                {"name": "base_translate_x", "value": 100, "unit": "mm", "description": "Relative X move of the base object", "origin": "derived", "confirmed": True},
+                {"name": "duplicate_translate_y", "value": 40, "unit": "mm", "description": "Duplicate Y offset", "origin": "derived", "confirmed": True},
+                {"name": "fillet_radius", "value": 0.5, "unit": "mm", "description": "Native edge fillet radius", "origin": "derived", "confirmed": True},
+                {"name": "chamfer_size", "value": 0.25, "unit": "mm", "description": "Native edge chamfer size", "origin": "derived", "confirmed": True},
+            ],
         ),
         build_training_record(
             "nextcad-stage-b-" + sha256_file(project)[:16],
@@ -362,6 +372,18 @@ try:
             after_state_hash,
             project,
             report["checks"],
+            [
+                {"name": "hub_radius", "value": 5, "unit": "mm", "description": "Central hub radius", "origin": "derived", "confirmed": True},
+                {"name": "hub_pad_depth", "value": 8, "unit": "mm", "description": "Hub extrusion depth", "origin": "derived", "confirmed": True},
+                {"name": "spoke_inner_x", "value": 4, "unit": "mm", "description": "Spoke inner boundary overlapping the hub", "origin": "derived", "confirmed": True},
+                {"name": "spoke_outer_x", "value": 12, "unit": "mm", "description": "Spoke outer boundary", "origin": "derived", "confirmed": True},
+                {"name": "spoke_half_width", "value": 2, "unit": "mm", "description": "Half-width of the spoke profile", "origin": "derived", "confirmed": True},
+                {"name": "spoke_pad_depth", "value": 8, "unit": "mm", "description": "Spoke extrusion depth", "origin": "derived", "confirmed": True},
+                {"name": "polar_axis", "value": "Z", "unit": "axis", "description": "Circular pattern axis", "origin": "derived", "confirmed": True},
+                {"name": "polar_angle", "value": 360, "unit": "degree", "description": "Circular pattern total angle", "origin": "derived", "confirmed": True},
+                {"name": "polar_occurrences", "value": 4, "unit": "count", "description": "Circular pattern occurrence count", "origin": "derived", "confirmed": True},
+                {"name": "schedule_component_count", "value": 8, "unit": "count", "description": "Number of native objects in the model schedule", "origin": "derived", "confirmed": True},
+            ],
         ),
     ]
     trace_path = marker.with_name("nextcad-ai-native-acceptance-trace.jsonl")
