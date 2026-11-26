@@ -30,7 +30,7 @@ The first law is: **understand the native application before allowing AI to oper
 
 - [Next AI foundation and first law](docs/next-ai/FOUNDATION.md)
 - [Application capability inventory](docs/next-ai/CAPABILITY_MATRIX.md)
-- [BIMCraft's 214-command native catalogue](docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json)
+- [BIMCraft's 215-command native catalogue](docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json)
 - [NextCAD source workbench index](docs/next-ai/catalogs/NEXTCAD_WORKBENCH_SOURCE_INDEX.v1.json)
 - [Pinned third-party AI research projects](docs/next-ai/THIRD_PARTY_AI_RESEARCH.md)
 - [Dataset, training and evaluation plan](docs/next-ai/DATASET_AND_EVALUATION.md)
