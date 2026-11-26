@@ -14,6 +14,93 @@ eval_spec = importlib.util.spec_from_file_location("evaluate_nextai", EVAL_SCRIP
 evaluator = importlib.util.module_from_spec(eval_spec)
 eval_spec.loader.exec_module(evaluator)
 
+TRAIN_SCRIPT = SCRIPT.parent / "train_nextai.py"
+train_spec = importlib.util.spec_from_file_location("train_nextai", TRAIN_SCRIPT)
+train_module = importlib.util.module_from_spec(train_spec)
+assert train_spec and train_spec.loader
+train_spec.loader.exec_module(train_module)
+
+
+class TrainingDatasetIntegrityTests(unittest.TestCase):
+    def test_training_split_identity_and_reference_integrity_passes(self):
+        train = [{
+            "record_id": "train-1",
+            "split_group": "building-train-1",
+            "domain": "engineering_skill_knowledge",
+            "prompt": "Explain wall construction.",
+            "completion": "Use the confirmed wall type.",
+            "images": [],
+        }]
+        validation = [{
+            "record_id": "validation-1",
+            "split_group": "building-validation-1",
+            "domain": "engineering_skill_knowledge",
+            "prompt": "Explain room boundaries.",
+            "completion": "Check the native room boundary.",
+            "images": [],
+        }]
+        test = [{
+            "record_id": "test-1",
+            "split_group": "building-test-1",
+            "domain": "engineering_skill_knowledge",
+            "prompt": "Explain IFC exchange.",
+            "completion": "Validate the exported IFC.",
+            "images": [],
+        }]
+        result = train_module.validate_training_splits(train, validation, test)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["cross_split_identity_conflicts"], 0)
+        self.assertFalse(result["test_used_for_gradient_updates"])
+
+    def test_training_split_integrity_rejects_group_leakage(self):
+        train = [{
+            "record_id": "train-1", "split_group": "same-building",
+            "prompt": "Train question", "completion": "Train answer",
+        }]
+        validation = [{
+            "record_id": "validation-1", "split_group": "same-building",
+            "prompt": "Validation question", "completion": "Validation answer",
+        }]
+        with self.assertRaisesRegex(ValueError, "Data leakage detected"):
+            train_module.validate_training_splits(train, validation, [])
+
+    def test_training_split_integrity_rejects_empty_target_and_duplicate_ids(self):
+        with self.assertRaisesRegex(ValueError, "non-empty prompt and completion"):
+            train_module.validate_training_splits(
+                [{"record_id": "x", "prompt": "Question", "completion": ""}],
+                [{"record_id": "v", "prompt": "Question", "completion": "Answer"}],
+                [],
+            )
+        with self.assertRaisesRegex(ValueError, "Duplicate record_id"):
+            train_module.validate_training_splits(
+                [
+                    {"record_id": "same", "prompt": "Q1", "completion": "A1"},
+                    {"record_id": "same", "prompt": "Q2", "completion": "A2"},
+                ],
+                [{"record_id": "v", "prompt": "Q", "completion": "A"}],
+                [],
+            )
+
+    def test_training_split_integrity_checks_conversation_assistant_target(self):
+        bad = [{
+            "record_id": "bad-conversation",
+            "messages": [
+                {"role": "user", "content": "Build a part."},
+                {"role": "assistant", "content": ""},
+            ],
+        }]
+        good = [{
+            "record_id": "good-conversation",
+            "messages": [
+                {"role": "user", "content": "Build a part."},
+                {"role": "assistant", "content": [{"type": "text", "text": "I will inspect the required dimensions."}]},
+            ],
+        }]
+        with self.assertRaisesRegex(ValueError, "no assistant target"):
+            train_module.validate_training_splits(bad, [], [])
+        result = train_module.validate_training_splits(good, [], [])
+        self.assertEqual(result["status"], "PASS")
+
 
 class PublicCorpusPreparationTests(unittest.TestCase):
     def test_cad_operations_keep_feature_order_and_parameters(self):
