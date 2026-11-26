@@ -159,7 +159,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nextcad-windows-ai-native-acceptance
-          path: artifacts/nextcad-ai-native-acceptance.*
+          path: artifacts/nextcad-ai-native-acceptance*
           if-no-files-found: warn
           retention-days: 30
 
@@ -195,7 +195,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nextcad-macos-ai-native-acceptance
-          path: artifacts/nextcad-ai-native-acceptance.*
+          path: artifacts/nextcad-ai-native-acceptance*
           if-no-files-found: warn
           retention-days: 30
 
@@ -227,6 +227,15 @@ jobs:
         run: |
           mkdir -p ../../artifacts
           xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/run_nextcad_ai_acceptance.py --executable build/relWithDebInfo/bin/FreeCAD --output ../../artifacts/nextcad-ai-native-acceptance.json
+
+      - name: Upload NextCAD Linux AI native acceptance
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextcad-linux-ai-native-acceptance
+          path: artifacts/nextcad-ai-native-acceptance*
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Capture the real NextCAD interface
         if: runner.os == 'Linux'
