@@ -32,7 +32,7 @@ class CapabilityCensusTests(unittest.TestCase):
 
     def test_nextcad_source_modules_are_not_misreported_as_runtime_commands(self):
         census, _ = module.build_census(BIM, CAD, expected_cad_commit=CAD_COMMIT)
-        self.assertEqual(census["counts"]["nextcad_source_modules"], 30)
+        self.assertEqual(census["counts"]["nextcad_source_modules"], 32)
         self.assertEqual(census["counts"]["nextcad_runtime_commands"], 0)
         self.assertFalse(census["counts"]["nextcad_runtime_census_complete"])
 
@@ -67,7 +67,7 @@ class CapabilityCensusTests(unittest.TestCase):
             self.assertTrue(all(x["native_metadata"]["menu_text"] is None or
                                 isinstance(x["native_metadata"]["menu_text"], str)
                                 for x in part_box_obligations))
-            self.assertEqual(len([x for x in obligations if x["application"] == "nextcad"]), 30)
+            self.assertEqual(len([x for x in obligations if x["application"] == "nextcad"]), 32)
             self.assertEqual(
                 {x["native_id"] for x in census["capabilities"] if x["capability_type"] == "native_api_member"},
                 {"Part.makeBox", "Part.Shape"}
