@@ -39,10 +39,13 @@ class EngineeringSkillRegistryTests(unittest.TestCase):
         selected = [item["name"] for item in result["selected"]]
         self.assertTrue(selected)
         self.assertEqual(selected[0], "residential-floor-plan")
-        self.assertIn("engineering-operator-method", selected)
         self.assertLessEqual(result["selected_count"], engineering_skills.MAX_SELECTED_SKILLS)
         self.assertGreater(result["available_count"], result["selected_count"])
         self.assertIn("master bedrooms", result["selected"][0]["instructions"])
+
+    def test_general_operator_request_routes_to_universal_method(self):
+        result = self.registry.retrieve("engineering operator inspect plan build verify native operations")
+        self.assertEqual(result["selected"][0]["name"], "engineering-operator-method")
 
     def test_wash_tower_synonym_routes_to_water_storage_skill(self):
         result = self.registry.retrieve("Design a wash tower with elevated tank and steel supports.")
