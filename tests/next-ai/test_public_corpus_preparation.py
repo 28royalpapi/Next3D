@@ -284,6 +284,18 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "mastery evidence rule"):
                 module.make_capability_knowledge_curriculum(path)
 
+    def test_first_party_skills_are_not_put_through_the_capped_mixed_sampler(self):
+        lessons = module.make_synthetic_curriculum()
+        self.assertFalse(any(row.get("domain") == "engineering_skill_knowledge" for row in lessons))
+        skill_lessons = module.make_local_skill_curriculum()
+        self.assertTrue(skill_lessons)
+        self.assertTrue(all(row.get("skill_name") for row in skill_lessons))
+        split = module.split_synthetic_curriculum(skill_lessons)
+        self.assertEqual(sum(len(rows) for rows in split.values()), len(skill_lessons))
+        self.assertGreaterEqual(len(split["train"]), 1)
+        self.assertGreaterEqual(len(split["validation"]), 1)
+        self.assertGreaterEqual(len(split["test"]), 1)
+
     def test_local_engineering_skill_library_becomes_section_level_sft_lessons(self):
         lessons = module.make_local_skill_curriculum()
         self.assertGreaterEqual(len(lessons), 60)
