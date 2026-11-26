@@ -14,6 +14,12 @@ The pack is deliberately small and text-only. It adds no second model and no geo
 - `design/design-execution.md`: staged native model creation, editable feature history, room zoning, watchtower component schedules, vehicle packaging, geometry-aware primitive selection, mechanical parts, in-place editing, BIM element workflows and honest validation reports.
 - `bim/native-command-playbook.md`: BIMCraft command discovery, staged building creation, room validation, watchtower/guard-tower workflows, in-place element editing and BIM reporting.
 
+## Native CAD operation coverage
+
+The typed NextAI registry now includes native operations for two-object booleans, relative/absolute transform, independent object duplication, fillet and chamfer, PartDesign linear/polar patterns, and native model-derived Spreadsheet schedules. PartDesign Body fillets/chamfers and patterns remain native features in the Body history. For generic Part shapes, fillet/chamfer returns a separate derived shape and reports that it is not a parametric Body feature.
+
+Generic GUI command execution is restricted to a reviewed view-only allowlist. The complete live GUI command registry is for discovery and curriculum coverage, not blanket permission to run any command. New modelling capabilities must be added as typed, validated operations with explicit side effects and verification.
+
 ## Progressive engineering skills
 
 The `skills/` directory uses local Markdown `SKILL.md` files. Every skill has a short name/description/tags/aliases entry in the catalogue. At request time, the local registry ranks the skills and loads only the best-matching full instructions (up to three). This is progressive disclosure for a small local Qwen student: it receives the domain knowledge needed for the current design, not every engineering procedure in every turn.
