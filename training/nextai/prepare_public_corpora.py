@@ -2578,9 +2578,146 @@ def make_engineering_operator_curriculum() -> list[dict[str, Any]]:
     )
     return lessons
 
+
+def make_local_skill_curriculum() -> list[dict[str, Any]]:
+    """Convert every first-party local engineering skill into small L0 SFT lessons.
+
+    Each skill section is chunked deterministically, and every chunk keeps its
+    own split_group so closely related paragraphs cannot leak between splits.
+    This teaches the compact student the same domain procedures available to
+    its local retrieval system without claiming a native execution occurred.
+    """
+    import re
+    from pathlib import Path
+
+    skill_root = (
+        Path(__file__).resolve().parents[2]
+        / "adapters" / "nextcad-ai" / "NextAI" / "knowledge_packs" / "skills"
+    )
+    if not skill_root.is_dir():
+        return []
+
+    system = (
+        "You are NextAI, a local CAD/BIM engineering student. This lesson is "
+        "authored engineering knowledge, not a native execution trace. Explain "
+        "the design intent, required questions, object concepts, workflow, "
+        "verification and limitations contained in the supplied skill text. "
+        "Distinguish a visual/concept model from an engineered or independently "
+        "validated design. Never invent native commands, dimensions, standards "
+        "or results that the skill does not provide."
+    )
+
+    def split_paragraph(paragraph: str, limit: int = 1500) -> list[str]:
+        paragraph = paragraph.strip()
+        if len(paragraph) <= limit:
+            return [paragraph] if paragraph else []
+        sentences = re.split(r"(?<=[.!?])\s+", paragraph)
+        chunks = []
+        current = ""
+        for sentence in sentences:
+            if len(sentence) > limit:
+                if current:
+                    chunks.append(current)
+                    current = ""
+                for start in range(0, len(sentence), limit):
+                    chunks.append(sentence[start:start + limit])
+                continue
+            candidate = (current + " " + sentence).strip()
+            if current and len(candidate) > limit:
+                chunks.append(current)
+                current = sentence
+            else:
+                current = candidate
+        if current:
+            chunks.append(current)
+        return chunks
+
+    def section_chunks(body: str, limit: int = 1800) -> list[tuple[str, str]]:
+        headings = list(re.finditer(r"(?m)^#{1,3}\s+(.+?)\s*$", body))
+        sections = []
+        if not headings:
+            headings = []
+            sections.append(("Overview", body.strip()))
+        else:
+            prefix = body[:headings[0].start()].strip()
+            if prefix:
+                sections.append(("Overview", prefix))
+            for index, match in enumerate(headings):
+                end = headings[index + 1].start() if index + 1 < len(headings) else len(body)
+                sections.append((match.group(1).strip(), body[match.end():end].strip()))
+
+        output = []
+        for heading, section_body in sections:
+            paragraphs = [item.strip() for item in re.split(r"\n\s*\n", section_body) if item.strip()]
+            chunk = ""
+            chunk_index = 0
+            for paragraph in paragraphs:
+                for part in split_paragraph(paragraph, limit):
+                    candidate = (chunk + "\n\n" + part).strip()
+                    if chunk and len(candidate) > limit:
+                        chunk_index += 1
+                        output.append((f"{heading} / part {chunk_index}", chunk))
+                        chunk = part
+                    else:
+                        chunk = candidate
+            if chunk:
+                chunk_index += 1
+                output.append((f"{heading} / part {chunk_index}", chunk))
+        return output
+
+    lessons = []
+    for skill_path in sorted(skill_root.glob("*/SKILL.md")):
+        if skill_path.is_symlink() or not skill_path.is_file() or skill_path.stat().st_size > 80_000:
+            continue
+        raw = skill_path.read_text(encoding="utf-8")
+        lines = raw.splitlines()
+        if not lines or lines[0].strip() != "---":
+            continue
+        end = next((index for index in range(1, len(lines)) if lines[index].strip() == "---"), None)
+        if end is None:
+            continue
+        metadata = {}
+        for line in lines[1:end]:
+            if ":" in line:
+                key, value = line.split(":", 1)
+                metadata[key.strip().lower()] = value.strip().strip("\"'")
+        name = str(metadata.get("name") or skill_path.parent.name).strip()
+        description = str(metadata.get("description") or "").strip()
+        if not name or not description:
+            continue
+        body = "\n".join(lines[end + 1:]).strip()
+        if not body:
+            continue
+        sections = section_chunks(body)
+        for index, (heading, chunk) in enumerate(sections, start=1):
+            slug = re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")[:36] or "overview"
+            lessons.append({
+                "domain": "engineering_skill_knowledge",
+                "system": system,
+                "prompt": (
+                    f"Teach me the '{name}' engineering skill. Focus on '{heading}'. "
+                    "Explain the relevant concepts, questions, decision rules, native workflow, "
+                    "checks and limitations from the authored skill. Keep confirmed facts and "
+                    "unresolved requirements separate."
+                ),
+                "completion": (
+                    f"Engineering skill: {name}\n"
+                    f"Description: {description}\n"
+                    f"Lesson section: {heading}\n\n{chunk}\n\n"
+                    "Evidence status: L0 authored knowledge only. No native operation was executed "
+                    "and no geometry or engineering design is thereby validated."
+                ),
+                "split_group": f"nextai-skill-{name}-{slug}-{index:02d}",
+                "stage": "local_skill_knowledge",
+                "skill_name": name,
+                "skill_section": heading,
+                "evidence_level": "L0_knowledge_authored",
+            })
+    return lessons
+
 def make_synthetic_curriculum() -> list[dict[str, Any]]:
     """Small, original, unit-aware lessons that cover gaps in public corpora."""
-    lessons = (make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_engineering_operator_curriculum() + make_design_execution_curriculum() + make_bim_execution_curriculum()) + [
+    lessons = (make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_engineering_operator_curriculum() + make_design_execution_curriculum() + make_bim_execution_curriculum() + make_local_skill_curriculum()) + [
         {
             "domain": "cad_2d_drafting",
             "system": CAD_SYSTEM,
@@ -3124,6 +3261,8 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
             "license": "project-authored",
             **({"split_group": lesson["split_group"], "stage": lesson["stage"]}
                if lesson.get("split_group") else {}),
+            **({"skill_name": lesson["skill_name"], "skill_section": lesson["skill_section"],
+                "evidence_level": lesson["evidence_level"]} if lesson.get("skill_name") else {}),
         })
     return records
 
@@ -3188,6 +3327,7 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "engineering_fem_axial_bar_calculation": 0.035,
         "engineering_pipe_continuity_calculation": 0.03,
         "construction_concrete_quantity_calculation": 0.03,
+        "engineering_skill_knowledge": 0.08,
         "design_intake_water_storage_tower": 0.04,
         "design_intake_mechanical_gear": 0.04,
         "design_intake_electrical_control_panel": 0.04,
@@ -3369,7 +3509,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "cad_mesh_quality": [], "cad_fem_preprocessing": [], "cad_cam_preprocessing": [],
         "bim_room_boundaries": [], "bim_asset_handover": [],
         "bim_revision_change_impact": [], "construction_4d_sequence": [],
-        "civil_site_coordination": [],
+        "civil_site_coordination": [], "engineering_skill_knowledge": [],
         "design_intake_architecture": [], "design_intake_commercial_architecture": [],
         "design_intake_vehicle_cad": [], "design_intake_mechanical_part": [],
         "design_intake_assembly_cad": [], "design_intake_sheet_metal_cad": [],
@@ -3494,6 +3634,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": "Swiss Dwellings v3.0.0", "doi": "10.5281/zenodo.7788422", "license": "CC-BY-4.0", "attribution": "Standfest et al., Archilyse AG", "purpose": "Image-grounded architectural floor-plan geometry, room typology and shared-boundary relationships; optional training-only corpus"},
             {"repo": "optional IFC model corpus", "license": "manifest-declared", "purpose": "Parsed IFC2x3/IFC4 model hierarchy, element classes, safe properties, materials and relationships; no original GlobalIds or free-text personal metadata"},
             {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, multi-turn CAD/BIM design intake, BIM concepts and construction workflows"},
+            {"repo": "Next3D local engineering skill packs", "license": "project-authored", "purpose": "Section-level engineering and native-workbench knowledge lessons from the local NextAI skill library; L0 authored knowledge, not native execution traces"},
         ],
         "source_counts": dict(counts),
         "train_records": len(train),
