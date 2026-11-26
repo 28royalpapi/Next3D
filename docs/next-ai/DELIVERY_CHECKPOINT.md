@@ -48,10 +48,13 @@ Required evidence:
 - Promote only after actual native app acceptance.
 
 Status:
-- Trainer, corpus builders, split-integrity checks, evaluator and multimodal export code are committed.
-- No prepared corpus, fine-tuning run, trained checkpoint or evaluated student is evidenced yet.
-- The available local session has no NVIDIA GPU.
-- Connected Hugging Face identity reports `@Justin75685`, not confirmed as the Next3D GitHub owner. No GPU job was launched and no files were uploaded to that account. Confirm account ownership and any GPU-job billing before using it, or attach the intended Colab runtime.
+- The CPU-only corpus preparation workflow has now completed successfully (Actions run `45831337789`, commit `afc7aa974ef4daafefa1656e4953414976362b90`). Its audit artifact records 25,780 training, 2,730 validation and 1,415 held-out test records across 83 labelled CAD/BIM/engineering domains; all three split-integrity checks passed with zero cross-split identity conflicts, and the held-out test set is excluded from gradient updates.
+- The corpus is currently skewed toward IFC/BIM: 12,804 BIM IFC knowledge and 5,000 BIM IFC QA examples. It contains 2,500 CAD visual and 2,500 CAD feature-trace examples, plus 2,150 pinned capability-knowledge lessons across the train/validation/test sidecars.
+- The latest capability census is deliberately incomplete for NextCAD: it found 32 source modules but captured no live runtime commands or Python API members. Its 215 Next BIM registrations and 2,150 learning obligations are metadata inventory/knowledge only, not proof of native execution or mastery.
+- The separate train-excluded engineering benchmark contains 28 cases across 15 domains. It has passed its reference-rubric tests, but has not yet been run against a fine-tuned model and is not a native CAD/BIM execution benchmark.
+- No fine-tuning run, trained checkpoint, base-vs-tuned model result or deployable model package has been produced.
+- Hugging Face identity `@Justin75685` is confirmed by the user. The connected token currently exposes read-only Hub repository scopes and does not have `write-repos`; model/checkpoint upload and creation of a Space are therefore not available through this connection.
+- No paid Hugging Face Job has been started. Hugging Face Jobs are billed by the minute. The free ZeroGPU quota is 5 GPU minutes per day for a free account, which is useful for a bounded smoke test but is not a realistic basis for promising completion of this 25,780-record multimodal fine-tune. Do not launch Jobs or upgrade Space hardware under this project without an explicitly approved, zero-cost grant/compute allocation.
 
 ## Crash-resistant collaboration
 
@@ -72,3 +75,13 @@ Never print entire CI logs. Report current SHA, Actions URL, pass/fail delta and
 - The training branch now includes a separate 28-case, train-excluded engineering benchmark covering at least eight domains. It scores numerical answers, units and refusal to invent missing design inputs. The benchmark has not yet been run against a trained student.
 - Hugging Face authentication succeeds, but a `t4-small` Jobs preflight was rejected with HTTP `402 Payment Required`. No GPU job was created and no training began. The account needs usable Jobs billing/credits or another explicitly authorised GPU runtime.
 - The ChatGPT Android crash has no captured app stack trace, so its exact cause is not established. Keep collaboration prompts and log excerpts short; use this checkpoint rather than pasting the entire project history again.
+
+
+## Latest verified results — 2026-11-26
+
+- Curriculum build and audit: [Actions run 45831337789](https://github.com/28royalpapi/Next3D/actions/runs/45831337789), completed successfully on `afc7aa974ef4daafefa1656e4953414976362b90`. The audit artifact is `nextai-curriculum-profile` (artifact ID `15122248653`; GitHub retention is time-limited). It contains the profile, corpus manifest and capability census, not the full raw corpus.
+- Corpus split counts: 25,780 train / 2,730 validation / 1,415 held-out test. Main, local-skill and capability-knowledge splits all report PASS with zero cross-split conflicts. The audit reports zero quarantined rows.
+- Native build: [Actions run 45838757169](https://github.com/28royalpapi/Next3D/actions/runs/45838757169) is the current native run on commit `e60bd80ee6e127d23656325d8738399b8fb093d7`. Its source-preparation job passed, including source patch verification, pinned capability-index verification and data-pipeline tests. The Linux/Windows/macOS native matrix is still running/queued; do not claim native acceptance until every required job and native save/reopen/launch check has passed.
+- The previous native run `45831334712` was cancelled when later commits arrived. Its partial matrix results are not a final acceptance result.
+- No HF Jobs or paid Space hardware have been started. A free ZeroGPU Space is limited to five GPU minutes per day; a Community GPU Grant is a possible no-charge route for a public Space, but approval is discretionary and must be obtained before any paid hardware is enabled.
+
