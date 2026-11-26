@@ -70,6 +70,8 @@ def _valid_record(record: dict[str, Any]) -> tuple[bool, str]:
     operations = record["operations"]
     if not isinstance(operations, list) or not operations:
         return False, "native operation trace is empty"
+    if record["application"] == "nextcad" and len(operations) > 20:
+        return False, "NextCAD runtime plans are limited to 20 native operations"
     for index, operation in enumerate(operations):
         if operation.get("status") not in {"applied", "read_only"}:
             return False, f"operation {index} is not a successful native action"
