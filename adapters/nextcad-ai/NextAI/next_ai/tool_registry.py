@@ -27,7 +27,7 @@ TOOLS = [
             },
             "additionalProperties": false
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "boolean_operation",
@@ -43,7 +43,7 @@ TOOLS = [
             "required": ["operation", "object1", "object2"],
             "additionalProperties": false
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "transform_object",
@@ -59,12 +59,12 @@ TOOLS = [
                 "rotate_axis_y": {"type": "number"},
                 "rotate_axis_z": {"type": "number"},
                 "rotate_angle": {"type": "number"},
-                "relative": {"type": "boolean", "default": true}
+                "relative": {"type": "boolean", "default": True}
             },
             "required": ["object_name"],
             "additionalProperties": false
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "duplicate_object",
@@ -85,7 +85,7 @@ TOOLS = [
             "required": ["object_name"],
             "additionalProperties": false
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "fillet_edges",
@@ -101,7 +101,7 @@ TOOLS = [
             "required": ["object_name", "edges", "radius"],
             "additionalProperties": false
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "chamfer_edges",
@@ -117,7 +117,7 @@ TOOLS = [
             "required": ["object_name", "edges", "size"],
             "additionalProperties": false
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "linear_pattern",
@@ -134,7 +134,7 @@ TOOLS = [
             "required": ["feature_name", "length", "occurrences"],
             "additionalProperties": false
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "polar_pattern",
@@ -151,7 +151,7 @@ TOOLS = [
             "required": ["feature_name", "occurrences"],
             "additionalProperties": false
         },
-        "read_only": false,
+        "read_only": False,
     },
     {
         "name": "inspect_document",
