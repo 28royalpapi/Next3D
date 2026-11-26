@@ -603,6 +603,46 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertIn("held_out_test_metrics_by_domain", source)
         self.assertIn("test_set_used_for_training", source)
 
+    def test_evaluator_scores_native_tool_sequence_and_argument_keys(self):
+        expected = json.dumps({
+            "message": "Building an editable base.",
+            "plan": [
+                {"tool": "create_part_box", "args": {"length": 100, "width": 80, "height": 10}},
+                {"tool": "create_partdesign_body", "args": {"name": "Body"}},
+            ],
+        })
+        exact = evaluator.score_record(expected, expected)
+        self.assertEqual(exact["plan_parse"], 1.0)
+        self.assertEqual(exact["plan_shape_valid"], 1.0)
+        self.assertEqual(exact["tool_sequence_exact"], 1.0)
+        self.assertEqual(exact["tool_recall"], 1.0)
+        self.assertEqual(exact["argument_key_recall"], 1.0)
+        self.assertEqual(exact["plan_step_count_match"], 1.0)
+
+        wrong = json.dumps({
+            "message": "Building an editable base.",
+            "plan": [
+                {"tool": "create_partdesign_body", "args": {"name": "Body"}},
+                {"tool": "create_part_box", "args": {"length": 100, "width": 80}},
+            ],
+        })
+        wrong_score = evaluator.score_record(expected, wrong)
+        self.assertEqual(wrong_score["plan_parse"], 1.0)
+        self.assertEqual(wrong_score["plan_shape_valid"], 1.0)
+        self.assertEqual(wrong_score["tool_sequence_exact"], 0.0)
+        self.assertLess(wrong_score["argument_key_recall"], 1.0)
+
+    def test_evaluator_marks_missing_native_plan_as_failure(self):
+        expected = json.dumps({
+            "message": "Create the wall.",
+            "plan": [{"tool": "create_arch_wall", "args": {"points": [[0, 0], [100, 0]]}}],
+        })
+        predicted = json.dumps({"message": "Create the wall.", "plan": []})
+        score = evaluator.score_record(expected, predicted)
+        self.assertEqual(score["tool_recall"], 0.0)
+        self.assertEqual(score["tool_sequence_exact"], 0.0)
+        self.assertEqual(score["plan_step_count_match"], 0.0)
+
     def test_evaluator_json_and_text_metrics(self):
         expected = '{"features": [{"type": "pad", "length": 10}], "units": "mm"}'
         predicted = '{"features": [{"type": "pad", "length": 10}], "units": "mm"}'
