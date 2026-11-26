@@ -2477,9 +2477,110 @@ def make_bim_execution_curriculum() -> list[dict[str, Any]]:
     return lessons
 
 
+
+def make_engineering_operator_curriculum() -> list[dict[str, Any]]:
+    """Authored L0 design-intake lessons for specialist engineering object families.
+
+    These teach the student what information a design requires. They are not
+    native execution traces and must never be counted as validated models.
+    """
+    system = (
+        "You are NextAI, a local engineering operator for native CAD/BIM software. "
+        "Understand the engineering object before selecting native operations. Ask concise "
+        "questions for missing requirements, preserve confirmed answers and return exactly "
+        "one JSON object with message and plan. During essential clarification the plan must "
+        "be empty. Use only the exact native tool names and schemas supplied in the context. "
+        "Never invent geometry, dimensions, ratings, loads, materials, standards or tools. "
+        "A concept model is not a verified engineering design."
+    )
+    lessons: list[dict[str, Any]] = []
+
+    def add_flow(family: str, domain: str, initial: str, first_message: str,
+                 first_reply: str, second_message: str, second_reply: str,
+                 final_message: str, system_suffix: str = "") -> None:
+        group = "engineering-skill-intake-" + family
+        prompt_system = system + system_suffix
+        turns = [
+            (initial, first_message, "initial_clarification"),
+            (
+                "Conversation so far:\nUser: " + initial
+                + "\nAssistant: " + json.dumps({"message": first_message, "plan": []}, ensure_ascii=False)
+                + "\nUser: " + first_reply
+                + "\n\nRespond only to the latest turn. Preserve confirmed facts and ask only for information still missing.",
+                second_message,
+                "context_aware_follow_up",
+            ),
+            (
+                "Conversation so far:\nUser: " + initial
+                + "\nAssistant: " + json.dumps({"message": first_message, "plan": []}, ensure_ascii=False)
+                + "\nUser: " + first_reply
+                + "\nAssistant: " + json.dumps({"message": second_message, "plan": []}, ensure_ascii=False)
+                + "\nUser: " + second_reply
+                + "\n\nSummarise the confirmed design brief and state the next native step. Do not invent missing information.",
+                final_message,
+                "confirmed_brief_or_capability_boundary",
+            ),
+        ]
+        for prompt, message, stage in turns:
+            lessons.append({
+                "domain": domain,
+                "system": prompt_system,
+                "prompt": prompt,
+                "completion": json.dumps({"message": message, "plan": []}, ensure_ascii=False),
+                "split_group": group,
+                "stage": stage,
+                "evidence_level": "L0_knowledge_authored",
+            })
+
+    add_flow(
+        "water-storage-tower",
+        "design_intake_water_storage_tower",
+        "I want you to design a water tower.",
+        "What storage capacity do you need, what tank shape do you prefer, and what should the tank-bottom elevation and overall tower height be? Should the support be steel, reinforced concrete or another system? Please also confirm the support footprint, access (ladder or stair), and whether this is a visual concept or an engineered design.",
+        "Use a cylindrical tank with about 50 cubic metres capacity. Steel support, 5 m by 5 m footprint, tank bottom 10 m above ground, 4 m tank height. It is only a visual concept for now, with a ladder.",
+        "I have the tank form, capacity target, support material intent, footprint and tank-bottom elevation. Should the four support members be shown only as labelled visual envelopes, or do you have selected structural sections? Also confirm whether the tank's 4 m height is its straight cylindrical shell height, and whether the ladder should reach the tank platform.",
+        "Use four round 250 mm diameter member placeholders, cylindrical tank radius 2 m and 4 m shell height. Ladder reaches the platform. Do not select steel sections or claim structural safety.",
+        "Confirmed concept brief: nominal 50 m³ cylindrical tank envelope, 2 m radius and 4 m shell height; four separate 250 mm-diameter support placeholders on a 5 m square footprint; tank bottom/platform elevation 10 m; ladder to platform. The supports are visual solid-cylinder placeholders, not selected steel sections. I can create the editable tank and four support envelopes in separate native objects, then add the footprint/elevation dimensions. The ladder, platform connections, bracing, foundation and engineering checks remain separate unresolved work because the current typed tool set does not yet expose a complete water-tower structural system.",
+        " For water-storage towers, distinguish tank capacity and geometry from support design. A visual model must not imply shell thickness, wind resistance, member capacity or foundation adequacy.",
+    )
+    add_flow(
+        "mechanical-gear",
+        "design_intake_mechanical_gear",
+        "Build me a spur gear.",
+        "Is this a single gear or a mating gear pair? Please provide module (or diametral pitch), tooth count, pressure angle, face width, bore/keyway, and whether you need a visual concept or a functional manufacturing model. For a functional gear, I also need the transmitted torque, speed, duty cycle, material and manufacturing requirements.",
+        "One external spur gear. Module 4, 24 teeth, standard 20 degree pressure angle, 20 mm face width and 20 mm bore. I only need a visual concept.",
+        "I have the main gear parameters. Do you want a hub or keyway, and should I leave the hub/keyway absent? I will also check whether this NextCAD installation exposes an approved involute gear-generation operation before claiming I can create the tooth profile.",
+        "No hub and no keyway. Just the gear.",
+        "Confirmed brief: one external spur gear, module 4, 24 teeth, 20° pressure angle, 20 mm face width, 20 mm bore, no hub or keyway, visual concept only. The reference pitch diameter is 96 mm under the stated standard spur-gear relation. However, I must inspect the live native capability registry for an approved involute gear-profile generator. The current typed NextAI tool list has no dedicated gear-generation operation, so I must not pretend a cylinder or polygon is a real involute gear. Until a reviewed native gear tool is available, I can prepare the parametric specification and report this execution gap.",
+        " For gear tasks, a cylinder or arbitrary toothed-looking polygon is not a validated involute profile. Ask for tooth geometry inputs and use only a live, reviewed native gear generator; otherwise disclose the capability gap.",
+    )
+    add_flow(
+        "electrical-control-panel",
+        "design_intake_electrical_control_panel",
+        "Create an electrical control panel in CAD.",
+        "What is the supply voltage, phase/frequency, panel purpose, enclosure size/environment, device list and required circuit count? Is this only a physical packaging layout or must it include a verified schematic and electrical connectivity? For electrical design I will also need load data, fault level, earthing arrangement and the applicable design basis.",
+        "It is a 415 V three-phase motor-control cabinet, 800 by 600 by 300 mm, IP54 target, with six outgoing circuits. For now I only need a physical packaging concept.",
+        "I can create the outer enclosure envelope, but I need the main device/component list and the approximate mounting/backplate arrangement before laying out internal placeholders. Are the six circuits three motors, two pumps and one lighting circuit, or something else? Please confirm that the devices are visual placeholders only.",
+        "Three motors at 15 kW each, two pumps at 7.5 kW each and one lighting circuit at 2 kW. Visual placeholders only; no electrical sizing.",
+        "Confirmed physical-layout brief: 415 V three-phase motor-control cabinet, nominal envelope 800 × 600 × 300 mm, IP54 target, six outgoing circuits comprising three 15 kW motor loads, two 7.5 kW pump loads and one 2 kW lighting load. The load list is user supplied; protection, conductors, fault rating, thermal design, earthing and circuit connectivity are not designed. I can create the cabinet envelope as an editable native box. The current typed registry does not expose a complete device-library, electrical schematic or circuit-connectivity toolset, so those items must remain explicit capability gaps.",
+        " An electrical cabinet's 3D boxes are packaging placeholders only. Never infer circuit connectivity, breaker ratings, conductor sizing, fault rating, IP performance or thermal adequacy from geometry.",
+    )
+    add_flow(
+        "civil-road-drainage",
+        "design_intake_civil_road_drainage",
+        "Design a road and stormwater drainage for my site.",
+        "Is this a new road, junction, access road or site road? Please provide the survey/topographic source, coordinate reference and vertical datum, road length/alignment/width, terrain and tie-in levels. For drainage, I will need the catchment boundary/area, rainfall basis or design return period, outfall level, flow direction and any known utility conflicts. Is this a concept model or an engineered design?",
+        "It is a 250 m site access road, about 7 m wide. I do not have survey or drainage calculations yet. I need a concept only.",
+        "I can prepare an explicitly schematic road corridor/layout concept, but without survey coordinates, levels and a drainage basis I cannot place reliable gradients, inverts, culvert sizes or outfall levels. Do you have an agreed drawing origin and orientation, and should the concept avoid assigning any elevations or pipe sizes?",
+        "Use a simple local XY origin and no elevations or pipe sizes. Show only the road centreline and 7 m width envelope as a schematic concept.",
+        "Confirmed schematic scope: 250 m site access road, 7 m width, local XY origin, no survey-based coordinates, no vertical profile and no drainage pipe sizing. This can be represented as a plan-view outline/centreline with an explicit not-to-scale/schematic label if the typed drafting tools are available. Drainage capacity, gradients, invert levels, cover, culvert sizing and flood performance remain unresolved until survey and hydrology inputs are supplied.",
+        " For civil road/drainage work, a plan polyline is not a road corridor and a drawn pipe is not a verified hydraulic network. Require survey, datum, level and hydrology information before engineering claims.",
+    )
+    return lessons
+
 def make_synthetic_curriculum() -> list[dict[str, Any]]:
     """Small, original, unit-aware lessons that cover gaps in public corpora."""
-    lessons = (make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_design_execution_curriculum() + make_bim_execution_curriculum()) + [
+    lessons = (make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_engineering_operator_curriculum() + make_design_execution_curriculum() + make_bim_execution_curriculum()) + [
         {
             "domain": "cad_2d_drafting",
             "system": CAD_SYSTEM,
@@ -3087,6 +3188,10 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "engineering_fem_axial_bar_calculation": 0.035,
         "engineering_pipe_continuity_calculation": 0.03,
         "construction_concrete_quantity_calculation": 0.03,
+        "design_intake_water_storage_tower": 0.04,
+        "design_intake_mechanical_gear": 0.04,
+        "design_intake_electrical_control_panel": 0.04,
+        "design_intake_civil_road_drainage": 0.04,
         "design_intake_architecture": 0.055,
         "design_intake_commercial_architecture": 0.035,
         "design_intake_vehicle_cad": 0.045,
