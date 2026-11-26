@@ -646,8 +646,19 @@ def _create_partdesign_pattern(doc, args, pattern_kind):
         raise ValueError("Only body origin axes X, Y or Z are currently supported.")
     origin = getattr(body, "Origin", None)
     axes = list(getattr(origin, "OriginFeatures", []) or []) if origin else []
-    axis_role = direction + "_Axis"
-    axis_object = next((item for item in axes if getattr(item, "Role", None) == axis_role), None)
+    axis_index = {"X": 0, "Y": 1, "Z": 2}[direction]
+    axis_object = axes[axis_index] if len(axes) > axis_index else None
+    if axis_object is None:
+        prefix = direction + "_Axis"
+        axis_object = next(
+            (
+                item for item in list(getattr(getattr(body, "Document", None), "Objects", []) or [])
+                if (str(getattr(item, "Name", "")) == prefix
+                    or str(getattr(item, "Name", "")).startswith(prefix))
+                and str(getattr(item, "TypeId", "")) == "App::Line"
+            ),
+            None,
+        )
     if axis_object is None:
         raise RuntimeError(f"Could not resolve the native body {direction} axis.")
     try:
