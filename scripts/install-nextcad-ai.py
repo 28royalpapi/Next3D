@@ -23,6 +23,14 @@ def main() -> int:
         source / "next_ai/freecad_tools.py",
         source / "next_ai/tool_registry.py",
         source / "next_ai/knowledge.py",
+        source / "next_ai/engineering_skills.py",
+        source / "knowledge_packs/skills/engineering-operator-method/SKILL.md",
+        source / "knowledge_packs/skills/residential-floor-plan/SKILL.md",
+        source / "knowledge_packs/skills/water-storage-tower/SKILL.md",
+        source / "knowledge_packs/skills/mechanical-gear/SKILL.md",
+        source / "knowledge_packs/skills/vehicle-package-design/SKILL.md",
+        source / "knowledge_packs/skills/electrical-control-panel/SKILL.md",
+        source / "knowledge_packs/skills/civil-road-drainage/SKILL.md",
     )
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
