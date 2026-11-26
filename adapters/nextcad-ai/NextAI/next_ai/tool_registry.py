@@ -22,7 +22,7 @@ TOOLS = [
                     "type": "array",
                     "items": {"type": "string", "minLength": 1, "maxLength": 120},
                     "maxItems": 200,
-                    "uniqueItems": true
+                    "uniqueItems": True
                 }
             },
             "additionalProperties": false
