@@ -142,6 +142,8 @@ jobs:
         run: pixi run install
 
       - name: Run FreeCAD test suite against NextCAD
+        id: freecad_tests
+        continue-on-error: true
         working-directory: upstream/FreeCAD
         run: pixi run test
 
@@ -273,6 +275,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Preserve NextCAD unit-test gate after native acceptance
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.freecad_tests.outcome }}" != "success" ]]; then
+            echo "NextCAD native application checks ran, but the FreeCAD test suite failed."
+            exit 1
+          fi
+
   next-bim:
     name: Next BIM / ${{ matrix.os }}
     needs: source-preparation
@@ -331,6 +342,8 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run Next BIM native test suite
+        id: nextbim_tests
+        continue-on-error: true
         working-directory: upstream/BIMCraft
         run: cargo test --workspace
 
@@ -406,3 +419,12 @@ jobs:
           path: artifacts/
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Preserve Next BIM unit-test gate after native acceptance
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.nextbim_tests.outcome }}" != "success" ]]; then
+            echo "Next BIM native application checks ran, but the workspace test suite failed."
+            exit 1
+          fi
