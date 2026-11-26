@@ -19,14 +19,18 @@ BIM_COMMIT = "a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b"
 
 
 class CapabilityCensusTests(unittest.TestCase):
-    def test_all_214_bim_commands_receive_ten_learning_obligations(self):
+    def test_all_215_bim_commands_receive_ten_learning_obligations(self):
         census, obligations = module.build_census(
             BIM, CAD, expected_cad_commit=CAD_COMMIT, expected_bim_commit=BIM_COMMIT
         )
-        self.assertEqual(census["counts"]["nextbim_registered_commands"], 214)
+        self.assertEqual(census["counts"]["nextbim_registered_commands"], 215)
         commands = [x for x in census["capabilities"] if x["capability_type"] == "native_command"]
-        self.assertEqual(len(commands), 214)
-        self.assertEqual(len([x for x in obligations if x["application"] == "nextbim"]), 2140)
+        self.assertEqual(len(commands), 215)
+        self.assertEqual(len([x for x in obligations if x["application"] == "nextbim"]), 2150)
+        open_obligations = [x for x in obligations if x["native_id"] == "open"]
+        self.assertEqual(len(open_obligations), 10)
+        self.assertTrue(all(x["native_metadata"].get("assistant_execution_status") == "user_operated_file_command"
+                            for x in open_obligations))
         self.assertEqual({x["native_id"] for x in commands},
                          {x["native_id"] for x in obligations if x["application"] == "nextbim"})
 
