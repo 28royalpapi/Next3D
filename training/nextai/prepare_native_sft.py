@@ -9,6 +9,10 @@ import hashlib
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from schema_validation import SchemaValidationError, validate_training_record
 
 SYSTEM_PROMPT = """You are NextAI, an engineering-focused CAD/BIM operator.
 Understand the user's design intent and return a compact JSON tool plan for the
@@ -28,6 +32,10 @@ NEXTCAD_SYSTEM_PROMPT = """You are NextAI, a local native CAD/BIM operator. Read
 
 
 def _valid_record(record: dict[str, Any]) -> tuple[bool, str]:
+    try:
+        validate_training_record(record)
+    except SchemaValidationError as exc:
+        return False, f"training-record schema violation: {exc}"
     required = {
         "schema_version", "record_id", "application", "application_version",
         "task", "specification", "native_states", "operations", "validation",
