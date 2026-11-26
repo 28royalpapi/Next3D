@@ -65,7 +65,7 @@ jobs:
               --workflow .github/workflows/native-application-build.yml \
               --branch "$GITHUB_REF_NAME" --limit 20 \
               --json databaseId,status,conclusion \
-              --jq '[.[] | select(.status == "completed" and .conclusion == "success")][0].databaseId // ""')"
+              --jq '[.[] | select(.status == "completed")][0].databaseId // ""')"
           fi
           runtime_report=""
           if [[ -n "$run_id" ]]; then
