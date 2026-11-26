@@ -1,0 +1,187 @@
+name: Build NextAI curriculum corpus
+
+on:
+  push:
+    branches: [nextai-operator-foundation]
+    paths:
+      - ".github/workflows/nextai-curriculum-data.yml"
+      - "training/nextai/capability_census.py"
+      - "training/nextai/prepare_public_corpora.py"
+      - "training/nextai/train_nextai.py"
+      - "docs/next-ai/catalogs/**"
+      - "adapters/nextcad-ai/NextAI/knowledge_packs/skills/**"
+  workflow_dispatch:
+    inputs:
+      native_run_id:
+        description: "Optional completed Native application builds run ID"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: nextai-curriculum-data-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-audit:
+    name: Build and audit the real NextAI curriculum
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout pinned project curriculum
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install CPU-only corpus preparation dependencies
+        run: python -m pip install --disable-pip-version-check datasets pillow
+
+      - name: Find a native NextCAD runtime census, when available
+        id: native_census
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_RUN_ID: ${{ inputs.native_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native-evidence"
+          run_id="$REQUESTED_RUN_ID"
+          if [[ -z "$run_id" ]]; then
+            run_id="$(gh run list \
+              --workflow .github/workflows/native-application-build.yml \
+              --branch "$GITHUB_REF_NAME" --limit 20 \
+              --json databaseId,status \
+              --jq '[.[] | select(.status == "completed")][0].databaseId // ""')"
+          fi
+          runtime_report=""
+          if [[ -n "$run_id" ]]; then
+            echo "Checking native workflow run $run_id for a version-pinned runtime census."
+            for artifact in nextcad-windows-capability-census nextcad-macos-capability-census nextcad-linux-gui-evidence; do
+              target="$RUNNER_TEMP/native-evidence/$artifact"
+              mkdir -p "$target"
+              if gh run download "$run_id" --name "$artifact" --dir "$target"; then
+                candidate="$(find "$target" -type f -name 'nextcad-runtime.json' -print -quit)"
+                if [[ -n "$candidate" ]]; then
+                  runtime_report="$candidate"
+                  break
+                fi
+              fi
+            done
+          fi
+          if [[ -n "$runtime_report" ]]; then
+            echo "runtime_report=$runtime_report" >> "$GITHUB_OUTPUT"
+            echo "NEXTCAD_RUNTIME_CENSUS=AVAILABLE" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "runtime_report=" >> "$GITHUB_OUTPUT"
+            echo "NEXTCAD_RUNTIME_CENSUS=NOT YET CAPTURED; source-only census will be marked incomplete." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Build the pinned native capability census
+        shell: bash
+        env:
+          RUNTIME_REPORT: ${{ steps.native_census.outputs.runtime_report }}
+        run: |
+          set -euo pipefail
+          args=(
+            --bim-catalog docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json
+            --nextcad-source-index docs/next-ai/catalogs/NEXTCAD_WORKBENCH_SOURCE_INDEX.v1.json
+            --expected-nextcad-commit 00cb280454069966a2fb0a8e7dc184c46e7b38b3
+            --expected-nextbim-commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b
+            --output-dir "$RUNNER_TEMP/nextai-capability-census"
+          )
+          if [[ -n "$RUNTIME_REPORT" ]]; then
+            args+=(--nextcad-runtime-report "$RUNTIME_REPORT")
+          fi
+          python training/nextai/capability_census.py "${args[@]}"
+
+      - name: Prepare the multimodal CAD, BIM and engineering curriculum
+        run: |
+          python training/nextai/prepare_public_corpora.py \
+            --output-dir "$RUNNER_TEMP/nextai-corpus" \
+            --capability-census "$RUNNER_TEMP/nextai-capability-census/capability-census.json" \
+            --max-cad-train 2500 \
+            --max-cad-validation 250 \
+            --max-cad-test 250 \
+            --max-bim-train 30000 \
+            --max-bim-validation 3000 \
+            --max-ifcqa-train 5000 \
+            --max-ifcqa-test 1000 \
+            --max-mixed-train 24000 \
+            --max-validation 2500 \
+            --max-test 1200
+
+      - name: Validate train, validation, test and curriculum sidecar isolation
+        working-directory: .
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "training/nextai")
+          from train_nextai import read_jsonl, validate_training_splits
+
+          root = Path("$RUNNER_TEMP/nextai-corpus")
+          reports = {}
+          for prefix in ("", "skill_", "capability_"):
+              train = read_jsonl(root / f"{prefix}train.jsonl")
+              validation = read_jsonl(root / f"{prefix}validation.jsonl")
+              test = read_jsonl(root / f"{prefix}test.jsonl")
+              if prefix == "" and (not train or not validation or not test):
+                  raise SystemExit("Main curriculum must have non-empty train, validation and held-out test splits.")
+              reports[prefix or "main"] = {
+                  "train": len(train),
+                  "validation": len(validation),
+                  "test": len(test),
+                  "integrity": validate_training_splits(train, validation, test),
+              }
+
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          census = json.loads(Path("$RUNNER_TEMP/nextai-capability-census/capability-census.json").read_text(encoding="utf-8"))
+          profile = {
+              "student": manifest["student"],
+              "method": manifest["method"],
+              "train_records": manifest["train_records"],
+              "validation_records": manifest["validation_records"],
+              "test_records": manifest["test_records"],
+              "training_domain_counts": manifest["training_domain_counts"],
+              "source_counts": manifest["source_counts"],
+              "nextcad_runtime_capture": census["sources"]["nextcad"]["runtime_capture"],
+              "nextcad_source_modules": census["counts"]["nextcad_source_modules"],
+              "nextcad_runtime_commands": census["counts"]["nextcad_runtime_commands"],
+              "nextcad_runtime_api_members": census["counts"]["nextcad_runtime_api_members"],
+              "nextbim_registered_commands": census["counts"]["nextbim_registered_commands"],
+              "capability_learning_obligations": census["counts"]["skill_obligations"],
+              "capability_obligations_are_training_examples": False,
+              "held_out_test_used_for_training": manifest["test_not_used_for_training"] is False,
+              "splits": reports,
+          }
+          if manifest["test_not_used_for_training"] is not True:
+              raise SystemExit("The held-out test split must remain excluded from training.")
+          output = Path("nextai-corpus-profile.json")
+          output.write_text(json.dumps(profile, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+          print(json.dumps(profile, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Publish the curriculum audit profile (no raw dataset upload)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextai-curriculum-profile
+          path: |
+            nextai-corpus-profile.json
+            ${{ runner.temp }}/nextai-corpus/manifest.json
+            ${{ runner.temp }}/nextai-capability-census/capability-census.json
+            ${{ runner.temp }}/nextai-capability-census/capability-census-report.md
+          if-no-files-found: error
+          retention-days: 3
