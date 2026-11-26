@@ -34,8 +34,10 @@ def _numeric(case_id: str, domain: str, prompt: str, method: str,
         "prompt": prompt + (
             "\nReturn JSON only: status='calculated', method='"
             + method
-            + "', values={the requested named numeric results}, units={matching unit "
-              "for each result}, working='brief equation and substitution', "
+            + "' (use this exact identifier), values must contain these exact numeric keys and units: "
+            + ", ".join(f"{key} [{units[key]}]" for key in values)
+            + ". The units object must use the same keys and exact unit labels. "
+              "Include working='brief equation and substitution' and "
               "limitations='what this calculation does not establish'."
         ),
         "expected": {
