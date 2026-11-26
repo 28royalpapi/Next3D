@@ -2,6 +2,7 @@
 """Executable native NextAI operator acceptance inside the built NextCAD GUI."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ import FreeCADGui as Gui
 
 marker = Path(os.environ["NEXT3D_NEXTCAD_AI_ACCEPTANCE_MARKER"]).resolve()
 project = Path(os.environ["NEXT3D_NEXTCAD_AI_ACCEPTANCE_PROJECT"]).resolve()
+stage_project = Path(os.environ["NEXT3D_NEXTCAD_AI_ACCEPTANCE_STAGE_PROJECT"]).resolve()
 module_root = Path(os.environ["NEXT3D_NEXTCAD_AI_MODULE_PATH"]).resolve()
 sys.path.insert(0, str(module_root))
 
@@ -20,7 +22,7 @@ report = {
     "status": "FAIL",
     "application_version": ".".join(str(item) for item in App.Version()),
     "checks": {},
-    "results": {},
+    "results": [],
 }
 
 def require(condition, message):
@@ -34,6 +36,7 @@ try:
     token = freecad_tools.begin_turn()
     allowed = {item["name"] for item in tool_registry.TOOLS}
     results = []
+    trace_operations = []
 
     def run(steps):
         names = {step["tool"] for step in steps}
@@ -43,6 +46,7 @@ try:
         require(result.get("success") is True, "Typed native operation plan did not report success.")
         for step_result in result.get("results", []):
             results.append(step_result)
+        trace_operations.extend(result.get("operations", []))
         return result.get("results", [])
 
     # Basic native Part solids and a true BRep boolean.
@@ -123,7 +127,7 @@ try:
     require(body.Tip.Shape.isValid() and len(body.Tip.Shape.Solids) == 1,
             "PartDesign Pad is not one valid solid.")
     linear = run([{"tool": "linear_pattern", "args": {
-        "feature_name": pad["feature"], "direction": "X", "length": 20,
+        "feature_name": pad["feature"], "direction": "X", "length": 18,
         "occurrences": 3, "label": "Acceptance linear pattern"
     }}])[0]
     require(body.Tip.Name == linear["created"] and body.Tip.Shape.isValid()
@@ -131,19 +135,46 @@ try:
             "Native linear pattern did not become one valid Body solid.")
     report["checks"]["sketcher_partdesign_pad_and_linear_pattern"] = "PASS"
 
-    # A separate Body exercises the circular pattern path.
+    # Save and reopen a complete first stage before continuing the larger design.
+    stage_project.parent.mkdir(parents=True, exist_ok=True)
+    doc.recompute()
+    doc.saveAs(str(stage_project))
+    stage_names = {obj.Name for obj in doc.Objects}
+    App.closeDocument(doc.Name)
+    doc = App.openDocument(str(stage_project))
+    require(stage_names.issubset({obj.Name for obj in doc.Objects}),
+            "Stage A native objects were lost after close/reopen.")
+    token = freecad_tools.begin_turn()
+    stage_summary = freecad_tools.inspect_document()
+    stage_state_hash = freecad_tools._native_document_state_hash(doc)
+    report["checks"]["native_stage_a_save_close_reopen"] = "PASS"
+    stage_a_operations = [dict(item, sequence=index) for index, item in enumerate(trace_operations)]
+    stage_a_checks = dict(report["checks"])
+
+    # A circularly patterned spoke overlaps a hub, so the result is one valid solid.
     run([{"tool": "create_partdesign_body", "args": {"name": "AcceptancePolarBody"}}])
     run([{"tool": "create_partdesign_sketch", "args": {
-        "body_name": "AcceptancePolarBody", "name": "AcceptancePolarProfile",
+        "body_name": "AcceptancePolarBody", "name": "AcceptancePolarHubProfile",
+        "plane": "XY_Plane"
+    }}])
+    run([{"tool": "add_sketch_circle", "args": {
+        "sketch_name": "AcceptancePolarHubProfile", "center": [0, 0], "radius": 5
+    }}])
+    run([{"tool": "create_partdesign_pad", "args": {
+        "body_name": "AcceptancePolarBody", "sketch_name": "AcceptancePolarHubProfile",
+        "length": 8, "name": "AcceptancePolarHub"
+    }}])
+    run([{"tool": "create_partdesign_sketch", "args": {
+        "body_name": "AcceptancePolarBody", "name": "AcceptancePolarSpokeProfile",
         "plane": "XY_Plane"
     }}])
     run([{"tool": "add_sketch_polygon", "args": {
-        "sketch_name": "AcceptancePolarProfile",
-        "points": [[0, 0], [4, 0], [4, 2], [0, 2]]
+        "sketch_name": "AcceptancePolarSpokeProfile",
+        "points": [[4, -2], [12, -2], [12, 2], [4, 2]]
     }}])
     polar_pad = run([{"tool": "create_partdesign_pad", "args": {
-        "body_name": "AcceptancePolarBody", "sketch_name": "AcceptancePolarProfile",
-        "length": 8, "name": "AcceptancePolarPad"
+        "body_name": "AcceptancePolarBody", "sketch_name": "AcceptancePolarSpokeProfile",
+        "length": 8, "name": "AcceptancePolarSpokePad"
     }}])[0]
     polar = run([{"tool": "polar_pattern", "args": {
         "feature_name": polar_pad["feature"], "axis": "Z",
@@ -153,7 +184,7 @@ try:
     require(polar_body.Tip.Name == polar["created"] and polar_body.Tip.Shape.isValid()
             and len(polar_body.Tip.Shape.Solids) == 1,
             "Native polar pattern did not become one valid Body solid.")
-    report["checks"]["partdesign_polar_pattern"] = "PASS"
+    report["checks"]["partdesign_polar_pattern_with_hub"] = "PASS"
 
     # Native Spreadsheet generated from actual object geometry and properties.
     names_for_schedule = [
@@ -195,11 +226,163 @@ try:
     require(abs(float(reopened.getObject(cut["created"]).Shape.Volume) - 3000.0) < 1e-4,
             "Boolean result volume changed after reopen.")
     report["checks"]["native_save_close_reopen"] = "PASS"
+
+    def sha256_file(path):
+        digest = hashlib.sha256()
+        with open(path, "rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+
+    def build_training_record(record_id, prompt, operations, before_state, after_summary,
+                              after_state_hash, artifact_path, checks):
+        artifact_hash = sha256_file(artifact_path)
+        return {
+            "schema_version": "1.0.0",
+            "record_id": record_id,
+            "application": "nextcad",
+            "application_version": report["application_version"],
+            "adapter_schema_version": tool_registry.TOOL_SCHEMA_VERSION,
+            "task": {
+                "prompt": prompt,
+                "task_type": "create",
+                "discipline": ["CAD", "parametric mechanical design"],
+                "language": "en",
+                "reference_questions": [],
+                "design_rationale": "Synthetic automated native-adapter acceptance; not a functional engineering design.",
+            },
+            "specification": {
+                "parameters": [
+                    {"name": "length_unit", "value": "mm", "unit": "unit", "description": "Native model length unit", "origin": "derived", "confirmed": True},
+                    {"name": "linear_pattern_occurrences", "value": 3, "unit": "count", "description": "Linear pattern occurrences", "origin": "derived", "confirmed": True},
+                    {"name": "polar_pattern_occurrences", "value": 4, "unit": "count", "description": "Circular pattern occurrences", "origin": "derived", "confirmed": True},
+                ],
+                "constraints": ["All modelled lengths are millimetres.", "Patterned bodies must be one valid solid."],
+                "assumptions": ["No material, load, tolerance, manufacturing or statutory design claim is made."],
+                "unresolved_questions": [],
+            },
+            "native_states": {
+                "before": before_state,
+                "after": {
+                    "format": "FCStd",
+                    "uri": artifact_path.name,
+                    "sha256": artifact_hash,
+                    "state_summary": after_summary,
+                    "application_revision": os.environ.get("NEXT3D_NEXTCAD_SOURCE_COMMIT"),
+                },
+            },
+            "operations": operations,
+            "validation": {
+                "overall": "passed",
+                "checks": [
+                    {
+                        "check_id": check_id,
+                        "status": "pass",
+                        "summary": str(status),
+                        "expected": True,
+                        "actual": True,
+                        "unit": None,
+                        "tolerance": None,
+                        "evidence": "Native NextCAD GUI acceptance assertion",
+                    }
+                    for check_id, status in sorted(checks.items())
+                ],
+                "engine_report": {
+                    "application": "NextCAD",
+                    "application_version": report["application_version"],
+                    "native_test_fixture": True,
+                    "independent_engineering_validation": "not_claimed",
+                },
+                "round_trip_passed": True,
+                "recompute_passed": True,
+                "parametric_perturbation_passed": None,
+            },
+            "artifacts": [{
+                "kind": "other",
+                "uri": artifact_path.name,
+                "sha256": artifact_hash,
+                "native_state_hash": after_state_hash,
+                "description": "Native FCStd file from a staged NextAI acceptance run.",
+            }],
+            "source": {
+                "source_type": "synthetic",
+                "source_id": "nextcad-native-acceptance:" + os.environ.get("NEXT3D_NEXTCAD_SOURCE_COMMIT", "pinned-source"),
+                "author_or_owner": "Next3D",
+                "license": "project-authored",
+                "permission_status": "not_required",
+                "terms_reviewed": True,
+                "attribution": "Generated by the Next3D native integration acceptance suite.",
+                "withdrawal_key": "nextcad-native-acceptance",
+            },
+            "privacy": {
+                "user_consent": False,
+                "contains_personal_data": False,
+                "public_release_allowed": True,
+                "redaction_status": "not_needed",
+            },
+            "split": "test",
+        }
+
+    after_summary = freecad_tools.inspect_document()
+    after_state_hash = freecad_tools._native_document_state_hash(reopened)
+    stage_after = {
+        "format": "FCStd",
+        "uri": stage_project.name,
+        "sha256": sha256_file(stage_project),
+        "state_summary": stage_summary,
+        "application_revision": os.environ.get("NEXT3D_NEXTCAD_SOURCE_COMMIT"),
+    }
+    final_operations = [dict(item, sequence=index)
+                        for index, item in enumerate(trace_operations[len(stage_a_operations):])]
+    require(len(stage_a_operations) <= 20 and len(final_operations) <= 20,
+            "Native acceptance training plan exceeds the NextAI 20-step runtime limit.")
+    require(len(trace_operations) > 0, "Native acceptance trace contains no native operations.")
+    require(all(item.get("status") == "applied" for item in trace_operations),
+            "Native acceptance trace contains an operation that did not apply.")
+    require(all(item.get("tool_schema_version") == tool_registry.TOOL_SCHEMA_VERSION
+                for item in trace_operations),
+            "Native acceptance trace is missing the tool schema version.")
+    training_records = [
+        build_training_record(
+            "nextcad-stage-a-" + stage_after["sha256"][:16],
+            "Create Part primitives, subtract a boolean cutter, move and duplicate native objects, then apply native fillet and chamfer operations.",
+            stage_a_operations,
+            None,
+            stage_summary,
+            stage_state_hash,
+            stage_project,
+            stage_a_checks,
+        ),
+        build_training_record(
+            "nextcad-stage-b-" + sha256_file(project)[:16],
+            "Continue the saved CAD document by creating constrained PartDesign profiles and pads, applying linear and circular patterns, and generating a model-derived Spreadsheet schedule.",
+            final_operations,
+            dict(stage_after),
+            after_summary,
+            after_state_hash,
+            project,
+            report["checks"],
+        ),
+    ]
+    trace_path = marker.with_name("nextcad-ai-native-acceptance-trace.jsonl")
+    trace_path.write_text(
+        "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in training_records),
+        encoding="utf-8",
+    )
     report["status"] = "PASS"
     report["native_object_count"] = len(reopened.Objects)
     report["schedule_rows"] = len(names_for_schedule)
     report["project_file"] = str(project)
+    report["stage_project_file"] = str(stage_project)
     report["operation_results"] = results
+    report["training_trace"] = {
+        "path": str(trace_path),
+        "records": len(training_records),
+        "split": "test",
+        "operation_records": len(trace_operations),
+        "evidence_level": "L3 native execution + L4 save/reopen",
+        "independent_engineering_validation": "not_claimed",
+    }
 except Exception as exc:
     report["status"] = "FAIL"
     report["error"] = str(exc)
