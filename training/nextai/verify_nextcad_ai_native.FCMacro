@@ -78,14 +78,51 @@ try:
     base_object = doc.getObject(base_name)
     require(abs(float(base_object.Placement.Base.x) - 100.0) < 1e-6,
             "Native relative transform did not move the source object.")
+    source_object = doc.getObject(cutter_name)
+    source_position_before = tuple(
+        float(value) for value in (
+            source_object.Placement.Base.x,
+            source_object.Placement.Base.y,
+            source_object.Placement.Base.z,
+        )
+    )
+    duplicate_offset_y = 40.0
     duplicate = run([{"tool": "duplicate_object", "args": {
-        "object_name": cutter_name, "translate_y": 40, "label": "Acceptance independent copy"
+        "object_name": cutter_name, "translate_y": duplicate_offset_y,
+        "label": "Acceptance independent copy"
     }}])[0]
     duplicate_object = doc.getObject(duplicate["created"])
-    require(duplicate_object is not None and duplicate_object is not doc.getObject(cutter_name),
+    require(duplicate_object is not None and duplicate_object is not source_object,
             "Native duplicate did not create an independent object.")
-    require(abs(float(doc.getObject(cutter_name).Placement.Base.y)) < 1e-6,
-            "Native duplicate changed the original object's placement.")
+    source_position_after = tuple(
+        float(value) for value in (
+            source_object.Placement.Base.x,
+            source_object.Placement.Base.y,
+            source_object.Placement.Base.z,
+        )
+    )
+    duplicate_position = tuple(
+        float(value) for value in (
+            duplicate_object.Placement.Base.x,
+            duplicate_object.Placement.Base.y,
+            duplicate_object.Placement.Base.z,
+        )
+    )
+    require(
+        all(abs(after - before) < 1e-6
+            for before, after in zip(source_position_before, source_position_after)),
+        "Native duplicate changed the original object's placement."
+    )
+    expected_duplicate_position = (
+        source_position_before[0],
+        source_position_before[1] + duplicate_offset_y,
+        source_position_before[2],
+    )
+    require(
+        all(abs(actual - expected) < 1e-6
+            for actual, expected in zip(duplicate_position, expected_duplicate_position)),
+        "Native duplicate did not apply the requested relative translation."
+    )
     report["checks"]["transform_and_duplicate"] = "PASS"
 
     # Real BRep fillet and chamfer on all edges of separate simple blocks.

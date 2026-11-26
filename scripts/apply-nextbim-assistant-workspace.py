@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Make BIMCraft's existing Assistant the permanent Next AI workspace.
+"""Brand BIMCraft's native Assistant as Next AI without changing its default layout.
 
-This deliberately edits only native UI labels and the saved dock layout. It
-does not replace BIMCraft's command engine, data model, Assistant implementation
-or project format.
+The native Assistant remains on-demand, preserving BIMCraft's established
+workspace and saved-project behaviour. Only user-facing palette naming and
+legacy palette-name compatibility are changed.
 """
 from __future__ import annotations
 
@@ -29,7 +29,6 @@ def main() -> int:
         raise SystemExit("usage: apply-nextbim-assistant-workspace.py <BIMCraft source root>")
     root = Path(sys.argv[1]).resolve()
     dock = root / "crates/ui-egui/src/dock.rs"
-    settings = root / "crates/ui-egui/src/settings.rs"
 
     replace_once(
         dock,
@@ -46,51 +45,11 @@ def main() -> int:
         '        Palette::ALL.into_iter().find(|p| p.name() == name)',
         "Legacy palette-name compatibility",
     )
-    replace_once(
-        dock,
-        '            right: vec![Stack::of(Palette::Properties), Stack::of(Palette::Browser)],',
-        '            right: vec![Stack::of(Palette::Properties), Stack { tabs: vec![Palette::Browser, Palette::Assistant], active: 1 }],',
-        "Default Next AI workspace layout",
+
+    print(
+        "NEXT BIM WORKSPACE PASS: native Assistant is labelled Next AI, "
+        "remains on-demand, and legacy saved palette names remain readable."
     )
-
-    old_restore = '''        for p in Palette::ALL {
-            // The Assistant opens when the user asks: a file from before it was added leaves it closed.
-            if !d.shown(p) && !closed.contains(&p) && p != Palette::Assistant {
-                // First on the left: the Tools palette, which a file from before it holds nothing of, stands where it would have.
-                d.put(p, Target::Side(Side::Left));
-                d.left.rotate_right(1);
-            }
-        }'''
-    new_restore = '''        for p in Palette::ALL {
-            if !d.shown(p) && !closed.contains(&p) {
-                if p == Palette::Assistant {
-                    if let Some(stack) = d.stack_of_mut(Palette::Browser) {
-                        stack.tabs.push(Palette::Assistant);
-                        stack.active = stack.tabs.len() - 1;
-                    } else {
-                        d.put(Palette::Assistant, Target::Side(Side::Right));
-                    }
-                } else {
-                    // First on the left: the Tools palette, which a file from before it holds nothing of, stands where it would have.
-                    d.put(p, Target::Side(Side::Left));
-                    d.left.rotate_right(1);
-                }
-            }
-        }'''
-    replace_once(dock, old_restore, new_restore, "Legacy layout migration")
-
-    replace_once(
-        settings,
-        '            Page::Assistant => msg!("Assistant"),',
-        '            Page::Assistant => msg!("Next AI settings"),',
-        "Next AI settings label",
-    )
-
-    for path in (dock, settings):
-        text = path.read_text(encoding="utf-8")
-        if "Palette::Assistant => msg!(\"Next AI\")" in text:
-            continue
-    print("NEXT BIM WORKSPACE PASS: native Assistant is the visible Next AI tab; legacy layouts remain readable.")
     return 0
 
 

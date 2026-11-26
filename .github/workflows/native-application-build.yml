@@ -137,6 +137,10 @@ jobs:
         working-directory: upstream/FreeCAD
         run: pixi run build
 
+      - name: Install NextCAD into the pinned runtime environment
+        working-directory: upstream/FreeCAD
+        run: pixi run install
+
       - name: Run FreeCAD test suite against NextCAD
         working-directory: upstream/FreeCAD
         run: pixi run test
@@ -213,17 +217,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Install NextCAD for GUI smoke test
-        if: runner.os == 'Linux'
-        working-directory: upstream/FreeCAD
-        run: pixi run install
-
       - name: Verify real NextAI typed operations in native FreeCAD on Linux
         if: runner.os == 'Linux'
         working-directory: upstream/FreeCAD
         run: |
           mkdir -p ../../artifacts
-          xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/run_nextcad_ai_acceptance.py --command-prefix "pixi run freecad" --output ../../artifacts/nextcad-ai-native-acceptance.json
+          xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/run_nextcad_ai_acceptance.py --executable build/relWithDebInfo/bin/FreeCAD --output ../../artifacts/nextcad-ai-native-acceptance.json
 
       - name: Capture the real NextCAD interface
         if: runner.os == 'Linux'
@@ -235,7 +234,7 @@ jobs:
           xvfb-run -a -s "-screen 0 1600x1000x24" bash -lc '
             set -euo pipefail
             cd upstream/FreeCAD
-            pixi run python ../../scripts/run_nextcad_capability_census.py --command-prefix "pixi run freecad" --macro ../../training/nextai/discover_nextcad_runtime.FCMacro --output ../../artifacts/nextcad-runtime.json --census-output ../../artifacts/capability-census --nextcad-commit 00cb280454069966a2fb0a8e7dc184c46e7b38b3 --nextbim-commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b
+            pixi run python ../../scripts/run_nextcad_capability_census.py --executable build/relWithDebInfo/bin/FreeCAD --macro ../../training/nextai/discover_nextcad_runtime.FCMacro --output ../../artifacts/nextcad-runtime.json --census-output ../../artifacts/capability-census --nextcad-commit 00cb280454069966a2fb0a8e7dc184c46e7b38b3 --nextbim-commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b
             pixi run freecad > ../../artifacts/nextcad.log 2>&1 &
             app_pid=$!
             window_id=""
