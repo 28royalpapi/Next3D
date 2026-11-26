@@ -371,10 +371,14 @@ TOOLS = [
     },
     {
         "name": "run_native_command",
-        "description": "Run an approved, registered FreeCAD GUI command by its exact command id.",
+        "description": "Run only an explicitly reviewed, non-destructive view command. Native model changes must use typed NextAI operations; discovering a GUI command does not authorise executing it.",
         "parameters": {
             "type": "object",
-            "properties": {"command_id": {"type": "string"}},
+            "properties": {"command_id": {"type": "string", "enum": [
+                "Std_ViewFitAll", "Std_ViewIsometric", "Std_ViewAxonometric",
+                "Std_ViewTop", "Std_ViewBottom", "Std_ViewFront", "Std_ViewRear",
+                "Std_ViewLeft", "Std_ViewRight", "Std_OrthographicCamera", "Std_PerspectiveCamera"
+            ]}},
             "required": ["command_id"],
             "additionalProperties": False,
         },
