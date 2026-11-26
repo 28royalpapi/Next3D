@@ -131,8 +131,8 @@ def main() -> int:
 
     root = Path(__file__).resolve().parents[1]
     catalogue = json.loads((root / "docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json").read_text(encoding="utf-8"))
-    need(catalogue.get("command_count") == 214 and len(catalogue.get("commands", [])) == 214,
-         "Pinned Next BIM command catalogue must contain all 214 native registrations")
+    need(catalogue.get("command_count") == 215 and len(catalogue.get("commands", [])) == 215,
+         "Pinned Next BIM command catalogue must contain all 215 native registrations")
     print("SOURCE CHECK PASS: pinned native apps, full manual workbench/command foundations and both Next AI workspaces are present.")
     print("SOURCE CHECK PASS: NextCAD uses typed, approved, transaction-based local tools; Next BIM reuses its native Assistant and local provider.")
     print("NOT PROOF: live FreeCAD/Ollama GUI session or successful platform build. CI and live acceptance supply that evidence.")
