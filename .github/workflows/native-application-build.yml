@@ -225,6 +225,8 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: upstream/FreeCAD
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-x11-0
           mkdir -p ../../artifacts
           xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/run_nextcad_ai_acceptance.py --executable build/relWithDebInfo/bin/FreeCAD --output ../../artifacts/nextcad-ai-native-acceptance.json
 
