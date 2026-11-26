@@ -99,6 +99,33 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertTrue(all(row["evidence_level"] == "L0_knowledge_authored" for row in lessons))
         self.assertTrue(all(json.loads(row["completion"])["plan"] == [] for row in lessons))
 
+    def test_local_engineering_skill_library_becomes_section_level_sft_lessons(self):
+        lessons = module.make_local_skill_curriculum()
+        self.assertGreaterEqual(len(lessons), 60)
+        skills = {row["skill_name"] for row in lessons}
+        self.assertGreaterEqual(len(skills), 16)
+        self.assertIn("residential-floor-plan", skills)
+        self.assertIn("water-storage-tower", skills)
+        self.assertIn("sketcher-parametric-design", skills)
+        self.assertIn("fem-analysis-preparation", skills)
+        self.assertTrue(all(row["domain"] == "engineering_skill_knowledge" for row in lessons))
+        self.assertTrue(all(row["evidence_level"] == "L0_knowledge_authored" for row in lessons))
+        self.assertTrue(all(row["split_group"].startswith("nextai-skill-") for row in lessons))
+        self.assertTrue(all(row["completion"].strip() for row in lessons))
+        self.assertTrue(all("No native operation was executed" in row["completion"] for row in lessons))
+
+    def test_skill_sections_are_kept_together_during_held_out_splitting(self):
+        lessons = module.make_local_skill_curriculum()
+        splits = module.split_synthetic_curriculum(lessons)
+        split_by_group = {}
+        for split, rows in splits.items():
+            for row in rows:
+                group = row["split_group"]
+                self.assertNotIn(group, split_by_group)
+                split_by_group[group] = split
+        self.assertEqual(sum(len(rows) for rows in splits.values()), len(lessons))
+        self.assertTrue({"train", "validation", "test"}.issubset(set(split_by_group.values())))
+
     def test_synthetic_corpus_includes_specialist_engineering_intake_domains(self):
         lessons = module.make_synthetic_curriculum()
         domains = {row["domain"] for row in lessons}
