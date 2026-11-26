@@ -138,6 +138,13 @@ The base student and candidate must be evaluated on the same held-out project fa
 
 ## 8. Implementation in this branch
 
+The current branch includes a local progressive engineering skill library, ranked native operation schemas, a reviewed view-only GUI command allowlist, typed Part/PartDesign operation extensions, and model-derived Spreadsheet schedules.
+
+The native GUI acceptance macro and runner execute the typed operations inside the compiled NextCAD GUI, save and reopen actual FCStd documents in two stages, and emit two synthetic native operation records. Each trace retains exact arguments, native results, transaction IDs, document-state hashes, tool-schema version, application revision and saved-file hash. These are software integration tests with L3 native execution and L4 save/reopen evidence. They do not count as independent engineering validation (L5).
+
+The native SFT preparation maps NextCAD traces to the local UI's `message` + `plan` contract, while Next BIM retains its independent `steps` contract. The training pipeline can also generate L0 lessons from local skills and pinned capability metadata; those lessons do not count as executed skills or mastery.
+
+
 - `discover_nextcad_runtime.FCMacro`: read-only capture of the live FreeCAD command registry and workbench membership. It does not invoke modelling commands or save the user's project.
 - `capability_census.py`: merges the NextCAD source index, live NextCAD report and pinned BIMCraft catalogue; outputs a full census, summary and per-command skill-obligations file.
 - `test_capability_census.py`: checks the 214-command BIM baseline, all ten learning dimensions, source pinning, runtime report validation and policy boundaries.
