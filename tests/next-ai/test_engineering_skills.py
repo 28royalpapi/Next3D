@@ -111,7 +111,7 @@ class EngineeringSkillRegistryTests(unittest.TestCase):
                 "skill-one", "references/dimensions.md"
             )["output"]
             self.assertEqual(
-                reference_text.replace("\\r\\n", "\\n"),
+                reference_text.replace("\r\n", "\n"),
                 "Dimensions are in millimetres.\n",
             )
             self.assertIn("not in the skill's Markdown allow-list", registry.read_reference(
