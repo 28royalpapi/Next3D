@@ -315,11 +315,16 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         lessons = module.make_local_skill_curriculum()
         splits = module.split_synthetic_curriculum(lessons)
         split_by_group = {}
+        split_by_skill = {}
         for split, rows in splits.items():
             for row in rows:
                 group = row["split_group"]
+                self.assertEqual(group, "nextai-skill-" + row["skill_name"])
                 self.assertNotIn(group, split_by_group)
                 split_by_group[group] = split
+                previous = split_by_skill.setdefault(row["skill_name"], split)
+                self.assertEqual(previous, split)
+        self.assertEqual(len(split_by_skill), len({row["skill_name"] for row in lessons}))
         self.assertEqual(sum(len(rows) for rows in splits.values()), len(lessons))
         self.assertTrue({"train", "validation", "test"}.issubset(set(split_by_group.values())))
 
