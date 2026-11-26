@@ -94,6 +94,20 @@ def _example(record: dict[str, Any]) -> dict[str, Any]:
     states = record["native_states"]
     before = states.get("before") or {}
     after = states["after"]
+    # The model must never see the post-operation state while predicting the
+    # operations that created it. Preserve the initial document state and place
+    # exact recorded arguments in the confirmed specification context.
+    request_specification = {
+        **spec,
+        "constraints": list(spec.get("constraints", [])) + [
+            (
+                f"Recorded native operation {operation['sequence']} "
+                f"{operation['tool']} exact input arguments (native units as supplied): "
+                + json.dumps(operation["arguments"], ensure_ascii=False, sort_keys=True)
+            )
+            for operation in record["operations"]
+        ],
+    }
     context = {
         "application": record["application"],
         "application_version": record["application_version"],
@@ -104,11 +118,11 @@ def _example(record: dict[str, Any]) -> dict[str, Any]:
             "discipline": task["discipline"],
             "language": task["language"],
         },
-        "specification": spec,
+        "specification": request_specification,
         "native_context": {
             "format": after.get("format"),
+            "document_state_at_request": before.get("state_summary"),
             "before_state_summary": before.get("state_summary"),
-            "current_state_summary": after.get("state_summary"),
         },
     }
     steps = [
