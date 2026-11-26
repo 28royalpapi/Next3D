@@ -604,28 +604,66 @@ def rank_tools(query: str, limit: int = 12) -> list[dict]:
     ]
 
 
+def select_tool_schemas(query: str, limit: int = 14) -> list[dict]:
+    """Return only the most relevant reviewed tool schemas for this local turn.
+
+    Read-only inspect/discovery are always retained. A task-specific schedule
+    request keeps the native Spreadsheet tool visible even when the noun is
+    expressed indirectly. Full capability discovery remains separate.
+    """
+    limit = max(2, min(int(limit), len(TOOLS)))
+    ranked = rank_tools(query, limit=limit)
+    selected_names = [item["name"] for item in ranked]
+    for required in ("inspect_document", "discover_capabilities"):
+        if required not in selected_names:
+            selected_names.append(required)
+    terms = _terms(query)
+    if terms.intersection({"schedule", "schedules", "table", "tables", "bom", "bill", "quantities", "quantity", "component"}):
+        if "create_model_schedule" not in selected_names:
+            selected_names.append("create_model_schedule")
+    if len(selected_names) > limit + 1:
+        selected_names = selected_names[:limit + 1]
+    selected = [tool for tool in TOOLS if tool["name"] in selected_names]
+    # Keep the list ordered by retrieval rank, not by the global source order.
+    order = {name: index for index, name in enumerate(selected_names)}
+    selected.sort(key=lambda tool: order.get(tool["name"], len(order)))
+    return selected
+
+
 def read_context(query: str = ""):
-    """Build a local task context with engineering knowledge and native API knowledge kept distinct."""
+    """Build a local task context with engineering skills and a progressively selected tool set."""
     skill_context = engineering_skills.EngineeringSkillRegistry().retrieve(query)
+    selected_tools = select_tool_schemas(query)
     return {
         "context_contract": {
             "engineering_skills": "Explain WHAT the user wants to build, what to ask, domain components and deliverables.",
             "native_capabilities": "Explain HOW this exact installation can build, inspect, edit and validate it.",
             "authority": "Live native capabilities and reviewed typed tool schemas override any skill suggestion.",
             "locality": "Skill files and manuals are read from this laptop; they are not uploaded to a remote knowledge service.",
+            "tool_selection": "Only task-relevant typed tools are supplied this turn. Ask for native capability discovery in a later turn if a new operation becomes necessary.",
         },
         "engineering_skills": skill_context,
-        "ranked_tools": rank_tools(query),
+        "ranked_tools": [
+            {"name": tool["name"], "read_only": tool["read_only"]}
+            for tool in selected_tools
+        ],
+        "tool_selection_summary": {
+            "total_reviewed_typed_tools": len(TOOLS),
+            "selected_for_this_turn": len(selected_tools),
+            "selected_names": [tool["name"] for tool in selected_tools],
+        },
         "capabilities": freecad_tools.discover_capabilities(query),
         "document": freecad_tools.inspect_document(),
-        "available_tools": TOOLS,
+        "available_tools": selected_tools,
         "relevant_native_documentation": knowledge.search(query),
     }
 
 
-def execute_approved_plan(token, plan, progress_callback=None):
+def execute_approved_plan(token, plan, progress_callback=None, allowed_tool_names=None):
     allowed = {tool["name"] for tool in TOOLS if not tool["read_only"]}
+    if allowed_tool_names is not None:
+        allowed.intersection_update(set(allowed_tool_names))
     for step in plan:
         if not isinstance(step, dict) or step.get("tool") not in allowed:
-            raise ValueError("The plan contains a tool that is not in the approved NextCAD registry.")
+            raise ValueError("The plan contains a tool that was not supplied for this turn or is not approved by the NextCAD registry.")
     return freecad_tools.execute_plan(token, plan, progress_callback=progress_callback)
