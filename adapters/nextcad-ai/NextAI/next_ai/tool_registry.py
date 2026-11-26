@@ -30,6 +30,130 @@ TOOLS = [
         "read_only": false,
     },
     {
+        "name": "boolean_operation",
+        "description": "Create a native fuse, cut or common between two different objects. Two PartDesign Bodies use a PartDesign Boolean feature inside the first Body; other shape combinations use a native Part Boolean object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "operation": {"type": "string", "enum": ["fuse", "cut", "common"]},
+                "object1": {"type": "string", "minLength": 1, "maxLength": 120},
+                "object2": {"type": "string", "minLength": 1, "maxLength": 120},
+                "label": {"type": "string", "maxLength": 120}
+            },
+            "required": ["operation", "object1", "object2"],
+            "additionalProperties": false
+        },
+        "read_only": false,
+    },
+    {
+        "name": "transform_object",
+        "description": "Move and/or rotate an existing native object. Relative mode adds global translation and rotates in place; absolute mode replaces the object's placement. Rotation angles are degrees and translations are millimetres.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "minLength": 1, "maxLength": 120},
+                "translate_x": {"type": "number"},
+                "translate_y": {"type": "number"},
+                "translate_z": {"type": "number"},
+                "rotate_axis_x": {"type": "number"},
+                "rotate_axis_y": {"type": "number"},
+                "rotate_axis_z": {"type": "number"},
+                "rotate_angle": {"type": "number"},
+                "relative": {"type": "boolean", "default": true}
+            },
+            "required": ["object_name"],
+            "additionalProperties": false
+        },
+        "read_only": false,
+    },
+    {
+        "name": "duplicate_object",
+        "description": "Create an independent native copy of an object while leaving the original unchanged. It preserves the object's parametric history where FreeCAD copyObject supports it; optional translation and rotation offset the copy.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "minLength": 1, "maxLength": 120},
+                "translate_x": {"type": "number"},
+                "translate_y": {"type": "number"},
+                "translate_z": {"type": "number"},
+                "rotate_axis_x": {"type": "number"},
+                "rotate_axis_y": {"type": "number"},
+                "rotate_axis_z": {"type": "number"},
+                "rotate_angle": {"type": "number"},
+                "label": {"type": "string", "maxLength": 120}
+            },
+            "required": ["object_name"],
+            "additionalProperties": false
+        },
+        "read_only": false,
+    },
+    {
+        "name": "fillet_edges",
+        "description": "Add a native fillet to explicit EdgeN references or all edges. Inside a PartDesign Body it creates a parametric PartDesign Fillet on the current Body tip. For non-PartDesign shapes it creates a separate derived Part shape linked to the source object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "minLength": 1, "maxLength": 120},
+                "edges": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
+                "radius": {"type": "number", "exclusiveMinimum": 0},
+                "label": {"type": "string", "maxLength": 120}
+            },
+            "required": ["object_name", "edges", "radius"],
+            "additionalProperties": false
+        },
+        "read_only": false,
+    },
+    {
+        "name": "chamfer_edges",
+        "description": "Add a native chamfer to explicit EdgeN references or all edges. Inside a PartDesign Body it creates a parametric PartDesign Chamfer on the current Body tip. For non-PartDesign shapes it creates a separate derived Part shape linked to the source object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "minLength": 1, "maxLength": 120},
+                "edges": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
+                "size": {"type": "number", "exclusiveMinimum": 0},
+                "label": {"type": "string", "maxLength": 120}
+            },
+            "required": ["object_name", "edges", "size"],
+            "additionalProperties": false
+        },
+        "read_only": false,
+    },
+    {
+        "name": "linear_pattern",
+        "description": "Create a parametric PartDesign linear pattern of a feature inside a Body, along the Body's X, Y or Z origin axis.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "feature_name": {"type": "string", "minLength": 1, "maxLength": 120},
+                "direction": {"type": "string", "enum": ["X", "Y", "Z"], "default": "X"},
+                "length": {"type": "number", "exclusiveMinimum": 0},
+                "occurrences": {"type": "integer", "minimum": 2, "maximum": 1000},
+                "label": {"type": "string", "maxLength": 120}
+            },
+            "required": ["feature_name", "length", "occurrences"],
+            "additionalProperties": false
+        },
+        "read_only": false,
+    },
+    {
+        "name": "polar_pattern",
+        "description": "Create a parametric PartDesign circular pattern of a feature inside a Body, about the Body's X, Y or Z origin axis.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "feature_name": {"type": "string", "minLength": 1, "maxLength": 120},
+                "axis": {"type": "string", "enum": ["X", "Y", "Z"], "default": "Z"},
+                "angle": {"type": "number", "exclusiveMinimum": 0, "maximum": 360, "default": 360},
+                "occurrences": {"type": "integer", "minimum": 2, "maximum": 1000},
+                "label": {"type": "string", "maxLength": 120}
+            },
+            "required": ["feature_name", "occurrences"],
+            "additionalProperties": false
+        },
+        "read_only": false,
+    },
+    {
         "name": "inspect_document",
         "description": "Read the open native document and its objects.",
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
