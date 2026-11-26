@@ -628,6 +628,49 @@ class NativeToolSafetyTests(unittest.TestCase):
             self.assertIsNone(obj.bound)
 
 
+class NativeOperatorExtensionTests(unittest.TestCase):
+    def test_reusable_freecad_operator_actions_are_available_as_typed_tools(self):
+        expected = {
+            "boolean_operation",
+            "transform_object",
+            "duplicate_object",
+            "fillet_edges",
+            "chamfer_edges",
+            "linear_pattern",
+            "polar_pattern",
+            "create_model_schedule",
+        }
+        registered = {item["name"] for item in tool_registry.TOOLS}
+        self.assertTrue(expected.issubset(registered))
+        for name in expected:
+            tool = next(item for item in tool_registry.TOOLS if item["name"] == name)
+            self.assertFalse(tool["read_only"])
+            self.assertFalse(tool["parameters"].get("additionalProperties", True))
+
+    def test_edge_reference_validation_requires_explicit_topology_or_all(self):
+        from types import SimpleNamespace
+
+        shape = SimpleNamespace(Edges=[object(), object(), object()])
+        self.assertEqual(
+            freecad_tools._edge_references(shape, ["Edge1", "Edge3"]),
+            ["Edge1", "Edge3"],
+        )
+        self.assertEqual(
+            freecad_tools._edge_references(shape, ["all"]),
+            ["Edge1", "Edge2", "Edge3"],
+        )
+        for invalid in (["Edge0"], ["Edge4"], ["Face1"], ["all", "Edge1"], []):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    freecad_tools._edge_references(shape, invalid)
+
+    def test_native_name_sanitisation_produces_freecad_identifier(self):
+        self.assertEqual(freecad_tools._native_name("Water Tower / Tank", "Operation"),
+                         "Water_Tower___Tank")
+        self.assertEqual(freecad_tools._native_name("123 Gear", "Operation"),
+                         "NextAI_123_Gear")
+
+
 class ModelScheduleTests(unittest.TestCase):
     def test_schedule_tool_is_typed_and_mutating(self):
         tool = next(item for item in tool_registry.TOOLS if item["name"] == "create_model_schedule")
