@@ -55,6 +55,7 @@ class NextCADNativeAcceptanceContractTests(unittest.TestCase):
         self.assertIn("project.is_file()", source)
         self.assertIn("stage_project.is_file()", source)
         self.assertIn("len(trace_rows) != 2", source)
+        self.assertIn("validate_training_record(row)", source)
 
     def test_installer_places_first_party_adapter_where_native_runner_expects_it(self):
         source = INSTALLER.read_text(encoding="utf-8")
