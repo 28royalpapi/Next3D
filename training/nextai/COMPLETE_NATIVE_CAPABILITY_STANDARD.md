@@ -31,7 +31,7 @@ The live census must be taken after the pinned application starts and its workbe
 4. **Project operations.** Include view, schedule, sheet, coordinate, phasing, library, plugin, open/save/export and recovery operations with their user-permission boundaries.
 5. **AI operation surface.** Map every native registration to the assistant's read/write tools and the current file-access policy. The native assistant blocks file-reading/writing commands and its image-rendering command; other commands remain subject to the bridge's access rules. A native command can exist while intentionally being disallowed to the assistant.
 
-The pinned baseline contains 214 command registrations. That number is a source inventory count, not 214 proven operator skills.
+The pinned baseline contains 215 command registrations. That number is a source inventory count, not 214 proven operator skills.
 
 ## 2. Every command becomes a learning obligation
 
@@ -147,7 +147,7 @@ The native SFT preparation maps NextCAD traces to the local UI's `message` + `pl
 
 - `discover_nextcad_runtime.FCMacro`: read-only capture of the live FreeCAD command registry and workbench membership. It does not invoke modelling commands or save the user's project.
 - `capability_census.py`: merges the NextCAD source index, live NextCAD report and pinned BIMCraft catalogue; outputs a full census, summary and per-command skill-obligations file.
-- `test_capability_census.py`: checks the 214-command BIM baseline, all ten learning dimensions, source pinning, runtime report validation and policy boundaries.
+- `test_capability_census.py`: checks the 215-command BIM baseline, all ten learning dimensions, source pinning, runtime report validation and policy boundaries.
 
 The remaining integration task is to run the runtime capture against each native build and archive the resulting census. Then the typed AI adapters and per-command scenario builders can be expanded against the real inventory instead of guesses.
 
