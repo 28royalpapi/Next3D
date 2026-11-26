@@ -51,7 +51,7 @@ def _object_summary(obj):
     parameters = {}
     for prop in (
         "Length", "Width", "Height", "Radius", "Angle", "Reversed",
-        "Type", "SideType", "Refine", "Placement",
+        "Type", "SideType", "Refine", "Placement", "Thickness", "Diameter",
     ):
         if not hasattr(obj, prop):
             continue
@@ -126,8 +126,18 @@ def _object_summary(obj):
             result["shape"] = {
                 "valid": bool(shape.isValid()),
                 "volume_mm3": round(float(shape.Volume), 6),
+                "area_mm2": round(float(shape.Area), 6),
                 "solids": len(shape.Solids),
+                "faces": len(shape.Faces),
+                "edges": len(shape.Edges),
+                "vertices": len(shape.Vertexes),
                 "bounding_box_mm": {
+                    "min_x": round(float(box.XMin), 4),
+                    "min_y": round(float(box.YMin), 4),
+                    "min_z": round(float(box.ZMin), 4),
+                    "max_x": round(float(box.XMax), 4),
+                    "max_y": round(float(box.YMax), 4),
+                    "max_z": round(float(box.ZMax), 4),
                     "length_x": round(float(box.XLength), 4),
                     "length_y": round(float(box.YLength), 4),
                     "length_z": round(float(box.ZLength), 4),
@@ -148,6 +158,129 @@ def _doc_summary(doc):
         "object_count": len(all_objects),
         "objects": objects,
         "objects_truncated": len(all_objects) > len(objects),
+    }
+
+
+def _create_model_schedule(doc, args):
+    """Create a native Spreadsheet schedule from actual document objects and geometry."""
+    if not isinstance(args, dict):
+        raise ValueError("Schedule arguments must be an object.")
+    requested = args.get("object_names", [])
+    if not isinstance(requested, list) or len(requested) > 200:
+        raise ValueError("object_names must be a list of at most 200 native object names.")
+    if any(not isinstance(name, str) or not name.strip() for name in requested):
+        raise ValueError("Every schedule object name must be a non-empty string.")
+    if len(set(requested)) != len(requested):
+        raise ValueError("Schedule object_names cannot contain duplicates.")
+
+    schedule_name = str(args.get("name", "NextAIModelSchedule")).strip()
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", schedule_name):
+        raise ValueError("Schedule name must be a simple native identifier of 1 to 40 characters.")
+
+    if requested:
+        objects = []
+        for name in requested:
+            obj = doc.getObject(name)
+            if obj is None:
+                raise ValueError(f"Schedule object '{name}' was not found in the active document.")
+            objects.append(obj)
+    else:
+        objects = [
+            obj for obj in list(doc.Objects)
+            if str(getattr(obj, "TypeId", "")) != "Spreadsheet::Sheet"
+        ][:200]
+
+    if not objects:
+        raise ValueError("There are no native model objects to schedule.")
+    if len(objects) > 200:
+        raise ValueError("A model schedule is limited to 200 objects per operation.")
+
+    headers = [
+        "Mark", "Native object ID", "Component / label", "Native type",
+        "X span (mm)", "Y span (mm)", "Z span (mm)",
+        "Shape area (mm^2)", "Volume (mm^3)", "Solid count",
+        "Faces", "Edges", "Geometry valid", "Native dimensions / properties",
+    ]
+    rows = []
+    for index, obj in enumerate(objects, start=1):
+        summary = _object_summary(obj)
+        shape = summary.get("shape") or {}
+        bounds = shape.get("bounding_box_mm") or {}
+        native_dimensions = []
+        for prop in (
+            "Length", "Width", "Height", "Radius", "Radius1", "Radius2",
+            "Diameter", "Thickness", "Angle",
+        ):
+            try:
+                if prop in list(getattr(obj, "PropertiesList", [])):
+                    native_dimensions.append(f"{prop}={getattr(obj, prop)}")
+            except Exception:
+                continue
+        rows.append([
+            f"M{index:03d}",
+            summary.get("name", ""),
+            summary.get("label", ""),
+            summary.get("type", ""),
+            bounds.get("length_x", ""),
+            bounds.get("length_y", ""),
+            bounds.get("length_z", ""),
+            shape.get("area_mm2", ""),
+            shape.get("volume_mm3", ""),
+            shape.get("solids", ""),
+            shape.get("faces", ""),
+            shape.get("edges", ""),
+            shape.get("valid", ""),
+            "; ".join(native_dimensions),
+        ])
+
+    if doc.getObject(schedule_name) is not None:
+        raise ValueError(
+            f"Schedule object '{schedule_name}' already exists. Choose another name; existing schedules are not overwritten."
+        )
+    sheet = doc.addObject("Spreadsheet::Sheet", schedule_name)
+    if sheet is None or str(getattr(sheet, "TypeId", "")) != "Spreadsheet::Sheet":
+        raise RuntimeError("FreeCAD did not create a native Spreadsheet sheet.")
+
+    def cell_value(value):
+        if isinstance(value, bool):
+            return "TRUE" if value else "FALSE"
+        if value is None:
+            return ""
+        if isinstance(value, (int, float)):
+            return str(value)
+        text_value = str(value)
+        # Prevent a model label from being interpreted as a Spreadsheet formula.
+        if text_value.startswith(("=", "+", "-", "@")):
+            text_value = "'" + text_value
+        return text_value
+
+    def cell_name(column, row):
+        letters = ""
+        value = column + 1
+        while value:
+            value, remainder = divmod(value - 1, 26)
+            letters = chr(65 + remainder) + letters
+        return f"{letters}{row}"
+
+    for column, header in enumerate(headers):
+        sheet.set(cell_name(column, 1), header)
+    for row_index, row in enumerate(rows, start=2):
+        for column, value in enumerate(row):
+            sheet.set(cell_name(column, row_index), cell_value(value))
+
+    try:
+        sheet.Label = str(args.get("label", "NextAI model-derived component schedule"))[:120]
+    except Exception:
+        pass
+    doc.recompute()
+    return {
+        "schedule": sheet.Name,
+        "label": str(getattr(sheet, "Label", sheet.Name)),
+        "type": sheet.TypeId,
+        "row_count": len(rows),
+        "column_count": len(headers),
+        "source_rule": "Native object properties and measured Shape/BoundBox values only; blank values mean the model does not expose that field.",
+        "sample_marks": [row[0] for row in rows[:8]],
     }
 
 
@@ -220,6 +353,9 @@ def _create_step(doc, tool, args):
     App, Gui = _apps()
     if not isinstance(args, dict):
         raise ValueError("Tool arguments must be an object.")
+
+    if tool == "create_model_schedule":
+        return _create_model_schedule(doc, args)
 
     if tool == "create_draft_line":
         import Draft
