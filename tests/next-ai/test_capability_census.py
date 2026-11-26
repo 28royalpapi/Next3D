@@ -93,7 +93,7 @@ class CapabilityCensusTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "catalog.json"
             value = module.read_json(BIM)
-            value["command_count"] = 215
+            value["command_count"] = 214
             path.write_text(json.dumps(value), encoding="utf-8")
             with self.assertRaisesRegex(module.CensusError, "command_count"):
                 module.load_bim_catalog(path)
