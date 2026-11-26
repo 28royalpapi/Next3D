@@ -24,6 +24,8 @@ Return one JSON object with: application, request_summary, assumptions,
 open_questions, steps, and validation_targets. Each step contains sequence,
 tool, tool_schema_version and arguments. Output JSON only."""
 
+NEXTCAD_SYSTEM_PROMPT = """You are NextAI, a local native CAD/BIM operator. Read the confirmed design specification and native document context. Return exactly one JSON object with a natural-language "message" and a "plan" array. Each plan step contains exactly "tool" and "args". Use only the exact typed tool names and argument shapes supplied in the current context. Preserve confirmed units and values. If a critical input is missing, ask a concise question in message and return an empty plan. Do not output Python, shell commands, hidden reasoning or claims that an operation has already been executed. The local native engine performs and validates the plan."""
+
 
 def _valid_record(record: dict[str, Any]) -> tuple[bool, str]:
     required = {
@@ -121,16 +123,33 @@ def _example(record: dict[str, Any]) -> dict[str, Any]:
         for check in record["validation"].get("checks", [])
         if check.get("status") in {"pass", "warning"}
     ]
-    target = {
-        "application": record["application"],
-        "request_summary": task["prompt"],
-        "assumptions": spec.get("assumptions", []),
-        "open_questions": spec.get("unresolved_questions", []),
-        "steps": steps,
-        "validation_targets": targets,
-    }
+    if record["application"] == "nextcad":
+        target = {
+            "message": "I have a confirmed specification and will carry out the approved native CAD plan.",
+            "plan": [
+                {"tool": step["tool"], "args": step["arguments"]}
+                for step in steps
+            ],
+            "application": "nextcad",
+            "request_summary": task["prompt"],
+            "assumptions": spec.get("assumptions", []),
+            "open_questions": spec.get("unresolved_questions", []),
+            "validation_targets": targets,
+            "tool_schema_version": record.get("adapter_schema_version", "unknown"),
+        }
+        system_prompt = NEXTCAD_SYSTEM_PROMPT
+    else:
+        target = {
+            "application": record["application"],
+            "request_summary": task["prompt"],
+            "assumptions": spec.get("assumptions", []),
+            "open_questions": spec.get("unresolved_questions", []),
+            "steps": steps,
+            "validation_targets": targets,
+        }
+        system_prompt = SYSTEM_PROMPT
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": json.dumps(context, ensure_ascii=False, sort_keys=True)},
         {"role": "assistant", "content": json.dumps(target, ensure_ascii=False, sort_keys=True)},
     ]
