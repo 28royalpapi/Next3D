@@ -14,6 +14,23 @@ The pack is deliberately small and text-only. It adds no second model and no geo
 - `design/design-execution.md`: staged native model creation, editable feature history, room zoning, watchtower component schedules, vehicle packaging, geometry-aware primitive selection, mechanical parts, in-place editing, BIM element workflows and honest validation reports.
 - `bim/native-command-playbook.md`: BIMCraft command discovery, staged building creation, room validation, watchtower/guard-tower workflows, in-place element editing and BIM reporting.
 
+## Progressive engineering skills
+
+The `skills/` directory uses local Markdown `SKILL.md` files. Every skill has a short name/description/tags/aliases entry in the catalogue. At request time, the local registry ranks the skills and loads only the best-matching full instructions (up to three). This is progressive disclosure for a small local Qwen student: it receives the domain knowledge needed for the current design, not every engineering procedure in every turn.
+
+A skill teaches the student what the object/system is, what questions to ask, what components and deliverables matter, and how to stage the work. It does not execute Python or authorize an operation. The exact NextCAD tool schemas, live workbench/API inventory and native validators remain authoritative.
+
+Initial skills cover:
+- general engineering-operator method;
+- residential floor-plan intake, room programme, wall/opening stages and room/wall schedules;
+- elevated water-storage towers;
+- mechanical gears/transmissions;
+- vehicle packaging;
+- electrical control panels;
+- civil roads and drainage.
+
+These are authored knowledge lessons (L0). They are not native execution examples, proven engineering designs, or evidence of a trained model. Missing native functions must remain visible as capability gaps. For example, a gear skill cannot make an involute gear generator available if the running FreeCAD installation exposes no reviewed native operation for it.
+
 ## Authority order
 
 1. The open native project and its live application version.
