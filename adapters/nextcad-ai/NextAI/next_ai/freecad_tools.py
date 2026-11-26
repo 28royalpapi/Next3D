@@ -4,8 +4,11 @@ No Python console, exec/eval, shell or arbitrary macro execution is exposed.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import re
+import uuid
 
 # Generic GUI-command execution is restricted to reviewed, non-destructive view controls.
 # Native model edits must use typed adapters with validated arguments.
@@ -1580,14 +1583,23 @@ def _partdesign_step(doc, tool, args):
     raise ValueError(f"Unknown PartDesign NextAI tool: {tool}")
 
 
+def _native_document_state_hash(doc):
+    """Hash a deterministic, privacy-conscious summary of the live native document."""
+    summary = _doc_summary(doc)
+    encoded = json.dumps(summary, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
 def execute_plan(token, plan, progress_callback=None):
-    """Execute an approved plan in one undo transaction, refreshing the native viewport per step."""
+    """Execute an approved plan in one undo transaction and retain verifiable step traces."""
     doc = _assert_turn(token)
     if not isinstance(plan, list) or not 1 <= len(plan) <= 20:
         raise ValueError("A native plan must contain between 1 and 20 steps.")
     _App, Gui = _apps()
+    transaction_id = uuid.uuid4().hex
     doc.openTransaction("Next AI: approved design operation")
     results = []
+    operations = []
     try:
         for index, step in enumerate(plan, start=1):
             _assert_turn(token)
@@ -1596,9 +1608,13 @@ def execute_plan(token, plan, progress_callback=None):
             tool = step.get("tool")
             if not isinstance(tool, str):
                 raise ValueError(f"Plan step {index} has no tool name.")
+            arguments = step.get("args", {})
+            if not isinstance(arguments, dict):
+                raise ValueError(f"Plan step {index} arguments must be an object.")
             if progress_callback is not None:
                 progress_callback(index, len(plan), tool, "starting")
-            result = _create_step(doc, tool, step.get("args", {}))
+            before_state_hash = _native_document_state_hash(doc)
+            result = _create_step(doc, tool, arguments)
             # Recompute and repaint after every real native operation. This makes
             # approved multi-step plans visibly build in the open CAD viewport.
             doc.recompute()
@@ -1606,7 +1622,18 @@ def execute_plan(token, plan, progress_callback=None):
                 Gui.updateGui()
             except Exception:
                 pass
+            after_state_hash = _native_document_state_hash(doc)
             results.append({"step": index, **result})
+            operations.append({
+                "sequence": index - 1,
+                "tool": tool,
+                "arguments": dict(arguments),
+                "result": result,
+                "status": "applied",
+                "transaction_id": transaction_id,
+                "before_state_hash": before_state_hash,
+                "after_state_hash": after_state_hash,
+            })
             if progress_callback is not None:
                 progress_callback(index, len(plan), tool, "completed")
         doc.recompute()
@@ -1625,4 +1652,10 @@ def execute_plan(token, plan, progress_callback=None):
                 pass
         finally:
             raise
-    return {"success": True, "document": _doc_summary(doc), "results": results}
+    return {
+        "success": True,
+        "transaction_id": transaction_id,
+        "document": _doc_summary(doc),
+        "results": results,
+        "operations": operations,
+    }
