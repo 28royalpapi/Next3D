@@ -7,6 +7,22 @@ from __future__ import annotations
 import math
 import re
 
+# Generic GUI-command execution is restricted to reviewed, non-destructive view controls.
+# Native model edits must use typed adapters with validated arguments.
+SAFE_VIEW_COMMANDS = frozenset({
+    "Std_ViewFitAll",
+    "Std_ViewIsometric",
+    "Std_ViewAxonometric",
+    "Std_ViewTop",
+    "Std_ViewBottom",
+    "Std_ViewFront",
+    "Std_ViewRear",
+    "Std_ViewLeft",
+    "Std_ViewRight",
+    "Std_OrthographicCamera",
+    "Std_PerspectiveCamera",
+})
+
 
 def _apps():
     import FreeCAD as App
@@ -925,18 +941,20 @@ def _create_step(doc, tool, args):
 
     if tool == "run_native_command":
         command_id = args.get("command_id")
+        if not isinstance(command_id, str) or command_id not in SAFE_VIEW_COMMANDS:
+            raise ValueError(
+                "Generic GUI-command execution is limited to reviewed view commands. "
+                "Use a typed NextAI operation for model changes; discovering a GUI command does not authorise execution."
+            )
         native_commands = Gui.listCommands()
         if isinstance(native_commands, dict):
             commands = {str(key) for key in native_commands.keys()}
         else:
             commands = {str(item) for item in native_commands}
-        if not isinstance(command_id, str) or command_id not in commands:
-            raise ValueError("That native command is not registered in this NextCAD installation.")
-        blocked = ("Macro", "Python", "Quit", "Exit", "Open", "CloseAll", "SaveAs")
-        if any(part in command_id for part in blocked):
-            raise ValueError("This native command is outside NextAI's approved command set.")
+        if command_id not in commands:
+            raise ValueError(f"Native view command '{command_id}' is not registered in this NextCAD session.")
         Gui.runCommand(command_id, 0)
-        return {"native_command_started": command_id}
+        return {"native_command_started": command_id, "effect": "view_only"}
 
     if tool in {
         "create_partdesign_body",
