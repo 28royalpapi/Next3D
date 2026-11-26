@@ -2589,6 +2589,7 @@ def make_local_skill_curriculum() -> list[dict[str, Any]]:
     This teaches the compact student the same domain procedures available to
     its local retrieval system without claiming a native execution occurred.
     """
+    import hashlib
     import re
     from pathlib import Path
 
@@ -2687,6 +2688,9 @@ def make_local_skill_curriculum() -> list[dict[str, Any]]:
         description = str(metadata.get("description") or "").strip()
         if not name or not description:
             continue
+        skill_source_id = hashlib.sha256(
+            skill_path.relative_to(skill_root).as_posix().encode("utf-8")
+        ).hexdigest()[:16]
         body = "\n".join(lines[end + 1:]).strip()
         if not body:
             continue
@@ -2694,6 +2698,7 @@ def make_local_skill_curriculum() -> list[dict[str, Any]]:
         for index, (heading, chunk) in enumerate(sections, start=1):
             slug = re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")[:36] or "overview"
             lessons.append({
+                "record_id": f"skill-{skill_source_id}-{index:04d}",
                 "domain": "engineering_skill_knowledge",
                 "system": system,
                 "prompt": (
@@ -2709,7 +2714,7 @@ def make_local_skill_curriculum() -> list[dict[str, Any]]:
                     "Evidence status: L0 authored knowledge only. No native operation was executed "
                     "and no geometry or engineering design is thereby validated."
                 ),
-                "split_group": f"nextai-skill-{name}",
+                "split_group": f"nextai-skill-{skill_source_id}",
                 "stage": "local_skill_knowledge",
                 "skill_name": name,
                 "skill_section": heading,
