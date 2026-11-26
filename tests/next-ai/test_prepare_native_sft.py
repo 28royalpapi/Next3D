@@ -116,10 +116,11 @@ class PrepareNativeSftTests(unittest.TestCase):
             user_context = json.loads(example["messages"][1]["content"])
             self.assertEqual(user_context["native_context"]["document_state_at_request"]["stage"], "before")
             self.assertNotIn("after", user_context["native_context"])
-            self.assertIn(
-                "Recorded native operation 0 create_box exact input arguments",
-                user_context["specification"]["constraints"][-1],
-            )
+            self.assertEqual(user_context["specification"], item["specification"])
+            self.assertFalse(any("Recorded native operation" in value
+                                 for value in user_context["specification"]["constraints"]))
+            target = json.loads(example["messages"][2]["content"])
+            self.assertEqual(target["plan"][0]["args"]["length"], 100)
 
     def test_nextbim_native_trace_keeps_its_application_specific_steps_contract(self):
         item = make_record("bim-record", "train", "bim-project")
