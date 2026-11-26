@@ -26,6 +26,13 @@ The local execution environment has no Rust/Cargo compiler, Pixi environment or 
 
 The source archives contain genuine upstream documentation images, not screenshots of the modified NextCAD or Next BIM applications. No image is labelled as a Next 3D application screenshot until it is captured from the newly built executable. The Linux native build workflow attempts to upload real GUI screenshots as artifacts after launching each application.
 
+## Current AI curriculum preparation
+
+- The checked-in Next BIM native command catalogue contains **215 registrations** at the pinned BIMCraft revision. Registrations are inventory entries, not proof that all 215 commands are exposed to or mastered by Next AI.
+- The no-GPU curriculum workflow builds a version-pinned NextCAD/Next BIM capability census, assembles the multimodal CAD/BIM/engineering corpus, and audits source-group separation across train, validation and held-out test splits. Its first run stopped at Python setup because pip caching was configured without a dependency manifest; the workflow configuration has been corrected and is being rerun.
+- Native NextCAD training examples now include the same reviewed, task-selected typed tool schemas supplied at runtime. Held-out evaluation now supplies those schemas too. These changes are awaiting the native source-preparation CI run.
+- No fine-tuned model has been produced or evaluated yet. No Hugging Face GPU job has been started. Model training and the native unseen-task execution benchmark remain pending; no training or native mastery is claimed from the corpus build alone.
+
 ## Next AI
 
 - NextCAD has a native Next AI workbench adapter with a local-only OpenAI-compatible provider, live workbench/document discovery, a typed starter tool registry, native plan approval, and one-transaction execution. The starter write tools remain limited; full Sketcher, PartDesign, Assembly, TechDraw, advanced BIM, FEM and CAM coverage is not yet complete.
@@ -34,6 +41,6 @@ The source archives contain genuine upstream documentation images, not screensho
 - The provider now checks the local Ollama version and selected model installation before users rely on image input. The selected model identifier is the Hugging Face Ollama route `hf.co/turintech/Qwen3.5-0.8B-Artemis-GGUF:Q5_K_M`, which requires Ollama 0.40.11 or newer for the publisher's multimodal setup.
 - Selected model candidate: Qwen3.5-0.8B Artemis Q5_K_M, approximately 569 MB plus its approximately 205 MB vision projector. These are approximate download sizes; the full package-size acceptance remains pending. The earlier axteam 541,903,360-byte quantisation has been superseded because its model card says it lacks the vision encoder.
 - A specialist engineering training and evaluation plan is documented in `docs/next-ai/ENGINEERING_SPECIALIZATION.md`. No fine-tune has been completed yet.
-- Next BIM reuses BIMCraft's native Assistant as the default Next AI workspace. The local-provider source patch and 214-command catalogue exist, but the exact Artemis model configuration, multimodal image path, full command-level acceptance and runtime behaviour remain to be completed and tested.
+- Next BIM reuses BIMCraft's native Assistant as the default Next AI workspace. The local-provider source patch and 215-command catalogue exist, but the exact Artemis model configuration, multimodal image path, full command-level acceptance and runtime behaviour remain to be completed and tested.
 - Neither the selected model nor the CAD/BIM adapters have passed an end-to-end local model test or the native desktop build/launch/save-reopen gates. The 1.2 GB cross-platform package target is not yet proven.
 
