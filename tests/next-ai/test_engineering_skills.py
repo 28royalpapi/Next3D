@@ -107,8 +107,11 @@ class EngineeringSkillRegistryTests(unittest.TestCase):
             (refs / "dimensions.md").write_text("Dimensions are in millimetres.\n", encoding="utf-8")
             (skill_dir / "secret.txt").write_text("not allowed", encoding="utf-8")
             registry = engineering_skills.EngineeringSkillRegistry(root)
+            reference_text = registry.read_reference(
+                "skill-one", "references/dimensions.md"
+            )["output"]
             self.assertEqual(
-                registry.read_reference("skill-one", "references/dimensions.md")["output"],
+                reference_text.replace("\\r\\n", "\\n"),
                 "Dimensions are in millimetres.\n",
             )
             self.assertIn("not in the skill's Markdown allow-list", registry.read_reference(
