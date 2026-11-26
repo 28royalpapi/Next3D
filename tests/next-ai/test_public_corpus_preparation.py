@@ -103,7 +103,7 @@ class TrainingDatasetIntegrityTests(unittest.TestCase):
 
 
 class PublicCorpusPreparationTests(unittest.TestCase):
-    def test_load_stream_uses_bounded_buffer_for_binary_image_rows(self):
+    def test_load_stream_uses_tiny_buffer_for_multiview_cad_images(self):
         class FakeIterable:
             def __init__(self):
                 self.shuffle_args = None
@@ -122,7 +122,30 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         from unittest.mock import patch
         import sys
         with patch.dict(sys.modules, {"datasets": datasets_stub}):
-            rows = list(module.load_stream("example/cad", "train", 3, 42))
+            rows = list(module.load_stream(module.CAD_DATASET, "train", 3, 42))
+        self.assertEqual(rows, [0, 1, 2])
+        self.assertEqual(iterable.shuffle_args, (42, 4))
+
+    def test_load_stream_uses_bounded_buffer_for_non_cad_sources(self):
+        class FakeIterable:
+            def __init__(self):
+                self.shuffle_args = None
+
+            def shuffle(self, *, seed, buffer_size):
+                self.shuffle_args = (seed, buffer_size)
+                return self
+
+            def __iter__(self):
+                return iter(range(10))
+
+        iterable = FakeIterable()
+        datasets_stub = type("DatasetsStub", (), {
+            "load_dataset": staticmethod(lambda repo, split, streaming: iterable)
+        })
+        from unittest.mock import patch
+        import sys
+        with patch.dict(sys.modules, {"datasets": datasets_stub}):
+            rows = list(module.load_stream("example/bim", "train", 3, 42))
         self.assertEqual(rows, [0, 1, 2])
         self.assertEqual(iterable.shuffle_args, (42, 64))
 
