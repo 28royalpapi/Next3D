@@ -149,6 +149,25 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertEqual(rows, [0, 1, 2])
         self.assertEqual(iterable.shuffle_args, (42, 64))
 
+    def test_local_skill_curriculum_has_stable_unique_record_ids_and_disjoint_splits(self):
+        lessons = module.make_local_skill_curriculum()
+        self.assertTrue(lessons, "The checked-in project should expose its local skill curriculum.")
+        record_ids = [row.get("record_id") for row in lessons]
+        self.assertTrue(all(record_ids), "Every local skill lesson must have a stable record ID.")
+        self.assertEqual(len(record_ids), len(set(record_ids)))
+        self.assertEqual(
+            record_ids,
+            [row["record_id"] for row in module.make_local_skill_curriculum()],
+            "Record IDs must be stable across corpus rebuilds.",
+        )
+
+        splits = module.split_synthetic_curriculum(lessons)
+        integrity = train_module.validate_training_splits(
+            splits["train"], splits["validation"], splits["test"]
+        )
+        self.assertEqual(integrity["status"], "PASS")
+        self.assertEqual(integrity["cross_split_identity_conflicts"], 0)
+
     def test_cad_operations_keep_feature_order_and_parameters(self):
         rows = [
             {"op_name": "box", "args": ["width", "depth", "height"], "keywords": [], "lineno": 2},
