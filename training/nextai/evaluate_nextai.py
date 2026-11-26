@@ -220,6 +220,24 @@ def prompt_for(row: dict[str, Any]) -> tuple[str, str, list[str], str]:
     return system, prompt, images, expected
 
 
+def chat_template_kwargs_for(row: dict[str, Any]) -> dict[str, Any]:
+    """Return the same tool/template context used during SFT for held-out generation."""
+    raw_kwargs = row.get("chat_template_kwargs") or {}
+    if not isinstance(raw_kwargs, dict):
+        raise ValueError("chat_template_kwargs must be a JSON object.")
+    kwargs = dict(raw_kwargs)
+    tools = row.get("tools")
+    if tools is not None:
+        if not isinstance(tools, list) or not tools:
+            raise ValueError("The tools field must be a non-empty function-schema list.")
+        if "tools" in kwargs and kwargs["tools"] != tools:
+            raise ValueError("Top-level tools and chat_template_kwargs.tools disagree.")
+        kwargs["tools"] = tools
+    if "add_generation_prompt" in kwargs:
+        raise ValueError("add_generation_prompt is controlled by the evaluator.")
+    return kwargs
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True, help="Base Hugging Face model or local LoRA/model directory")
@@ -271,9 +289,11 @@ def main() -> int:
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": user_content})
+        template_kwargs = chat_template_kwargs_for(row)
         input_text = tokenizer.apply_chat_template(
             messages,
             add_generation_prompt=True,
+            **template_kwargs,
         )
         if images:
             inputs = tokenizer(
@@ -306,6 +326,7 @@ def main() -> int:
         records.append({
             "record_id": row.get("record_id", f"record-{index}"),
             "domain": domain,
+            "tool_schema_supplied": bool(template_kwargs.get("tools")),
             "predicted": output_text,
             "scores": scores,
         })
