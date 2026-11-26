@@ -36,7 +36,9 @@ def main() -> int:
     output = (args.output or (repo / "artifacts" / "nextcad-ai-native-acceptance.json")).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     project = output.with_name("nextcad-ai-native-acceptance.FCStd")
-    for path in (output, project):
+    stage_project = output.with_name("nextcad-ai-native-acceptance-stage-a.FCStd")
+    trace_path = output.with_name("nextcad-ai-native-acceptance-trace.jsonl")
+    for path in (output, project, stage_project, trace_path):
         if path.exists():
             path.unlink()
 
@@ -55,9 +57,11 @@ def main() -> int:
 
     env = os.environ.copy()
     env["NEXT3D_HOME"] = str(repo)
+    env["NEXT3D_NEXTCAD_SOURCE_COMMIT"] = "00cb280454069966a2fb0a8e7dc184c46e7b38b3"
     env["NEXT3D_NEXTCAD_AI_MODULE_PATH"] = str(module_root)
     env["NEXT3D_NEXTCAD_AI_ACCEPTANCE_MARKER"] = str(output)
     env["NEXT3D_NEXTCAD_AI_ACCEPTANCE_PROJECT"] = str(project)
+    env["NEXT3D_NEXTCAD_AI_ACCEPTANCE_STAGE_PROJECT"] = str(stage_project)
     log_path = output.with_suffix(output.suffix + ".launcher.log")
     process = None
     try:
@@ -97,11 +101,25 @@ def main() -> int:
                 )
             if not project.is_file() or project.stat().st_size == 0:
                 raise RuntimeError("Native acceptance did not produce a saved FCStd project.")
+            if not stage_project.is_file() or stage_project.stat().st_size == 0:
+                raise RuntimeError("Native acceptance did not preserve its staged FCStd round-trip.")
+            if not trace_path.is_file() or trace_path.stat().st_size == 0:
+                raise RuntimeError("Native acceptance did not produce its versioned native-operation trace.")
+            trace_rows = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            if len(trace_rows) != 2 or any(row.get("split") != "test" for row in trace_rows):
+                raise RuntimeError("Native acceptance trace must contain two held-out test records.")
+            if any(len(row.get("operations", [])) > 20 for row in trace_rows):
+                raise RuntimeError("A native acceptance plan exceeds the NextAI runtime step limit.")
             print(
                 "NEXTAI NATIVE ACCEPTANCE PASS: "
                 f"{len(result.get('checks', {}))} checks, "
                 f"{result.get('native_object_count')} reopened objects, "
-                f"report={output}, project={project}"
+                f"{sum(len(row.get('operations', [])) for row in trace_rows)} native operation records, "
+                f"report={output}, project={project}, trace={trace_path}"
             )
     finally:
         if process is not None and process.poll() is None:
