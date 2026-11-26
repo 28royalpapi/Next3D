@@ -3,9 +3,19 @@
   "application": "nextcad",
   "upstream_commit": "00cb280454069966a2fb0a8e7dc184c46e7b38b3",
   "source_root": "src/Mod",
-  "module_count": 30,
-  "note": "This is a source-tree index, not proof that every workbench loads or all of its external solvers/add-ons are installed. Runtime discovery and acceptance tests are required.",
+  "module_count": 32,
+  "note": "This index includes the 30 directories in the pinned upstream module tree plus the pinned AddonManager nested source dependency and the first-party NextAI adapter installed into src/Mod/NextAI. It is a source-tree index, not proof that every workbench loads or all external solvers/add-ons are installed. Runtime discovery and acceptance tests are required.",
   "modules": [
+    {
+      "module": "AddonManager",
+      "source_path": "src/Mod/AddonManager",
+      "source_present": true,
+      "source_kind": "pinned_nested_git_submodule",
+      "source_repository": "https://github.com/FreeCAD/AddonManager.git",
+      "source_commit": "745c1b1ebc8bc684439210c5fa237d2c6287153b",
+      "runtime_status": "not_yet_verified",
+      "ai_discovery_rule": "Treat AddonManager as an optional integration. Inventory its installed/runtime commands and dependency status separately; installing or executing add-ons requires explicit user consent."
+    },
     {
       "module": "Assembly",
       "source_path": "src/Mod/Assembly",
@@ -96,6 +106,15 @@
       "source_present": true,
       "runtime_status": "not_yet_verified",
       "ai_discovery_rule": "Only expose this module's tools if its workbench loads in the running NextCAD process and the required dependencies are available."
+    },
+    {
+      "module": "NextAI",
+      "source_path": "adapters/nextcad-ai/NextAI",
+      "installed_path": "src/Mod/NextAI",
+      "source_present": true,
+      "source_kind": "next3d_first_party_adapter",
+      "runtime_status": "adapter_installed_runtime_pending",
+      "ai_discovery_rule": "This is the first-party Next3D AI adapter, not an upstream FreeCAD workbench. Load its own local typed tools and skill packs; it must not elevate arbitrary GUI commands or scripts."
     },
     {
       "module": "OpenSCAD",
