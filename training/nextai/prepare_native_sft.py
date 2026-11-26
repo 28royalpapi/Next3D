@@ -14,6 +14,11 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from schema_validation import SchemaValidationError, validate_training_record
 
+ADAPTER_ROOT = Path(__file__).resolve().parents[2] / "adapters" / "nextcad-ai" / "NextAI"
+if str(ADAPTER_ROOT) not in sys.path:
+    sys.path.insert(0, str(ADAPTER_ROOT))
+from next_ai import tool_registry as NEXTCAD_TOOL_REGISTRY
+
 SYSTEM_PROMPT = """You are NextAI, an engineering-focused CAD/BIM operator.
 Understand the user's design intent and return a compact JSON tool plan for the
 specified native application. Use only the exact application-specific tool names
@@ -94,6 +99,31 @@ def _valid_record(record: dict[str, Any]) -> tuple[bool, str]:
 
 def _source_group(record: dict[str, Any]) -> str:
     return f'{record["application"]}:{record["source"].get("source_id", "")}'
+
+
+def _nextcad_tool_schemas(prompt: str, operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Attach the same reviewed, query-selected function schemas used by NextCAD at runtime."""
+    registry_tools = {item["name"]: item for item in NEXTCAD_TOOL_REGISTRY.TOOLS}
+    selected = NEXTCAD_TOOL_REGISTRY.select_tool_schemas(prompt, limit=14)
+    selected_by_name = {item["name"]: item for item in selected}
+    for operation in operations:
+        name = str(operation.get("tool") or "").strip()
+        if not name or name not in registry_tools:
+            raise ValueError(f"Native NextCAD trace references an unknown registered tool: {name!r}")
+        if name not in selected_by_name:
+            selected.append(registry_tools[name])
+            selected_by_name[name] = registry_tools[name]
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": item["name"],
+                "description": item["description"],
+                "parameters": item["parameters"],
+            },
+        }
+        for item in selected
+    ]
 
 
 def _example(record: dict[str, Any]) -> dict[str, Any]:
@@ -182,7 +212,7 @@ def _example(record: dict[str, Any]) -> dict[str, Any]:
         "redaction_status": privacy.get("redaction_status"),
         "user_consent": privacy.get("user_consent") is True,
     }
-    return {
+    example = {
         "messages": messages,
         "record_id": record["record_id"],
         "application": record["application"],
@@ -192,6 +222,9 @@ def _example(record: dict[str, Any]) -> dict[str, Any]:
         "source": source_metadata,
         "privacy": privacy_metadata,
     }
+    if record["application"] == "nextcad":
+        example["tools"] = _nextcad_tool_schemas(task["prompt"], record["operations"])
+    return example
 
 
 def prepare(input_path: Path, output_dir: Path) -> dict[str, Any]:
