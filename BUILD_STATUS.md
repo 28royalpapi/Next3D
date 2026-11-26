@@ -1,5 +1,17 @@
 # Build and verification status
 
+## Live checkpoint — 2026-11-26
+
+- Working branch: `nextai-operator-foundation`; current checkpoint commit: `71789997dd303a67f4ca3e047130772cee06a605`.
+- Latest native matrix: [Actions run 45853989447](https://github.com/28royalpapi/Next3D/actions/runs/45853989447). At this checkpoint the six NextCAD/Next BIM OS jobs are still running; no full native acceptance claim is made.
+- The run's pinned-source verification and all **171** NextAI/data-pipeline tests passed, including the three new notebook-contract tests.
+- Current native fixes included the Linux XKB runtime before the NextCAD GUI acceptance step, a 600-second timeout for the real GUI acceptance macro (no assertions skipped), and corrected README count of 215 BIMCraft registrations.
+- The Qwen3.5 notebook now evaluates base and tuned models on the same held-out corpus and separately runs the train-excluded engineering benchmark against both; both reports are persisted with the candidate.
+- The latest corpus audit remains 25,780 train / 2,730 validation / 1,415 held-out test records across 83 labelled domains. The raw training corpus is not included in the audit artifact.
+- The connected Hugging Face credential now reports repository contribution permission. The intended private model and dataset repositories exist but currently contain only repository metadata; no corpus, checkpoint or model weights have been uploaded.
+- No fine-tuning has started and no GPU job is running. The project's existing constraint against paid Hugging Face Jobs or paid Space hardware remains in force. The free ZeroGPU allowance is not sufficient for the full multimodal training run.
+- Do not call a Python test, a training script, a prepared dataset, or a model candidate a trained student. Training, independent evaluation, export and local runtime acceptance remain pending.
+
 ## Selector
 
 The selector-only GitHub Actions run `44911879342` passed on Ubuntu 24.04, Windows 2025 and macOS 15 Intel. This validates the selector UI and its app-card callbacks only.
@@ -50,5 +62,5 @@ The source archives contain genuine upstream documentation images, not screensho
 
 - Curriculum audit: Actions run [45831337789](https://github.com/28royalpapi/Next3D/actions/runs/45831337789) passed. Main corpus: 25,780 train / 2,730 validation / 1,415 test; 83 labelled domains; zero cross-split identity conflicts; test excluded from training.
 - The census includes 32 NextCAD source modules and 215 Next BIM command registrations. It does **not** contain live NextCAD runtime commands/API members; source presence must not be presented as a complete runtime inventory.
-- Native CI: [run 45838757169](https://github.com/28royalpapi/Next3D/actions/runs/45838757169) passed source preparation and is running the six-OS/app matrix. Final compile, launch, real operation, save/reopen and unit-test results remain pending.
-- No model has been fine-tuned. No paid HF Job or upgraded Space hardware may be used. The current HF identity has no Hub write-repo scope; checkpoint upload/Space creation requires an authorised write connection.
+- The earlier native CI run [45838757169](https://github.com/28royalpapi/Next3D/actions/runs/45838757169) was superseded and cancelled while later commits were pushed; it must not be reported as a full pass. Use the live checkpoint above for current evidence.
+- No model has been fine-tuned. No paid HF Job or upgraded Space hardware may be used under the existing project constraint. The connected Hugging Face credential now reports repository contribution permission, but the target private repositories remain empty.
