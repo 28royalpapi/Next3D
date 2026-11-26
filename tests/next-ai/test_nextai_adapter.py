@@ -629,6 +629,25 @@ class NativeToolSafetyTests(unittest.TestCase):
 
 
 class NativeOperatorExtensionTests(unittest.TestCase):
+    def test_plan_execution_is_limited_to_tool_schemas_supplied_for_the_turn(self):
+        from unittest.mock import patch
+
+        token = object()
+        plan = [{"tool": "create_part_box", "args": {"length": 10, "width": 10, "height": 10}}]
+        with patch.object(freecad_tools, "execute_plan") as execute:
+            with self.assertRaises(ValueError):
+                tool_registry.execute_approved_plan(
+                    token, plan, allowed_tool_names={"create_draft_line"}
+                )
+            execute.assert_not_called()
+
+        with patch.object(freecad_tools, "execute_plan", return_value={"success": True}) as execute:
+            result = tool_registry.execute_approved_plan(
+                token, plan, allowed_tool_names={"create_part_box"}
+            )
+            self.assertEqual(result, {"success": True})
+            execute.assert_called_once()
+
     def test_reusable_freecad_operator_actions_are_available_as_typed_tools(self):
         expected = {
             "boolean_operation",
