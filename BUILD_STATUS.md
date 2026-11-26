@@ -29,9 +29,9 @@ The source archives contain genuine upstream documentation images, not screensho
 ## Current AI curriculum preparation
 
 - The checked-in Next BIM native command catalogue contains **215 registrations** at the pinned BIMCraft revision. Registrations are inventory entries, not proof that all 215 commands are exposed to or mastered by Next AI.
-- The no-GPU curriculum workflow builds a version-pinned NextCAD/Next BIM capability census, assembles the multimodal CAD/BIM/engineering corpus, and audits source-group separation across train, validation and held-out test splits. Its first run stopped at Python setup because pip caching was configured without a dependency manifest; the workflow configuration has been corrected and is being rerun.
+- The CPU-only curriculum workflow completed successfully in Actions run `45831337789`. Its audit reports 25,780 train, 2,730 validation and 1,415 held-out test records across 83 labelled domains, with split-integrity checks passing and the held-out test excluded from gradient updates. The artifact contains the manifest and audit profile, not the full raw training corpus.
 - Native NextCAD training examples now include the same reviewed, task-selected typed tool schemas supplied at runtime. Held-out evaluation now supplies those schemas too. These changes are awaiting the native source-preparation CI run.
-- No fine-tuned model has been produced or evaluated yet. No Hugging Face GPU job has been started. Model training and the native unseen-task execution benchmark remain pending; no training or native mastery is claimed from the corpus build alone.
+- No fine-tuned model has been produced or evaluated yet. No Hugging Face paid GPU job has been started. The free-account ZeroGPU allowance is 5 GPU minutes/day; the 25,780-record multimodal fine-tune is not being represented as achievable within that quota. NextCAD live runtime capture is still missing (0 runtime commands and 0 Python API members in the current census), and the 28-case engineering benchmark has not yet been run against a trained student. Native unseen-task execution remains pending.
 
 ## Next AI
 
@@ -44,3 +44,11 @@ The source archives contain genuine upstream documentation images, not screensho
 - Next BIM reuses BIMCraft's native Assistant as the default Next AI workspace. The local-provider source patch and 215-command catalogue exist, but the exact Artemis model configuration, multimodal image path, full command-level acceptance and runtime behaviour remain to be completed and tested.
 - Neither the selected model nor the CAD/BIM adapters have passed an end-to-end local model test or the native desktop build/launch/save-reopen gates. The 1.2 GB cross-platform package target is not yet proven.
 
+
+
+## 2026-11-26 verified pipeline update
+
+- Curriculum audit: Actions run [45831337789](https://github.com/28royalpapi/Next3D/actions/runs/45831337789) passed. Main corpus: 25,780 train / 2,730 validation / 1,415 test; 83 labelled domains; zero cross-split identity conflicts; test excluded from training.
+- The census includes 32 NextCAD source modules and 215 Next BIM command registrations. It does **not** contain live NextCAD runtime commands/API members; source presence must not be presented as a complete runtime inventory.
+- Native CI: [run 45838757169](https://github.com/28royalpapi/Next3D/actions/runs/45838757169) passed source preparation and is running the six-OS/app matrix. Final compile, launch, real operation, save/reopen and unit-test results remain pending.
+- No model has been fine-tuned. No paid HF Job or upgraded Space hardware may be used. The current HF identity has no Hub write-repo scope; checkpoint upload/Space creation requires an authorised write connection.
