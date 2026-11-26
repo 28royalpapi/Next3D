@@ -169,6 +169,10 @@ def main() -> int:
     parser.add_argument("--learning-rate", type=float, default=1.0e-4)
     parser.add_argument("--lora-rank", type=int, default=16)
     parser.add_argument("--skip-gguf", action="store_true")
+    parser.add_argument(
+        "--resume-from-checkpoint", type=Path,
+        help="Resume the same training run from a Trainer checkpoint directory.",
+    )
     parser.add_argument("--save-merged-model", action="store_true",
                         help="Save a temporary merged 16-bit checkpoint for vision-projector Q8 export.")
     args = parser.parse_args()
@@ -240,6 +244,7 @@ def main() -> int:
 
     model, tokenizer = FastVisionModel.from_pretrained(
         model_name=args.base_model,
+        max_seq_length=args.max_seq_length,
         load_in_4bit=False,
         use_gradient_checkpointing="unsloth",
     )
@@ -269,6 +274,7 @@ def main() -> int:
         "max_steps": args.max_steps,
         "num_train_epochs": args.num_train_epochs,
         "max_seq_length": args.max_seq_length,
+        "resume_from_checkpoint": str(args.resume_from_checkpoint) if args.resume_from_checkpoint else None,
         "batch_size": args.batch_size,
         "gradient_accumulation": args.gradient_accumulation,
         "effective_batch_size": args.batch_size * args.gradient_accumulation,
@@ -317,7 +323,15 @@ def main() -> int:
         eval_dataset=ConversationDataset(validation_rows),
         args=config,
     )
-    train_metrics = trainer.train()
+    if args.resume_from_checkpoint is not None and not args.resume_from_checkpoint.is_dir():
+        raise FileNotFoundError(
+            f"Resume checkpoint directory does not exist: {args.resume_from_checkpoint}"
+        )
+    train_metrics = trainer.train(
+        resume_from_checkpoint=(
+            str(args.resume_from_checkpoint) if args.resume_from_checkpoint else None
+        )
+    )
     eval_metrics = trainer.evaluate()
 
     def evaluate_by_domain(rows, prefix):
