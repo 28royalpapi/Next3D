@@ -315,10 +315,13 @@ def make_bim_qa_record(row: dict[str, Any], record_id: str, split: str) -> dict[
 def load_stream(repo: str, split: str, limit: int, seed: int):
     from datasets import load_dataset
     dataset = load_dataset(repo, split=split, streaming=True)
-    # Shuffle every split deterministically so a bounded validation/test sample
-    # is not merely the first shard or first alphabetic source records.
+    # Shuffle shards and a small in-memory row buffer deterministically. CAD
+    # records contain binary multi-view images; a 5,000-row Arrow shuffle buffer
+    # can exceed Arrow's 2 GiB binary-offset limit before sampling even begins.
+    # Shard order is still shuffled by datasets, while 64 rows keep image bytes
+    # bounded and avoid concatenating a multi-gigabyte Arrow binary array.
     split_seed = seed + {"train": 0, "validation": 1, "test": 2}.get(split, 3)
-    dataset = dataset.shuffle(seed=split_seed, buffer_size=5000)
+    dataset = dataset.shuffle(seed=split_seed, buffer_size=64)
     return itertools.islice(iter(dataset), max(0, limit))
 
 
