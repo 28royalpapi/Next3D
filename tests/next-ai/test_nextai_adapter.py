@@ -653,7 +653,7 @@ class NativeOperatorExtensionTests(unittest.TestCase):
             result = tool_registry.execute_approved_plan(
                 token, plan, allowed_tool_names={"create_part_box"}
             )
-            self.assertEqual(result, {"success": True})
+            self.assertEqual(result, {"success": True, "tool_schema_version": tool_registry.TOOL_SCHEMA_VERSION})
             execute.assert_called_once()
 
     def test_reusable_freecad_operator_actions_are_available_as_typed_tools(self):
