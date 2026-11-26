@@ -3,7 +3,7 @@
   "application": "nextbim",
   "upstream_commit": "a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b",
   "source_path": "crates/core/src/commands.rs",
-  "command_count": 214,
+  "command_count": 215,
   "generated_from": "pub static ALL: &[Command]",
   "parameter_units": "Native lengths are millimetres unless the command description specifies another unit.",
   "commands": [
@@ -1236,6 +1236,16 @@
       ],
       "parameters": "{id, distance, toward: [x, y], copy?} a detail line drawn again `distance` mm beside itself on the side `toward` is, arcs round the same centres, an ellipse or a spline as a spline through points within 0.05 mm of the true offset (which Revit can't): a copy (the default), or with `copy` false moved",
       "file_effect": "none",
+      "menu": null
+    },
+    {
+      "id": "open",
+      "label": "Open",
+      "registration_kind": "other_files",
+      "undoable": false,
+      "aliases": [],
+      "parameters": "{path} a .bimc project (a .bimt file too, and the .bimcraft of earlier versions), or an .ifc read into a new one, as large as the memory the machine has free allows (8 times a project's size, 14 times an IFC's; without the apps' meter, under 256 and 512 MiB) (its elements by category, generic the components of IFC classes BIMCraft has no element for, skipped what was left out and why)",
+      "file_effect": "read",
       "menu": null
     },
     {
