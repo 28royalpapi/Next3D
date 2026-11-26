@@ -70,6 +70,36 @@ class PromptExtractionTests(unittest.TestCase):
         self.assertEqual(prompt, "Explain a sketch constraint.")
         self.assertEqual(expected, "A constraint defines geometry.")
 
+    def test_native_tool_schemas_are_forwarded_to_chat_template(self):
+        tool_schema = [{
+            "type": "function",
+            "function": {
+                "name": "create_part_box",
+                "description": "Create a native box.",
+                "parameters": {"type": "object", "properties": {"length": {"type": "number"}}},
+            },
+        }]
+        kwargs = evaluator.chat_template_kwargs_for({"tools": tool_schema})
+        self.assertEqual(kwargs["tools"], tool_schema)
+
+    def test_chat_template_options_are_preserved_with_tool_schemas(self):
+        row = {
+            "tools": [{"type": "function", "function": {"name": "inspect_model", "parameters": {"type": "object"}}}],
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        kwargs = evaluator.chat_template_kwargs_for(row)
+        self.assertEqual(kwargs["enable_thinking"], False)
+        self.assertEqual(kwargs["tools"], row["tools"])
+
+    def test_invalid_or_conflicting_tool_schemas_fail_closed(self):
+        with self.assertRaises(ValueError):
+            evaluator.chat_template_kwargs_for({"tools": []})
+        with self.assertRaises(ValueError):
+            evaluator.chat_template_kwargs_for({
+                "tools": [{"type": "function", "function": {"name": "a"}}],
+                "chat_template_kwargs": {"tools": [{"type": "function", "function": {"name": "b"}}]},
+            })
+
 
 if __name__ == "__main__":
     unittest.main()
