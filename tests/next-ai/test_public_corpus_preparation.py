@@ -103,6 +103,29 @@ class TrainingDatasetIntegrityTests(unittest.TestCase):
 
 
 class PublicCorpusPreparationTests(unittest.TestCase):
+    def test_load_stream_uses_bounded_buffer_for_binary_image_rows(self):
+        class FakeIterable:
+            def __init__(self):
+                self.shuffle_args = None
+
+            def shuffle(self, *, seed, buffer_size):
+                self.shuffle_args = (seed, buffer_size)
+                return self
+
+            def __iter__(self):
+                return iter(range(10))
+
+        iterable = FakeIterable()
+        datasets_stub = type("DatasetsStub", (), {
+            "load_dataset": staticmethod(lambda repo, split, streaming: iterable)
+        })
+        from unittest.mock import patch
+        import sys
+        with patch.dict(sys.modules, {"datasets": datasets_stub}):
+            rows = list(module.load_stream("example/cad", "train", 3, 42))
+        self.assertEqual(rows, [0, 1, 2])
+        self.assertEqual(iterable.shuffle_args, (42, 64))
+
     def test_cad_operations_keep_feature_order_and_parameters(self):
         rows = [
             {"op_name": "box", "args": ["width", "depth", "height"], "keywords": [], "lineno": 2},
