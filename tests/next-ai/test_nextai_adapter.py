@@ -628,5 +628,99 @@ class NativeToolSafetyTests(unittest.TestCase):
             self.assertIsNone(obj.bound)
 
 
+class ModelScheduleTests(unittest.TestCase):
+    def test_schedule_tool_is_typed_and_mutating(self):
+        tool = next(item for item in tool_registry.TOOLS if item["name"] == "create_model_schedule")
+        self.assertFalse(tool["read_only"])
+        self.assertEqual(tool["parameters"]["properties"]["object_names"]["maxItems"], 200)
+        self.assertFalse(tool["parameters"]["additionalProperties"])
+
+    def test_model_schedule_uses_native_measured_geometry_and_properties(self):
+        from types import SimpleNamespace
+
+        class FakeShape:
+            Volume = 24000.0
+            Area = 12400.0
+            Solids = [object()]
+            Faces = [object()] * 6
+            Edges = [object()] * 12
+            Vertexes = [object()] * 8
+            class Bounds:
+                XMin, YMin, ZMin = 0.0, 0.0, 0.0
+                XMax, YMax, ZMax = 60.0, 40.0, 10.0
+                XLength, YLength, ZLength = 60.0, 40.0, 10.0
+            BoundBox = Bounds()
+            def isNull(self):
+                return False
+            def isValid(self):
+                return True
+
+        class FakeObject:
+            Name = "Beam01"
+            Label = "Primary beam"
+            TypeId = "Part::Box"
+            PropertiesList = ["Length", "Width", "Height"]
+            Shape = FakeShape()
+            Length, Width, Height = 60.0, 40.0, 10.0
+
+        class FakeSheet:
+            TypeId = "Spreadsheet::Sheet"
+            def __init__(self, name):
+                self.Name = name
+                self.Label = name
+                self.cells = {}
+            def set(self, address, value):
+                self.cells[address] = value
+
+        class FakeDoc:
+            def __init__(self):
+                self.obj = FakeObject()
+                self.sheet = None
+                self.recompute_count = 0
+                self.Objects = [self.obj]
+            def getObject(self, name):
+                if name == self.obj.Name:
+                    return self.obj
+                if self.sheet is not None and name == self.sheet.Name:
+                    return self.sheet
+                return None
+            def addObject(self, type_id, name):
+                self.sheet = FakeSheet(name)
+                self.asserted_type = type_id
+                return self.sheet
+            def recompute(self):
+                self.recompute_count += 1
+
+        doc = FakeDoc()
+        result = freecad_tools._create_model_schedule(doc, {
+            "name": "BeamSchedule",
+            "object_names": ["Beam01"],
+        })
+        self.assertEqual(result["schedule"], "BeamSchedule")
+        self.assertEqual(result["row_count"], 1)
+        self.assertEqual(doc.asserted_type, "Spreadsheet::Sheet")
+        self.assertEqual(doc.sheet.cells["A1"], "Mark")
+        self.assertEqual(doc.sheet.cells["B2"], "Beam01")
+        self.assertEqual(doc.sheet.cells["E2"], "60.0")
+        self.assertEqual(doc.sheet.cells["F2"], "40.0")
+        self.assertEqual(doc.sheet.cells["G2"], "10.0")
+        self.assertEqual(doc.sheet.cells["H2"], "12400.0")
+        self.assertEqual(doc.sheet.cells["I2"], "24000.0")
+        self.assertEqual(doc.sheet.cells["M2"], "TRUE")
+        self.assertIn("Length=60.0", doc.sheet.cells["N2"])
+        self.assertGreaterEqual(doc.recompute_count, 1)
+
+    def test_model_schedule_does_not_overwrite_existing_schedule(self):
+        from types import SimpleNamespace
+
+        class FakeDoc:
+            def getObject(self, name):
+                return SimpleNamespace(Name=name) if name == "ExistingSchedule" else None
+            def addObject(self, type_id, name):
+                raise AssertionError("No object should be added on overwrite")
+        with self.assertRaises(ValueError):
+            freecad_tools._create_model_schedule(FakeDoc(), {"name": "ExistingSchedule"})
+
+
 if __name__ == "__main__":
     unittest.main()
