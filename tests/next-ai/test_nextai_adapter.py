@@ -714,8 +714,16 @@ class ModelScheduleTests(unittest.TestCase):
         from types import SimpleNamespace
 
         class FakeDoc:
+            def __init__(self):
+                self.model_object = SimpleNamespace(
+                    Name="ModelObject", Label="Model object", TypeId="Part::Feature",
+                    PropertiesList=[], Shape=None,
+                )
+                self.Objects = [self.model_object]
             def getObject(self, name):
-                return SimpleNamespace(Name=name) if name == "ExistingSchedule" else None
+                if name == "ExistingSchedule":
+                    return SimpleNamespace(Name=name)
+                return self.model_object if name == "ModelObject" else None
             def addObject(self, type_id, name):
                 raise AssertionError("No object should be added on overwrite")
         with self.assertRaises(ValueError):
