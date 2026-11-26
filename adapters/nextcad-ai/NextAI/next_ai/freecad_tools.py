@@ -564,7 +564,18 @@ def _duplicate_native_object(doc, args):
 def _create_edge_feature(doc, args, operation):
     App, _Gui = _apps()
     obj = _document_object(doc, args.get("object_name"))
-    shape = _native_shape(obj)
+    body = _find_partdesign_body(obj)
+    # When the user supplies a Body or one of its features, work on the
+    # current Body tip so a previous feature is never made the new tip while
+    # silently dropping later edits from the active history.
+    if body is not None:
+        base_feature = getattr(body, "Tip", None)
+        if base_feature is None:
+            raise ValueError(f"PartDesign body '{body.Label}' has no current feature to modify.")
+        shape = _native_shape(base_feature)
+    else:
+        base_feature = obj
+        shape = _native_shape(obj)
     edges = _edge_references(shape, args.get("edges"))
     if operation == "fillet":
         amount = _number(args.get("radius"), "radius", 0.001, 1_000_000.0)
@@ -575,13 +586,9 @@ def _create_edge_feature(doc, args, operation):
         feature_type = "PartDesign::Chamfer"
         property_name = "Size"
 
-    body = _find_partdesign_body(obj)
     label = str(args.get("label", "")).strip()[:120]
     native_name = _native_name(label, operation.capitalize())
     if body is not None:
-        base_feature = body.Tip if obj is body else obj
-        if base_feature is None:
-            raise ValueError(f"PartDesign body '{body.Label}' has no feature to modify.")
         feature = body.newObject(feature_type, native_name)
         feature.Base = (base_feature, edges)
         setattr(feature, property_name, amount)
