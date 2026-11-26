@@ -95,6 +95,32 @@ class PrepareNativeSftTests(unittest.TestCase):
             self.assertEqual(example["privacy"]["redaction_status"], "not_needed")
             self.assertEqual(len(example["source"]["source_group_sha256"]), 64)
 
+    def test_nextcad_training_input_contains_initial_state_not_post_operation_state(self):
+        item = make_record("state-leak-test", "train", "initial-project")
+        item["native_states"]["before"] = {
+            "format": "FCStd",
+            "uri": "before.FCStd",
+            "sha256": "c" * 64,
+            "state_summary": {"stage": "before", "object_count": 2},
+        }
+        item["native_states"]["after"]["state_summary"] = {
+            "stage": "after",
+            "object_count": 99,
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "records.jsonl"
+            source.write_text(json.dumps(item) + "\n", encoding="utf-8")
+            module.prepare(source, root / "out")
+            example = json.loads((root / "out/train.jsonl").read_text(encoding="utf-8"))
+            user_context = json.loads(example["messages"][1]["content"])
+            self.assertEqual(user_context["native_context"]["document_state_at_request"]["stage"], "before")
+            self.assertNotIn("after", user_context["native_context"])
+            self.assertIn(
+                "Recorded native operation 0 create_box exact input arguments",
+                user_context["specification"]["constraints"][-1],
+            )
+
     def test_nextbim_native_trace_keeps_its_application_specific_steps_contract(self):
         item = make_record("bim-record", "train", "bim-project")
         item["application"] = "nextbim"
