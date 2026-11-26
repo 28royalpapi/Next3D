@@ -8,6 +8,36 @@ from . import engineering_skills, freecad_tools, knowledge
 
 _TOOL_TOKEN = re.compile(r"[a-zA-Z][a-zA-Z0-9_+-]{1,}")
 _TOOL_STOP = {"create", "native", "tool", "the", "with", "from", "and", "for", "use", "read", "only"}
+_TOOL_SYNONYMS = {
+    "wall": {"arch", "partition", "wire", "draft", "rectangle", "dimension", "text"},
+    "bedroom": {"room", "residential", "wall", "wire", "text", "dimension"},
+    "room": {"space", "wall", "wire", "text", "dimension"},
+    "house": {"building", "arch", "wall", "roof", "floor", "room"},
+    "bungalow": {"house", "building", "arch", "wall", "room"},
+    "water": {"tower", "tank", "cylinder", "structure", "column", "beam"},
+    "tower": {"water", "tank", "cylinder", "structure", "column", "beam"},
+    "tank": {"water", "tower", "cylinder", "cone", "structure"},
+    "column": {"structure", "cylinder", "arch", "box"},
+    "beam": {"structure", "arch", "box", "line"},
+    "gear": {"mechanical", "shaft", "circle", "sketch", "pattern", "boolean"},
+    "shaft": {"cylinder", "circle", "sketch", "pad", "pocket", "transform"},
+    "hole": {"circle", "sketch", "pocket", "partdesign"},
+    "automotive": {"vehicle", "car", "chassis", "box", "cylinder", "duplicate", "transform"},
+    "vehicle": {"car", "chassis", "box", "cylinder", "duplicate", "transform"},
+    "car": {"vehicle", "chassis", "box", "cylinder", "duplicate", "transform"},
+    "cabinet": {"panel", "electrical", "enclosure", "box", "text", "dimension"},
+    "electrical": {"panel", "cabinet", "enclosure", "box", "text", "dimension"},
+    "panel": {"cabinet", "electrical", "enclosure", "box", "text", "dimension"},
+    "road": {"civil", "line", "wire", "rectangle", "dimension"},
+    "drainage": {"pipe", "civil", "line", "wire", "cylinder", "dimension"},
+    "pipe": {"drainage", "cylinder", "line", "wire"},
+    "schedule": {"spreadsheet", "table", "component", "model", "quantity"},
+    "table": {"spreadsheet", "schedule", "component", "quantity"},
+    "drawing": {"dimension", "text", "techdraw", "sheet", "view"},
+    "fillet": {"edge", "radius", "partdesign"},
+    "chamfer": {"edge", "size", "partdesign"},
+    "pattern": {"linear", "polar", "occurrence", "array"},
+}
 
 TOOLS = [
     {
@@ -565,7 +595,13 @@ TOOLS = [
 
 
 def _terms(value: str) -> set[str]:
-    return {token.lower() for token in _TOOL_TOKEN.findall(str(value)) if token.lower() not in _TOOL_STOP}
+    result = {
+        token.lower() for token in _TOOL_TOKEN.findall(str(value))
+        if token.lower() not in _TOOL_STOP
+    }
+    for token in list(result):
+        result.update(_TOOL_SYNONYMS.get(token, ()))
+    return result
 
 
 def rank_tools(query: str, limit: int = 12) -> list[dict]:
