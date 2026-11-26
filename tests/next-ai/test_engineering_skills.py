@@ -144,6 +144,26 @@ class EngineeringSkillRegistryTests(unittest.TestCase):
         self.assertIn("create_model_schedule", schedule_names)
         self.assertLessEqual(len(schedule), 15)
 
+    def test_engineering_vocabulary_routes_object_families_to_native_tool_schemas(self):
+        tower = {item["name"] for item in tool_registry.select_tool_schemas(
+            "Build a water storage tower with a cylindrical tank, columns and a component schedule."
+        )}
+        self.assertIn("create_part_cylinder", tower)
+        self.assertIn("create_arch_structure", tower)
+        self.assertIn("create_model_schedule", tower)
+
+        cabinet = {item["name"] for item in tool_registry.select_tool_schemas(
+            "Create an electrical control cabinet enclosure with dimensions."
+        )}
+        self.assertIn("create_part_box", cabinet)
+        self.assertIn("create_draft_dimension", cabinet)
+
+        civil = {item["name"] for item in tool_registry.select_tool_schemas(
+            "Create a road drainage alignment using a centreline and pipe."
+        )}
+        self.assertIn("create_draft_line", civil)
+        self.assertIn("create_part_cylinder", civil)
+
     def test_ranked_tools_are_existing_reviewed_tools_only(self):
         ranked = tool_registry.rank_tools("create wall using path height and thickness")
         names = [item["name"] for item in ranked]
