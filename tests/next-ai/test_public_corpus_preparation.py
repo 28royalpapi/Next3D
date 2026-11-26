@@ -186,6 +186,104 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertTrue(all(row["evidence_level"] == "L0_knowledge_authored" for row in lessons))
         self.assertTrue(all(json.loads(row["completion"])["plan"] == [] for row in lessons))
 
+    def test_pinned_capability_census_becomes_l0_lessons_without_execution_claims(self):
+        import tempfile
+
+        census = {
+            "schema": "nextai.capability_census.v1",
+            "evidence_rules": {
+                "mastery_requires_native_execution_and_validation": True
+            },
+            "capabilities": [
+                {
+                    "application": "nextbim",
+                    "capability_id": "nextbim.command.wall",
+                    "native_id": "wall",
+                    "name": "Create wall",
+                    "capability_type": "native_command",
+                    "source_evidence": "pinned_native_command_registration",
+                    "source_commit": "a" * 40,
+                    "source_path": "crates/core/src/commands.rs",
+                    "registration_kind": "edit",
+                    "parameter_contract": "points and wall type",
+                    "parameter_contract_kind": "human_readable_registration_description_not_json_schema",
+                    "assistant_execution_status": "native_execution_candidate_subject_to_bridge_policy",
+                },
+                {
+                    "application": "nextcad",
+                    "capability_id": "nextcad.command.Part_Box",
+                    "native_id": "Part_Box",
+                    "name": "Create box",
+                    "capability_type": "native_gui_command",
+                    "source_evidence": "live_nextcad_command_registry",
+                    "source_commit": "b" * 40,
+                    "source_path": "src/Mod/Part",
+                    "menu_text": "Create box",
+                    "tooltip": "Create a box primitive.",
+                    "agent_tool_status": "requires_reviewed_typed_adapter",
+                },
+                {
+                    "application": "nextcad",
+                    "capability_id": "nextcad.api.Part.makeBox",
+                    "native_id": "Part.makeBox",
+                    "name": "makeBox",
+                    "capability_type": "native_api_member",
+                    "source_evidence": "live_imported_python_api",
+                    "source_commit": "b" * 40,
+                    "source_path": "src/Mod/Part",
+                    "module": "Part",
+                    "documentation": "Create a box.",
+                },
+                {
+                    "application": "nextcad",
+                    "capability_id": "nextcad.workbench.Part",
+                    "native_id": "Part",
+                    "name": "Part",
+                    "capability_type": "workbench_or_module",
+                    "source_evidence": "pinned_source_tree_index",
+                    "source_commit": "b" * 40,
+                },
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "capability-census.json"
+            path.write_text(json.dumps(census), encoding="utf-8")
+            lessons = module.make_capability_knowledge_curriculum(path)
+        self.assertEqual(len(lessons), 30)
+        self.assertEqual(
+            sum(row["domain"] == "nextbim_capability_knowledge" for row in lessons), 10
+        )
+        self.assertEqual(
+            sum(row["domain"] == "nextcad_capability_knowledge" for row in lessons), 20
+        )
+        self.assertTrue(all(row["evidence_level"] == "L0_metadata_knowledge_authored" for row in lessons))
+        self.assertTrue(all(row["record_type"] == "authored_metadata_knowledge_not_native_execution" for row in lessons))
+        self.assertTrue(all("No native object was created" in json.loads(row["completion"])["evidence_boundary"] for row in lessons))
+        bim_inputs = next(
+            json.loads(row["completion"]) for row in lessons
+            if row["application"] == "nextbim" and row["learning_dimension"] == "inputs_and_units"
+        )
+        self.assertIn("not a formal JSON Schema", bim_inputs["parameter_rule"])
+        cad_execution = next(
+            json.loads(row["completion"]) for row in lessons
+            if row["application"] == "nextcad" and row["learning_dimension"] == "execution"
+        )
+        self.assertIn("view-only", cad_execution["execution_permission_rule"])
+
+    def test_capability_lesson_generation_rejects_census_without_evidence_boundary(self):
+        import tempfile
+
+        census = {
+            "schema": "nextai.capability_census.v1",
+            "evidence_rules": {"mastery_requires_native_execution_and_validation": False},
+            "capabilities": [],
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "bad-census.json"
+            path.write_text(json.dumps(census), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "mastery evidence rule"):
+                module.make_capability_knowledge_curriculum(path)
+
     def test_local_engineering_skill_library_becomes_section_level_sft_lessons(self):
         lessons = module.make_local_skill_curriculum()
         self.assertGreaterEqual(len(lessons), 60)
