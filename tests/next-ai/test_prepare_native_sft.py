@@ -74,6 +74,21 @@ def make_record(record_id="r1", split="train", source_id="project-a"):
     }
 
 
+class NativeTrainingRecordSchemaTests(unittest.TestCase):
+    def test_synthetic_native_fixture_matches_the_checked_in_json_schema(self):
+        module.validate_training_record(make_record())
+
+    def test_schema_rejects_unrecognised_fields_and_malformed_artifact_hashes(self):
+        invalid = make_record()
+        invalid["unapproved_runtime_flag"] = True
+        with self.assertRaises(module.SchemaValidationError):
+            module.validate_training_record(invalid)
+
+        invalid = make_record()
+        invalid["native_states"]["after"]["sha256"] = "not-a-sha256"
+        with self.assertRaises(module.SchemaValidationError):
+            module.validate_training_record(invalid)
+
 class PrepareNativeSftTests(unittest.TestCase):
     def test_valid_native_trace_becomes_tool_plan(self):
         with tempfile.TemporaryDirectory() as temp:
