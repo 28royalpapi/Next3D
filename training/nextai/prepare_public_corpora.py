@@ -2868,7 +2868,7 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
 
 def make_synthetic_curriculum() -> list[dict[str, Any]]:
     """Small, original, unit-aware lessons that cover gaps in public corpora."""
-    lessons = (make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_engineering_operator_curriculum() + make_design_execution_curriculum() + make_bim_execution_curriculum() + make_local_skill_curriculum()) + [
+    lessons = (make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_engineering_operator_curriculum() + make_design_execution_curriculum() + make_bim_execution_curriculum()) + [
         {
             "domain": "cad_2d_drafting",
             "system": CAD_SYSTEM,
@@ -3766,40 +3766,54 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     synthetic_splits = split_synthetic_curriculum(make_synthetic_curriculum())
     for lesson in synthetic_splits["train"]:
         groups.setdefault(lesson["domain"], []).append(lesson)
-    validation.extend(synthetic_splits["validation"])
-    tests.extend(synthetic_splits["test"])
     counts["synthetic_train"] = len(synthetic_splits["train"])
     counts["synthetic_validation"] = len(synthetic_splits["validation"])
     counts["synthetic_test"] = len(synthetic_splits["test"])
-    for split_name, split_rows in synthetic_splits.items():
-        counts[f"local_skill_{split_name}"] = sum(
-            1 for row in split_rows if row.get("skill_name")
-        )
+
+    # Keep first-party local skills and the complete native capability census
+    # outside the capped public/mixed sampler. Every known capability lesson
+    # must survive corpus assembly; otherwise "complete capability learning"
+    # would depend on random sampling luck.
+    skill_splits = split_synthetic_curriculum(make_local_skill_curriculum())
+    capability_splits = {"train": [], "validation": [], "test": []}
     capability_census_path = getattr(args, "capability_census", None)
     if capability_census_path:
         capability_lessons = make_capability_knowledge_curriculum(capability_census_path)
         capability_splits = split_synthetic_curriculum(capability_lessons)
-        for lesson in capability_splits["train"]:
-            groups[lesson["domain"]].append(lesson)
-        validation.extend(capability_splits["validation"])
-        tests.extend(capability_splits["test"])
-        for split_name, split_rows in capability_splits.items():
-            counts[f"capability_knowledge_{split_name}"] = len(split_rows)
-        counts["capability_knowledge_total"] = len(capability_lessons)
+    else:
+        capability_lessons = []
 
-    train = sample_balanced(groups, args.max_mixed_train, args.seed)
-    random.Random(args.seed + 1).shuffle(validation)
-    random.Random(args.seed + 2).shuffle(tests)
+    for split_name in ("train", "validation", "test"):
+        counts[f"local_skill_{split_name}"] = len(skill_splits[split_name])
+        counts[f"capability_knowledge_{split_name}"] = len(capability_splits[split_name])
+    counts["local_skill_total"] = sum(len(rows) for rows in skill_splits.values())
+    counts["capability_knowledge_total"] = len(capability_lessons)
+
+    base_train = sample_balanced(groups, args.max_mixed_train, args.seed)
+    train = base_train + skill_splits["train"] + capability_splits["train"]
+    base_validation = validation[:args.max_validation]
+    base_tests = tests[:args.max_test]
+    validation_rows = base_validation + skill_splits["validation"] + capability_splits["validation"]
+    test_rows = base_tests + skill_splits["test"] + capability_splits["test"]
+    random.Random(args.seed + 1).shuffle(validation_rows)
+    random.Random(args.seed + 2).shuffle(test_rows)
+    random.Random(args.seed + 3).shuffle(train)
 
     write_jsonl(out / "train.jsonl", train)
-    write_jsonl(out / "validation.jsonl", validation[:args.max_validation])
-    write_jsonl(out / "test.jsonl", tests[:args.max_test])
+    write_jsonl(out / "validation.jsonl", validation_rows)
+    write_jsonl(out / "test.jsonl", test_rows)
+    write_jsonl(out / "skill_train.jsonl", skill_splits["train"])
+    write_jsonl(out / "skill_validation.jsonl", skill_splits["validation"])
+    write_jsonl(out / "skill_test.jsonl", skill_splits["test"])
+    write_jsonl(out / "capability_train.jsonl", capability_splits["train"])
+    write_jsonl(out / "capability_validation.jsonl", capability_splits["validation"])
+    write_jsonl(out / "capability_test.jsonl", capability_splits["test"])
     write_jsonl(out / "quarantine.jsonl", quarantine)
 
     manifest = {
         "schema_version": 1,
         "student": "Qwen/Qwen3.5-0.8B",
-        "method": "BF16 LoRA supervised fine-tuning",
+        "method": "Full-precision BF16/FP16 LoRA supervised fine-tuning",
         "sources": [
             *([{
                 "repo": "Next3D pinned native capability census",
@@ -3818,8 +3832,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         ],
         "source_counts": dict(counts),
         "train_records": len(train),
-        "validation_records": min(len(validation), args.max_validation),
-        "test_records": min(len(tests), args.max_test),
+        "validation_records": len(validation_rows),
+        "test_records": len(test_rows),
         "quarantined_rows": len(quarantine),
         "training_domain_counts": dict(Counter(row["domain"] for row in train)),
         "test_not_used_for_training": True,
