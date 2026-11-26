@@ -3766,6 +3766,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     synthetic_splits = split_synthetic_curriculum(make_synthetic_curriculum())
     for lesson in synthetic_splits["train"]:
         groups.setdefault(lesson["domain"], []).append(lesson)
+    validation.extend(synthetic_splits["validation"])
+    tests.extend(synthetic_splits["test"])
     counts["synthetic_train"] = len(synthetic_splits["train"])
     counts["synthetic_validation"] = len(synthetic_splits["validation"])
     counts["synthetic_test"] = len(synthetic_splits["test"])
