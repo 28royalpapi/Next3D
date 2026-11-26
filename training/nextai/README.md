@@ -6,6 +6,8 @@ The only runtime student is Qwen3.5-0.8B. The larger CAD and BIM teacher models 
 
 The implementation standard is documented in [COMPLETE_NATIVE_CAPABILITY_STANDARD.md](./COMPLETE_NATIVE_CAPABILITY_STANDARD.md). It defines full source/runtime discovery for both applications, ten learning obligations per native command, and separate counts for discovered capabilities, lessons, native execution and mastery.
 
+Research on existing FreeCAD AI agents, MCP toolkits and validation projects is documented in [FREECAD_AGENT_RESEARCH_AND_INTEGRATION.md](../../docs/next-ai/FREECAD_AGENT_RESEARCH_AND_INTEGRATION.md). The decision is to reuse proven design patterns—dynamic tool routing, skills, incremental execution, native verification and recovery—inside Next3D's own typed, permissioned adapter, rather than install a competing assistant wholesale.
+
 Run the inventory builder against the pinned source catalogues:
 
 ```bash
