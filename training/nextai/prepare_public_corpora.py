@@ -2841,7 +2841,7 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
                 ),
             }
             lessons.append({
-                "record_id": f"capability-knowledge-{application}-{native_id}-{dimension}",
+                "record_id": f"capability-knowledge-{application}-{capability_id}-{dimension}",
                 "domain": domain,
                 "system": (
                     "You are NextAI. Teach native software knowledge from version-pinned capability metadata. "
@@ -3846,6 +3846,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "IFC text examples are not proof of an IFC file or BIMCraft project passing validation.",
             "The IFC dedup set is excluded from positive lessons until its generated IFC is validated.",
             "Standards remain versioned retrieval references, not copied wholesale into model weights.",
+            "Every first-party local skill and every pinned capability metadata lesson is retained in dedicated sidecar splits and merged into the training/validation/test JSONL files without the capped mixed-corpus sampler.",
             "Swiss Dwellings images and vector labels are a training-only optional corpus; the 931.9 MB source archive is not part of the runtime package.",
             "Swiss Dwellings floors from the same building are kept in one data split to prevent train/test leakage.",
             "Optional IFC model records are split by source model or paired project team; free-text names and original GlobalIds are excluded.",
