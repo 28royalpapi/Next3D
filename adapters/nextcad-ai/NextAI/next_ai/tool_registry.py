@@ -6,6 +6,8 @@ import re
 
 from . import engineering_skills, freecad_tools, knowledge
 
+TOOL_SCHEMA_VERSION = "1.0.0"
+
 _TOOL_TOKEN = re.compile(r"[a-zA-Z][a-zA-Z0-9_+-]{1,}")
 _TOOL_STOP = {"create", "native", "tool", "the", "with", "from", "and", "for", "use", "read", "only"}
 _TOOL_SYNONYMS = {
@@ -701,4 +703,8 @@ def execute_approved_plan(token, plan, progress_callback=None, allowed_tool_name
     for step in plan:
         if not isinstance(step, dict) or step.get("tool") not in allowed:
             raise ValueError("The plan contains a tool that was not supplied for this turn or is not approved by the NextCAD registry.")
-    return freecad_tools.execute_plan(token, plan, progress_callback=progress_callback)
+    result = freecad_tools.execute_plan(token, plan, progress_callback=progress_callback)
+    result["tool_schema_version"] = TOOL_SCHEMA_VERSION
+    for operation in result.get("operations", []):
+        operation["tool_schema_version"] = TOOL_SCHEMA_VERSION
+    return result
