@@ -3684,14 +3684,27 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     counts = Counter()
     ifc_model_manifest = None
 
+    # Preserve the most independent split when a source UUID is duplicated
+    # across the dataset's published splits: test takes precedence, then
+    # validation, then train. This prevents a CAD component and its derived
+    # visual/feature-trace records from leaking between model-development splits.
     cad_limits = [
-        ("train", args.max_cad_train, "train"),
-        ("validation", args.max_cad_validation, "validation"),
         ("test", args.max_cad_test, "test"),
+        ("validation", args.max_cad_validation, "validation"),
+        ("train", args.max_cad_train, "train"),
     ]
+    seen_cad_source_ids: set[str] = set()
     for source_split, maximum, target_split in cad_limits:
         for index, row in enumerate(load_stream(CAD_DATASET, source_split, maximum, args.seed)):
             try:
+                source_id = str(row.get("uuid") or "").strip()
+                if not source_id:
+                    raise ValueError("CAD source row has no stable UUID; refusing to create an untraceable split identity")
+                source_key = source_id.casefold()
+                if source_key in seen_cad_source_ids:
+                    counts["cad_duplicate_source_rows_skipped"] += 1
+                    continue
+                seen_cad_source_ids.add(source_key)
                 records = make_cad_records(row, assets, target_split, index)
                 if target_split == "train":
                     for record in records:
