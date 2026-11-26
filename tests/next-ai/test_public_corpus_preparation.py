@@ -384,12 +384,17 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         for split, rows in splits.items():
             for row in rows:
                 group = row["split_group"]
-                self.assertEqual(group, "nextai-skill-" + row["skill_name"])
+                self.assertTrue(group.startswith("nextai-skill-"))
                 previous_group_split = split_by_group.setdefault(group, split)
                 self.assertEqual(previous_group_split, split)
                 previous = split_by_skill.setdefault(row["skill_name"], split)
                 self.assertEqual(previous, split)
         self.assertEqual(len(split_by_skill), len({row["skill_name"] for row in lessons}))
+        group_by_skill = {}
+        for row in lessons:
+            previous_group = group_by_skill.setdefault(row["skill_name"], row["split_group"])
+            self.assertEqual(previous_group, row["split_group"])
+        self.assertEqual(len(set(group_by_skill.values())), len(group_by_skill))
         self.assertEqual(sum(len(rows) for rows in splits.values()), len(lessons))
         self.assertTrue({"train", "validation", "test"}.issubset(set(split_by_group.values())))
 
