@@ -25,6 +25,9 @@ def main() -> int:
         parser.error("--timeout-seconds must be at least 30")
 
     repo = Path(__file__).resolve().parents[1]
+    schema_tools = repo / "training" / "nextai"
+    sys.path.insert(0, str(schema_tools))
+    from schema_validation import validate_training_record
     source_root = repo / "upstream" / "FreeCAD"
     module_root = source_root / "src" / "Mod" / "NextAI"
     macro = repo / "training" / "nextai" / "verify_nextcad_ai_native.FCMacro"
@@ -114,6 +117,8 @@ def main() -> int:
                 raise RuntimeError("Native acceptance trace must contain two held-out test records.")
             if any(len(row.get("operations", [])) > 20 for row in trace_rows):
                 raise RuntimeError("A native acceptance plan exceeds the NextAI runtime step limit.")
+            for row in trace_rows:
+                validate_training_record(row)
             print(
                 "NEXTAI NATIVE ACCEPTANCE PASS: "
                 f"{len(result.get('checks', {}))} checks, "
