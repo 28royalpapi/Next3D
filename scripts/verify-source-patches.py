@@ -107,8 +107,13 @@ def main() -> int:
     need('.with_title("Next BIM")' in bim_main and 'run_native("Next BIM"' in bim_main,
          "Next BIM window title/branding is missing")
     need('Palette::Assistant => msg!("Next AI")' in bim_dock, "Native Assistant palette is not branded Next AI")
-    need('Stack { tabs: vec![Palette::Browser, Palette::Assistant], active: 1 }' in bim_dock,
-         "Next AI workspace is not visible beside the project browser by default")
+    # Preserve BIMCraft's tested default: Next AI is available on demand, not forced open.
+    need('right: vec![Stack::of(Palette::Properties), Stack::of(Palette::Browser)],' in bim_dock,
+         "Next BIM default Properties/Project Browser workspace was unexpectedly changed")
+    need('!closed.contains(&p) && p != Palette::Assistant' in bim_dock,
+         "Next AI must remain on-demand when restoring legacy/default project layouts")
+    need('if name == "Assistant"' in bim_dock and 'return Some(Palette::Assistant);' in bim_dock,
+         "Legacy saved Assistant palette names must still resolve to Next AI")
     need('Panel::right("next-ai-workspace")' not in bim_ui,
          "A duplicate placeholder AI panel must not be created beside the native Assistant")
     need('Profile::BimCraft => "Next BIM"' in bim_style, "Next BIM profile name is missing")
@@ -125,8 +130,9 @@ def main() -> int:
     need("allowed_local" in net and 'host == "127.0.0.1"' in net, "Next BIM provider loopback boundary is missing")
     need("Local model mode is available only in this window" in chat, "Next BIM local mode must not leak to Co-Work")
     need("No remote AI provider is contacted" in assistant_ui, "Next BIM local privacy notice is missing")
-    need('Palette::Assistant => msg!("Next AI")' in bim_dock and 'msg!("Next AI settings")' in read(bimcraft / "crates/ui-egui/src/settings.rs"),
-         "Next BIM AI workspace labels are incomplete")
+    settings_ui = read(bimcraft / "crates/ui-egui/src/settings.rs")
+    need('Page::Assistant => msg!("Assistant")' in settings_ui,
+         "Next BIM's established Assistant settings entry must remain compatible with native UI tests")
     need("pub static ALL: &[Command]" in commands, "Original BIMCraft native command registry is missing")
 
     root = Path(__file__).resolve().parents[1]
