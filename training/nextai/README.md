@@ -2,6 +2,14 @@
 
 The only runtime student is Qwen3.5-0.8B. The larger CAD and BIM teacher models are research/training aids only. Teacher weights, raw datasets, training images, checkpoints and training libraries are never shipped in the Next3D installer.
 
+## Local engineering operator curriculum and runtime skills
+
+The NextCAD adapter now includes a local progressive skill registry under `adapters/nextcad-ai/NextAI/knowledge_packs/skills/`. Its initial 16 skills cover the universal engineering-operator method; residential and water-tower design; gears, vehicles, electrical cabinets and civil roads/drainage; Sketcher, Part/PartDesign, Assembly, TechDraw, FEM, CAM, meshes/reverse engineering, Spreadsheet/parametric data and FreeCAD BIM/IFC. The local runtime loads only the best-matching skill instructions for a request, while the full short catalogue remains available for retrieval. Skill files are local instructions, never executable scripts.
+
+The typed FreeCAD tools are also reranked per task. The model receives a small selected schema set (with document inspection and capability discovery always available), and the executor rejects a plan that invokes a write tool not supplied for that turn. The full GUI command registry remains discoverable for the capability census; discovering a command does not grant permission to execute it. Generic GUI command execution is view-only. Modelling changes must use reviewed typed operations.
+
+The training corpus adds specialist three-turn design interviews for elevated water towers, mechanical gears, electrical control panels and civil road/drainage. These are authored L0 knowledge lessons; they are not native execution records. Existing residential interview examples continue to teach room-programme questions before floor-plan construction.
+
 ## Comprehensive capability programme
 
 The implementation standard is documented in [COMPLETE_NATIVE_CAPABILITY_STANDARD.md](./COMPLETE_NATIVE_CAPABILITY_STANDARD.md). It defines full source/runtime discovery for both applications, ten learning obligations per native command, and separate counts for discovered capabilities, lessons, native execution and mastery.
