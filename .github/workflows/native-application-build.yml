@@ -116,10 +116,10 @@ jobs:
           submodules: false
           fetch-depth: 1
 
-      - name: Apply NextCAD branding and Next AI workspace
+      - name: Prepare only the pinned NextCAD source tree
         shell: bash
         run: |
-          bash scripts/apply-source-patches.sh
+          bash scripts/apply-source-patches.sh --only nextcad
 
       - name: Install the pinned FreeCAD build environment
         uses: prefix-dev/setup-pixi@ad1da6449d9e506fd127fd67ab2d054a769f6a94 # v0.11.2
@@ -292,10 +292,10 @@ jobs:
           submodules: false
           fetch-depth: 1
 
-      - name: Apply Next BIM identity and Next AI workspace
+      - name: Prepare only the pinned Next BIM source tree
         shell: bash
         run: |
-          bash scripts/apply-source-patches.sh
+          bash scripts/apply-source-patches.sh --only nextbim
 
       - name: Linux graphics development libraries
         if: runner.os == 'Linux'

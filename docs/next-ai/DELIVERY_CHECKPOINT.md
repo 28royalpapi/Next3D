@@ -60,4 +60,6 @@ Keep prompts short; do not paste the long history repeatedly. Use the branch hea
 2. Training: validate/download bounded corpus, report counts/provenance/split checks, then use authorised GPU compute.
 3. Evaluation/export: compare on the same held-out test set and retain reports/hashes.
 
+Platform jobs now call the source patch script with `--only nextcad` or `--only nextbim`; the shared source-preparation gate still applies/verifies both sources and runs all contract tests. This avoids downloading FreeCAD's recursive dependency tree in Next BIM-only jobs and avoids fetching BIMCraft in NextCAD-only jobs.
+
 Never print entire CI logs. Report current SHA, Actions URL, pass/fail delta and next blocker. Keep user updates concise.
