@@ -3257,7 +3257,10 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
             "prompt": lesson["prompt"],
             "completion": completion,
             "images": [],
-            "source": "Next3D original synthetic curriculum",
+            "source": (
+                "Next3D local engineering skill packs"
+                if lesson.get("skill_name") else "Next3D original synthetic curriculum"
+            ),
             "license": "project-authored",
             **({"split_group": lesson["split_group"], "stage": lesson["stage"]}
                if lesson.get("split_group") else {}),
@@ -3614,6 +3617,10 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     counts["synthetic_train"] = len(synthetic_splits["train"])
     counts["synthetic_validation"] = len(synthetic_splits["validation"])
     counts["synthetic_test"] = len(synthetic_splits["test"])
+    for split_name, split_rows in synthetic_splits.items():
+        counts[f"local_skill_{split_name}"] = sum(
+            1 for row in split_rows if row.get("skill_name")
+        )
     train = sample_balanced(groups, args.max_mixed_train, args.seed)
     random.Random(args.seed + 1).shuffle(validation)
     random.Random(args.seed + 2).shuffle(tests)
