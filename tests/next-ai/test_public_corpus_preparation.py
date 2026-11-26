@@ -85,6 +85,34 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         row["source"] = "unreviewed"
         self.assertIsNone(module.make_bim_record(row, "bim-unreviewed"))
 
+    def test_engineering_operator_curriculum_teaches_specialist_intake(self):
+        lessons = module.make_engineering_operator_curriculum()
+        self.assertEqual(len(lessons), 12)
+        domains = {row["domain"] for row in lessons}
+        self.assertTrue({
+            "design_intake_water_storage_tower",
+            "design_intake_mechanical_gear",
+            "design_intake_electrical_control_panel",
+            "design_intake_civil_road_drainage",
+        }.issubset(domains))
+        self.assertEqual(len({row["split_group"] for row in lessons}), 4)
+        self.assertTrue(all(row["evidence_level"] == "L0_knowledge_authored" for row in lessons))
+        self.assertTrue(all(json.loads(row["completion"])["plan"] == [] for row in lessons))
+
+    def test_synthetic_corpus_includes_specialist_engineering_intake_domains(self):
+        lessons = module.make_synthetic_curriculum()
+        domains = {row["domain"] for row in lessons}
+        for domain in (
+            "design_intake_water_storage_tower",
+            "design_intake_mechanical_gear",
+            "design_intake_electrical_control_panel",
+            "design_intake_civil_road_drainage",
+        ):
+            self.assertIn(domain, domains)
+        tower = next(row for row in lessons if row["domain"] == "design_intake_water_storage_tower")
+        self.assertEqual(tower["source"], "Next3D original synthetic curriculum")
+        self.assertEqual(tower["license"], "project-authored")
+
     def test_cad_validation_split_uses_published_split_name(self):
         import inspect
         source = inspect.getsource(module.prepare)
