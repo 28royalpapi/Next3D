@@ -33,7 +33,16 @@ Initial skills cover:
 - mechanical gears/transmissions;
 - vehicle packaging;
 - electrical control panels;
-- civil roads and drainage.
+- civil roads and drainage;
+- Sketcher constraints, solver diagnosis and parametric sketch intent;
+- Part and PartDesign feature history, topology-aware modelling and validation;
+- Assembly components, links, joints, solver and interference checks;
+- TechDraw views, sections, dimensions, annotations and sheets;
+- FEM analysis preparation, materials, loads, supports, mesh and convergence;
+- CAM/CNC stock, work coordinates, tools, toolpaths, simulation and postprocessing;
+- mesh/point-cloud inspection, repair and reverse-engineering workflows;
+- Spreadsheet variables, expressions and model-derived schedules;
+- FreeCAD BIM/Arch spatial elements, information properties and IFC exchange.
 
 These are authored knowledge lessons (L0). They are not native execution examples, proven engineering designs, or evidence of a trained model. Missing native functions must remain visible as capability gaps. For example, a gear skill cannot make an involute gear generator available if the running FreeCAD installation exposes no reviewed native operation for it.
 
