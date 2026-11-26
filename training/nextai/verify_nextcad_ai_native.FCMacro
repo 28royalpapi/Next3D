@@ -1,0 +1,208 @@
+# -*- coding: utf-8 -*-
+"""Executable native NextAI operator acceptance inside the built NextCAD GUI."""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import sys
+import traceback
+
+import FreeCAD as App
+import FreeCADGui as Gui
+
+marker = Path(os.environ["NEXT3D_NEXTCAD_AI_ACCEPTANCE_MARKER"]).resolve()
+project = Path(os.environ["NEXT3D_NEXTCAD_AI_ACCEPTANCE_PROJECT"]).resolve()
+module_root = Path(os.environ["NEXT3D_NEXTCAD_AI_MODULE_PATH"]).resolve()
+sys.path.insert(0, str(module_root))
+
+report = {
+    "status": "FAIL",
+    "application_version": ".".join(str(item) for item in App.Version()),
+    "checks": {},
+    "results": {},
+}
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+try:
+    from next_ai import freecad_tools, tool_registry
+
+    doc = App.newDocument("NextAI_NativeAcceptance")
+    token = freecad_tools.begin_turn()
+    allowed = {item["name"] for item in tool_registry.TOOLS}
+    results = {}
+
+    def run(steps):
+        names = {step["tool"] for step in steps}
+        result = tool_registry.execute_approved_plan(
+            token, steps, allowed_tool_names=names
+        )
+        require(result.get("success") is True, "Typed native operation plan did not report success.")
+        for step_result in result.get("results", []):
+            results.setdefault(step_result["step"], step_result)
+        return result.get("results", [])
+
+    # Basic native Part solids and a true BRep boolean.
+    created = run([
+        {"tool": "create_part_box", "args": {
+            "length": 20, "width": 20, "height": 10, "label": "Acceptance base block"
+        }},
+        {"tool": "create_part_box", "args": {
+            "length": 10, "width": 10, "height": 10, "origin": [5, 5, 0],
+            "label": "Acceptance cutter block"
+        }},
+    ])
+    base_name = created[0]["created"]
+    cutter_name = created[1]["created"]
+    cut = run([{"tool": "boolean_operation", "args": {
+        "operation": "cut", "object1": base_name, "object2": cutter_name,
+        "label": "Acceptance boolean cut"
+    }}])[0]
+    cut_object = doc.getObject(cut["created"])
+    require(cut_object is not None and cut_object.Shape.isValid(), "Native Part boolean cut is invalid.")
+    require(abs(float(cut_object.Shape.Volume) - 3000.0) < 1e-4,
+            f"Boolean cut volume mismatch: {cut_object.Shape.Volume}")
+    report["checks"]["part_primitives_and_boolean"] = "PASS"
+
+    # Transforms and copies preserve the source object and remain native objects.
+    moved = run([{"tool": "transform_object", "args": {
+        "object_name": base_name, "translate_x": 100, "relative": True
+    }}])[0]
+    base_object = doc.getObject(base_name)
+    require(abs(float(base_object.Placement.Base.x) - 100.0) < 1e-6,
+            "Native relative transform did not move the source object.")
+    duplicate = run([{"tool": "duplicate_object", "args": {
+        "object_name": cutter_name, "translate_y": 40, "label": "Acceptance independent copy"
+    }}])[0]
+    duplicate_object = doc.getObject(duplicate["created"])
+    require(duplicate_object is not None and duplicate_object is not doc.getObject(cutter_name),
+            "Native duplicate did not create an independent object.")
+    require(abs(float(doc.getObject(cutter_name).Placement.Base.y)) < 1e-6,
+            "Native duplicate changed the original object's placement.")
+    report["checks"]["transform_and_duplicate"] = "PASS"
+
+    # Real BRep fillet and chamfer on all edges of separate simple blocks.
+    fillet = run([{"tool": "fillet_edges", "args": {
+        "object_name": cutter_name, "edges": ["all"], "radius": 0.5,
+        "label": "Acceptance fillet"
+    }}])[0]
+    fillet_object = doc.getObject(fillet["created"])
+    require(fillet_object is not None and fillet_object.Shape.isValid()
+            and len(fillet_object.Shape.Solids) == 1,
+            "Native Part fillet did not produce one valid solid.")
+    chamfer = run([{"tool": "chamfer_edges", "args": {
+        "object_name": base_name, "edges": ["all"], "size": 0.25,
+        "label": "Acceptance chamfer"
+    }}])[0]
+    chamfer_object = doc.getObject(chamfer["created"])
+    require(chamfer_object is not None and chamfer_object.Shape.isValid()
+            and len(chamfer_object.Shape.Solids) == 1,
+            "Native Part chamfer did not produce one valid solid.")
+    report["checks"]["part_fillet_and_chamfer"] = "PASS"
+
+    # A genuinely editable Sketcher -> PartDesign -> native pattern workflow.
+    run([{"tool": "create_partdesign_body", "args": {"name": "AcceptancePatternBody"}}])
+    run([{"tool": "create_partdesign_sketch", "args": {
+        "body_name": "AcceptancePatternBody", "name": "AcceptancePatternProfile",
+        "plane": "XY_Plane"
+    }}])
+    run([{"tool": "add_sketch_polygon", "args": {
+        "sketch_name": "AcceptancePatternProfile",
+        "points": [[0, 0], [10, 0], [10, 10], [0, 10]]
+    }}])
+    pad = run([{"tool": "create_partdesign_pad", "args": {
+        "body_name": "AcceptancePatternBody", "sketch_name": "AcceptancePatternProfile",
+        "length": 10, "name": "AcceptancePad"
+    }}])[0]
+    body = doc.getObject("AcceptancePatternBody")
+    require(body.Tip is not None and body.Tip.Name == pad["feature"],
+            "PartDesign Pad did not become the Body tip.")
+    require(body.Tip.Shape.isValid() and len(body.Tip.Shape.Solids) == 1,
+            "PartDesign Pad is not one valid solid.")
+    linear = run([{"tool": "linear_pattern", "args": {
+        "feature_name": pad["feature"], "direction": "X", "length": 30,
+        "occurrences": 3, "label": "Acceptance linear pattern"
+    }}])[0]
+    require(body.Tip.Name == linear["created"] and body.Tip.Shape.isValid(),
+            "Native linear pattern did not become a valid Body tip.")
+    report["checks"]["sketcher_partdesign_pad_and_linear_pattern"] = "PASS"
+
+    # A separate Body exercises the circular pattern path.
+    run([{"tool": "create_partdesign_body", "args": {"name": "AcceptancePolarBody"}}])
+    run([{"tool": "create_partdesign_sketch", "args": {
+        "body_name": "AcceptancePolarBody", "name": "AcceptancePolarProfile",
+        "plane": "XY_Plane"
+    }}])
+    run([{"tool": "add_sketch_polygon", "args": {
+        "sketch_name": "AcceptancePolarProfile",
+        "points": [[15, -2], [19, -2], [19, 2], [15, 2]]
+    }}])
+    polar_pad = run([{"tool": "create_partdesign_pad", "args": {
+        "body_name": "AcceptancePolarBody", "sketch_name": "AcceptancePolarProfile",
+        "length": 8, "name": "AcceptancePolarPad"
+    }}])[0]
+    polar = run([{"tool": "polar_pattern", "args": {
+        "feature_name": polar_pad["feature"], "axis": "Z",
+        "angle": 360, "occurrences": 4, "label": "Acceptance polar pattern"
+    }}])[0]
+    polar_body = doc.getObject("AcceptancePolarBody")
+    require(polar_body.Tip.Name == polar["created"] and polar_body.Tip.Shape.isValid(),
+            "Native polar pattern did not become a valid Body tip.")
+    report["checks"]["partdesign_polar_pattern"] = "PASS"
+
+    # Native Spreadsheet generated from actual object geometry and properties.
+    names_for_schedule = [
+        base_name, cutter_name, cut["created"], duplicate["created"],
+        fillet["created"], chamfer["created"], "AcceptancePatternBody",
+        "AcceptancePolarBody"
+    ]
+    schedule = run([{"tool": "create_model_schedule", "args": {
+        "name": "AcceptanceModelSchedule",
+        "object_names": names_for_schedule
+    }}])[0]
+    sheet = doc.getObject(schedule["schedule"])
+    require(sheet is not None and sheet.TypeId == "Spreadsheet::Sheet",
+            "Model schedule is not a native Spreadsheet.")
+    require(int(schedule["row_count"]) == len(names_for_schedule),
+            "Model schedule row count does not match selected native objects.")
+    require(str(sheet.get("A1")) == "Mark" and str(sheet.get("B2")) == base_name,
+            "Model schedule did not preserve native model object identity.")
+    report["checks"]["native_spreadsheet_schedule"] = "PASS"
+
+    # Save, close and reopen the exact native project and re-check model integrity.
+    doc.recompute()
+    require(all(not any(x in list(getattr(obj, "State", []) or []) for x in ("Invalid", "Error"))
+                for obj in doc.Objects),
+            "A native model object is in an Invalid/Error state before save.")
+    project.parent.mkdir(parents=True, exist_ok=True)
+    doc.saveAs(str(project))
+    saved_names = {obj.Name for obj in doc.Objects}
+    App.closeDocument(doc.Name)
+    reopened = App.openDocument(str(project))
+    require(saved_names.issubset({obj.Name for obj in reopened.Objects}),
+            "One or more native model objects were lost on reopen.")
+    require(reopened.getObject("AcceptanceModelSchedule") is not None,
+            "Native Spreadsheet schedule did not survive reopen.")
+    require(reopened.getObject("AcceptancePatternBody").Tip.Shape.isValid(),
+            "PartDesign pattern Body is invalid after reopen.")
+    require(reopened.getObject("AcceptancePolarBody").Tip.Shape.isValid(),
+            "PartDesign polar Body is invalid after reopen.")
+    require(abs(float(reopened.getObject(cut["created"]).Shape.Volume) - 3000.0) < 1e-4,
+            "Boolean result volume changed after reopen.")
+    report["checks"]["native_save_close_reopen"] = "PASS"
+    report["status"] = "PASS"
+    report["native_object_count"] = len(reopened.Objects)
+    report["schedule_rows"] = len(names_for_schedule)
+    report["project_file"] = str(project)
+    report["operation_results"] = results
+except Exception as exc:
+    report["status"] = "FAIL"
+    report["error"] = str(exc)
+    report["traceback"] = traceback.format_exc()
+finally:
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print("NEXTAI NATIVE ACCEPTANCE " + report["status"] + ": " + str(marker))
