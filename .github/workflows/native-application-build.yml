@@ -233,7 +233,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb scrot xdotool
+          sudo apt-get install -y --no-install-recommends libxkbcommon-x11-0 xvfb scrot xdotool
           mkdir -p artifacts
           xvfb-run -a -s "-screen 0 1600x1000x24" bash -lc '
             set -euo pipefail
@@ -378,7 +378,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb scrot xdotool
+          sudo apt-get install -y --no-install-recommends libxkbcommon-x11-0 xvfb scrot xdotool
           mkdir -p artifacts
           xvfb-run -a -s "-screen 0 1600x1000x24" bash -lc '
             set -euo pipefail
