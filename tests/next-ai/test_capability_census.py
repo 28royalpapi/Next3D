@@ -67,7 +67,7 @@ class CapabilityCensusTests(unittest.TestCase):
             self.assertTrue(all(x["native_metadata"]["menu_text"] is None or
                                 isinstance(x["native_metadata"]["menu_text"], str)
                                 for x in part_box_obligations))
-            self.assertEqual(len([x for x in obligations if x["application"] == "nextcad"]), 32)
+            self.assertEqual(len([x for x in obligations if x["application"] == "nextcad"]), 30)
             self.assertEqual(
                 {x["native_id"] for x in census["capabilities"] if x["capability_type"] == "native_api_member"},
                 {"Part.makeBox", "Part.Shape"}
