@@ -315,7 +315,7 @@ def main() -> int:
     summary = {}
     for domain, items in metrics_by_domain.items():
         summary[domain] = {}
-        for key in ("json_parse", "key_recall", "scalar_match", "token_f1"):
+        for key in ("json_parse", "key_recall", "scalar_match", "token_f1", "plan_parse", "plan_shape_valid", "tool_sequence_exact", "tool_recall", "argument_key_recall", "plan_step_count_match"):
             values = [item[key] for item in items if item.get(key) is not None]
             if values:
                 summary[domain][key] = sum(values) / len(values)
@@ -328,9 +328,9 @@ def main() -> int:
         "metrics_by_domain": summary,
         "records": records,
         "interpretation": (
-            "JSON structure and token-overlap diagnostics only. They are not "
-            "engineering accuracy, native command success, geometry validity "
-            "or statutory compliance. Verify native outputs in NextCAD, "
+            "JSON structure, native-plan sequence and argument-key diagnostics, and token overlap only. "
+            "They are not engineering accuracy, schema-valid command execution, native success, "
+            "geometry validity or statutory compliance. Verify native outputs in NextCAD, "
             "Next BIM and applicable schema/checking tools."
         ),
     }
