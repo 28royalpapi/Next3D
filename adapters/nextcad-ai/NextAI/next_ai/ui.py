@@ -206,6 +206,7 @@ class NextAIWidget(QtWidgets.QWidget):
         self._worker = None
         self._runtime_worker = None
         self._turn_token = None
+        self._turn_allowed_tools = []
         self._pending_images = []
         self._activity_observer = activity_observer.NextCADActivityObserver()
 
@@ -373,6 +374,10 @@ class NextAIWidget(QtWidgets.QWidget):
             )
         try:
             context = tool_registry.read_context(question)
+            self._turn_allowed_tools = [
+                item["name"] for item in context.get("available_tools", [])
+                if isinstance(item, dict) and isinstance(item.get("name"), str)
+            ]
         except Exception as exc:
             self.status.setText("Could not read this NextCAD session: " + str(exc))
             return
@@ -515,7 +520,10 @@ class NextAIWidget(QtWidgets.QWidget):
         try:
             self._activity_observer.set_suspended(True)
             result = tool_registry.execute_approved_plan(
-                self._turn_token, plan, progress_callback=show_native_progress
+                self._turn_token,
+                plan,
+                progress_callback=show_native_progress,
+                allowed_tool_names=self._turn_allowed_tools,
             )
         except Exception as exc:
             self.status.setText("Native operation failed; the transaction was rolled back.")
