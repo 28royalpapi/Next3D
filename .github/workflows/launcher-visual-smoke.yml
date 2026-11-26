@@ -5,6 +5,9 @@ on:
     paths:
       - 'apps/Next3DLauncher/**'
       - 'scripts/capture_selector.py'
+      - 'adapters/nextcad-ai/**'
+      - 'training/nextai/prepare_public_corpora.py'
+      - 'training/nextai/train_nextai.py'
       - 'tests/**'
       - '.github/workflows/launcher-visual-smoke.yml'
   workflow_dispatch:
