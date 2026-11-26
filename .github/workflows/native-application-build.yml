@@ -215,7 +215,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nextcad-macos-capability-census
-          path: artifacts/capability-census/
+          path: |
+            artifacts/nextcad-runtime.json
+            artifacts/capability-census/
           if-no-files-found: warn
           retention-days: 30
 
