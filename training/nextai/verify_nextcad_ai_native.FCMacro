@@ -33,7 +33,7 @@ try:
     doc = App.newDocument("NextAI_NativeAcceptance")
     token = freecad_tools.begin_turn()
     allowed = {item["name"] for item in tool_registry.TOOLS}
-    results = {}
+    results = []
 
     def run(steps):
         names = {step["tool"] for step in steps}
@@ -42,7 +42,7 @@ try:
         )
         require(result.get("success") is True, "Typed native operation plan did not report success.")
         for step_result in result.get("results", []):
-            results.setdefault(step_result["step"], step_result)
+            results.append(step_result)
         return result.get("results", [])
 
     # Basic native Part solids and a true BRep boolean.
