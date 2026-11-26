@@ -31,6 +31,15 @@ def main() -> int:
         source / "knowledge_packs/skills/vehicle-package-design/SKILL.md",
         source / "knowledge_packs/skills/electrical-control-panel/SKILL.md",
         source / "knowledge_packs/skills/civil-road-drainage/SKILL.md",
+        source / "knowledge_packs/skills/sketcher-parametric-design/SKILL.md",
+        source / "knowledge_packs/skills/partdesign-feature-modelling/SKILL.md",
+        source / "knowledge_packs/skills/assembly-design/SKILL.md",
+        source / "knowledge_packs/skills/techdraw-engineering-documentation/SKILL.md",
+        source / "knowledge_packs/skills/fem-analysis-preparation/SKILL.md",
+        source / "knowledge_packs/skills/cam-toolpath-preparation/SKILL.md",
+        source / "knowledge_packs/skills/mesh-reverse-engineering/SKILL.md",
+        source / "knowledge_packs/skills/spreadsheet-parametric-data/SKILL.md",
+        source / "knowledge_packs/skills/bim-ifc-workflow/SKILL.md",
     )
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
