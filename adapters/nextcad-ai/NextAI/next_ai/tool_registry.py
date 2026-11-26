@@ -11,6 +11,25 @@ _TOOL_STOP = {"create", "native", "tool", "the", "with", "from", "and", "for", "
 
 TOOLS = [
     {
+        "name": "create_model_schedule",
+        "description": "Create a native Spreadsheet schedule from actual model objects. Reports native IDs/types, measured bounding-box spans, shape area/volume/topology and exposed dimension properties; blank fields remain blank when the native model does not expose them.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"},
+                "label": {"type": "string", "maxLength": 120},
+                "object_names": {
+                    "type": "array",
+                    "items": {"type": "string", "minLength": 1, "maxLength": 120},
+                    "maxItems": 200,
+                    "uniqueItems": true
+                }
+            },
+            "additionalProperties": false
+        },
+        "read_only": false,
+    },
+    {
         "name": "inspect_document",
         "description": "Read the open native document and its objects.",
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
