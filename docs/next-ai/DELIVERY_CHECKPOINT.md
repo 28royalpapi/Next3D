@@ -63,3 +63,12 @@ Keep prompts short; do not paste the long history repeatedly. Use the branch hea
 Platform jobs now call the source patch script with `--only nextcad` or `--only nextbim`; the shared source-preparation gate still applies/verifies both sources and runs all contract tests. This avoids downloading FreeCAD's recursive dependency tree in Next BIM-only jobs and avoids fetching BIMCraft in NextCAD-only jobs.
 
 Never print entire CI logs. Report current SHA, Actions URL, pass/fail delta and next blocker. Keep user updates concise.
+
+## Latest work session — 2026-11-26
+
+- The earlier native run `45774693218` checked out `86dbf0d`, before the native acceptance correction. Its macOS duplicate check incorrectly expected the cutter's original Y coordinate to be zero even though the cutter was created at Y=5 mm. Commit `31eb5ef0a09b6271b29f39cafded5b6680f1af77` now snapshots the source placement and checks both source immutability and the requested +40 mm copy offset.
+- That same correction installs NextCAD into the pinned Pixi runtime before the Windows test suite and launches the Linux native acceptance macro with the built FreeCAD executable instead of the Pixi task wrapper. These changes still need a fresh native run.
+- Source-gate run `45821205804` checked out `31eb5ef`. All 153 data-pipeline tests passed, but the final source verifier still required Next AI to be open beside the Project Browser by default. It stopped before the three-platform native matrix. The current branch verifier has since been aligned with the upstream default layout: Properties and Project Browser remain visible, while Next AI stays on-demand. Commit `e60bd80ee6e127d23656325d8738399b8fb093d7` adds a regression test for this rule. A new CI result is still required.
+- The training branch now includes a separate 28-case, train-excluded engineering benchmark covering at least eight domains. It scores numerical answers, units and refusal to invent missing design inputs. The benchmark has not yet been run against a trained student.
+- Hugging Face authentication succeeds, but a `t4-small` Jobs preflight was rejected with HTTP `402 Payment Required`. No GPU job was created and no training began. The account needs usable Jobs billing/credits or another explicitly authorised GPU runtime.
+- The ChatGPT Android crash has no captured app stack trace, so its exact cause is not established. Keep collaboration prompts and log excerpts short; use this checkpoint rather than pasting the entire project history again.
