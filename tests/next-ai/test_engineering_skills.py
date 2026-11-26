@@ -116,8 +116,24 @@ class EngineeringSkillRegistryTests(unittest.TestCase):
         self.assertEqual(context["engineering_skills"]["selected"][0]["name"], "residential-floor-plan")
         self.assertIn("WHAT", context["context_contract"]["engineering_skills"])
         self.assertIn("HOW", context["context_contract"]["native_capabilities"])
-        self.assertEqual(context["available_tools"], tool_registry.TOOLS)
+        self.assertIn("inspect_document", {item["name"] for item in context["available_tools"]})
+        self.assertIn("discover_capabilities", {item["name"] for item in context["available_tools"]})
         self.assertTrue(context["ranked_tools"])
+        self.assertLessEqual(len(context["available_tools"]), 15)
+        self.assertGreater(context["tool_selection_summary"]["total_reviewed_typed_tools"],
+                           context["tool_selection_summary"]["selected_for_this_turn"])
+
+    def test_tool_schemas_are_progressively_selected_and_include_model_schedule_when_relevant(self):
+        residential = tool_registry.select_tool_schemas("create an external wall and internal walls for a bungalow")
+        residential_names = {item["name"] for item in residential}
+        self.assertIn("create_arch_wall", residential_names)
+        self.assertIn("inspect_document", residential_names)
+        self.assertIn("discover_capabilities", residential_names)
+
+        schedule = tool_registry.select_tool_schemas("create a wall and produce a component schedule table")
+        schedule_names = {item["name"] for item in schedule}
+        self.assertIn("create_model_schedule", schedule_names)
+        self.assertLessEqual(len(schedule), 15)
 
     def test_ranked_tools_are_existing_reviewed_tools_only(self):
         ranked = tool_registry.rank_tools("create wall using path height and thickness")
