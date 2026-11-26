@@ -128,7 +128,7 @@ class PrepareNativeSftTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             source = root / "records.jsonl"
-            source.write_text(json.dumps(item) + "\\n", encoding="utf-8")
+            source.write_text(json.dumps(item) + "\n", encoding="utf-8")
             summary = module.prepare(source, root / "out")
             self.assertEqual(summary["train"], 1, summary)
             example = json.loads((root / "out/train.jsonl").read_text(encoding="utf-8"))
