@@ -42,6 +42,11 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run NextAI evaluator regression tests
         run: python -m unittest discover -s tests/next-ai -p 'test_evaluate_nextai.py' -v
+      - name: Run local engineering skill and native adapter tests
+        run: |
+          python -m unittest discover -s tests/next-ai -p 'test_engineering_skills.py' -v
+          python -m unittest discover -s tests/next-ai -p 'test_nextai_adapter.py' -v
+          python -m unittest discover -s tests/next-ai -p 'test_public_corpus_preparation.py' -v
       - name: Run actual selector visual smoke test
         if: runner.os != 'Linux'
         run: python scripts/capture_selector.py
