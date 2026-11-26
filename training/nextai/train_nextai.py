@@ -18,6 +18,117 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def validate_training_splits(
+    train_rows: list[dict[str, Any]],
+    validation_rows: list[dict[str, Any]],
+    test_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Fail closed on empty references, duplicate IDs and cross-split leakage."""
+    splits = {
+        "train": train_rows,
+        "validation": validation_rows,
+        "test": test_rows,
+    }
+    identities: dict[str, dict[str, str]] = {}
+    summaries = {}
+    for split_name, rows in splits.items():
+        seen_ids = set()
+        source_groups = set()
+        split_groups = set()
+        image_count = 0
+        domains = set()
+        for index, row in enumerate(rows):
+            if not isinstance(row, dict):
+                raise ValueError(f"{split_name}[{index}] is not a JSON object.")
+            record_id = str(row.get("record_id") or "").strip()
+            if record_id:
+                if record_id in seen_ids:
+                    raise ValueError(f"Duplicate record_id {record_id!r} within {split_name}.")
+                seen_ids.add(record_id)
+                identities.setdefault("record_id:" + record_id, {})[split_name] = record_id
+
+            for key, registry in (
+                ("split_group", split_groups),
+                ("source_group_sha256", source_groups),
+            ):
+                value = str(row.get(key) or "").strip()
+                if value:
+                    registry.add(value)
+                    identities.setdefault(key + ":" + value, {})[split_name] = value
+
+            domains.add(str(row.get("domain") or "unknown"))
+            messages = row.get("messages")
+            if isinstance(messages, list):
+                roles = {
+                    message.get("role")
+                    for message in messages
+                    if isinstance(message, dict)
+                }
+                if "user" not in roles or "assistant" not in roles:
+                    raise ValueError(
+                        f"{split_name} record {record_id or index!r} must contain user and assistant messages."
+                    )
+                last_assistant = next(
+                    (
+                        message for message in reversed(messages)
+                        if isinstance(message, dict) and message.get("role") == "assistant"
+                    ),
+                    None,
+                )
+                assistant_content = (last_assistant or {}).get("content")
+                has_text = (
+                    isinstance(assistant_content, str) and bool(assistant_content.strip())
+                ) or (
+                    isinstance(assistant_content, list)
+                    and any(
+                        isinstance(part, dict) and part.get("type") in {"text", "tool_call"}
+                        and (part.get("text") or part.get("tool_call"))
+                        for part in assistant_content
+                    )
+                ) or bool((last_assistant or {}).get("tool_calls"))
+                if not has_text:
+                    raise ValueError(f"{split_name} record {record_id or index!r} has no assistant target.")
+                conversation_row_for_collator(row)
+            else:
+                prompt = str(row.get("prompt") or "").strip()
+                completion = str(row.get("completion") or "").strip()
+                if not prompt or not completion:
+                    raise ValueError(
+                        f"{split_name} record {record_id or index!r} needs non-empty prompt and completion."
+                    )
+            for image_path in row.get("images") or []:
+                if not Path(image_path).is_file():
+                    raise FileNotFoundError(
+                        f"{split_name} record {record_id or index!r} references missing image: {image_path}"
+                    )
+                image_count += 1
+        summaries[split_name] = {
+            "records": len(rows),
+            "unique_record_ids": len(seen_ids),
+            "split_groups": len(split_groups),
+            "source_groups": len(source_groups),
+            "image_files": image_count,
+            "domains": sorted(domains),
+        }
+
+    conflicts = []
+    for identity, appearances in identities.items():
+        if len(appearances) > 1:
+            conflicts.append({"identity": identity, "splits": sorted(appearances)})
+    if conflicts:
+        sample = conflicts[:8]
+        raise ValueError(
+            "Data leakage detected: record IDs or source/split groups occur in more than one split: "
+            + json.dumps(sample, ensure_ascii=False)
+        )
+    return {
+        "status": "PASS",
+        "cross_split_identity_conflicts": 0,
+        "splits": summaries,
+        "test_used_for_gradient_updates": False,
+    }
+
+
 def conversation_row_for_collator(row: dict[str, Any]) -> dict[str, Any]:
     """Preserve Qwen tool-call messages and pass per-example tool schemas to its chat template."""
     messages = row.get("messages")
@@ -73,6 +184,8 @@ def main() -> int:
     test_rows = read_jsonl(test_path) if test_path.is_file() else []
     if not train_rows or not validation_rows:
         raise RuntimeError("Training and validation JSONL must both be non-empty.")
+    integrity = validate_training_splits(train_rows, validation_rows, test_rows)
+    print("NEXTAI DATA INTEGRITY PASS: " + json.dumps(integrity, ensure_ascii=False))
 
     # Fail before downloading the model if no CUDA device is available.
     import torch
@@ -150,6 +263,28 @@ def main() -> int:
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
     use_bf16 = bool(torch.cuda.is_bf16_supported())
+    run_config = {
+        "base_model": args.base_model,
+        "method": "BF16 LoRA supervised fine-tuning",
+        "max_steps": args.max_steps,
+        "num_train_epochs": args.num_train_epochs,
+        "max_seq_length": args.max_seq_length,
+        "batch_size": args.batch_size,
+        "gradient_accumulation": args.gradient_accumulation,
+        "effective_batch_size": args.batch_size * args.gradient_accumulation,
+        "learning_rate": args.learning_rate,
+        "lora_rank": args.lora_rank,
+        "precision": "bf16" if use_bf16 else "fp16",
+        "seed": 3407,
+        "data_integrity": integrity,
+        "training_record_count": len(train_rows),
+        "validation_record_count": len(validation_rows),
+        "held_out_test_record_count": len(test_rows),
+        "test_set_used_for_training": False,
+    }
+    (output / "training_config.json").write_text(
+        json.dumps(run_config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     config = SFTConfig(
         output_dir=str(output / "checkpoints"),
         max_length=args.max_seq_length,
@@ -221,6 +356,9 @@ def main() -> int:
         "language_layers_trainable": True,
         "train_records": len(train_rows),
         "validation_records": len(validation_rows),
+        "held_out_test_records": len(test_rows),
+        "data_integrity": integrity,
+        "training_config": str(output / "training_config.json"),
         "max_steps": args.max_steps,
         "num_train_epochs": args.num_train_epochs,
         "precision": "bf16" if use_bf16 else "fp16",
