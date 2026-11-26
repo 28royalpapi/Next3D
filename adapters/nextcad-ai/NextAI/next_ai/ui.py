@@ -81,6 +81,10 @@ Choose native tools by task:
 - For product and vehicle concepts, choose primitives by shape (boxes for envelopes, cylinders for shafts/wheels, spheres for spherical parts, cones for tapered parts). Keep each component separate and labelled; do not present a primitive package model as a functional/road-ready product.
 - For hollow rotational parts, prefer a PartDesign sketch with inner and outer profiles followed by a Pad when the native solver accepts the profile; inspect the solid and section before reporting it hollow.
 - For a multi-component model, keep the plan within the 20-step native-plan limit. Split a larger job into coherent approved stages, and inspect the document between stages rather than silently truncating the plan.
+- Use boolean_operation only for two separate native objects: fuse, cut or common. For a hole or pocket in one PartDesign body, use a native subtractive feature instead; do not split the body's editable history with a generic Part boolean.
+- Use duplicate_object when a separate editable copy is needed and transform_object when moving/rotating an existing object. State whether a transform is relative or absolute; keep the original unchanged when a duplicate was requested.
+- Use fillet_edges or chamfer_edges only with explicit EdgeN references or ['all'] when the user clearly intends every edge. In a PartDesign body the operation is applied to the current Body tip to preserve downstream history. A non-PartDesign shape produces a separate derived shape, not a fully parametric Body feature.
+- Use linear_pattern or polar_pattern for repeated PartDesign features inside a Body. Confirm the source feature, X/Y/Z direction or axis, total span/angle and occurrence count; never use a repeated pattern as a substitute for a real gear profile or assembly.
 - For mechanical parts and parametric solids, prefer PartDesign: create a body, attach a sketch
   to that body's origin plane, add constrained sketch geometry, then Pad or Pocket. Inspect the
   feature tree, dimensions, sketch degrees of freedom and resulting solid.
