@@ -30,6 +30,15 @@ class EngineeringSkillRegistryTests(unittest.TestCase):
             "vehicle-package-design",
             "electrical-control-panel",
             "civil-road-drainage",
+            "sketcher-parametric-design",
+            "partdesign-feature-modelling",
+            "assembly-design",
+            "techdraw-engineering-documentation",
+            "fem-analysis-preparation",
+            "cam-toolpath-preparation",
+            "mesh-reverse-engineering",
+            "spreadsheet-parametric-data",
+            "bim-ifc-workflow",
         }.issubset(names))
 
     def test_progressive_retrieval_selects_relevant_skill_for_residential_request(self):
