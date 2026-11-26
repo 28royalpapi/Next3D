@@ -2715,6 +2715,154 @@ def make_local_skill_curriculum() -> list[dict[str, Any]]:
             })
     return lessons
 
+
+CAPABILITY_SKILL_DIMENSIONS = {
+    "recognition": "Explain what this native capability is called and what the pinned inventory actually says it does.",
+    "inputs_and_units": "Identify known input metadata and explicitly distinguish a human-readable description from a formal schema.",
+    "preconditions": "Explain what must be inspected in the live document before this capability can safely be planned.",
+    "planning": "Explain how to place this capability into an ordered workflow without inventing undocumented dependencies.",
+    "execution": "Explain how the local assistant is allowed to discover or invoke this capability under its current permission policy.",
+    "verification": "Explain what evidence is still needed to prove that a native operation actually succeeded.",
+    "revision": "Explain what must be inspected before revising existing model objects and what revision behaviour remains unknown.",
+    "failure_recovery": "Explain how to handle a native failure without inventing rollback or retry guarantees.",
+    "composition": "Explain what must be learned before composing this capability into a larger project workflow.",
+    "limitations": "State exactly what the pinned metadata does not prove and what must not be claimed.",
+}
+
+
+def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, Any]]:
+    """Turn pinned command/API metadata into attributed L0 lessons, never execution traces."""
+    census = json.loads(Path(census_path).read_text(encoding="utf-8"))
+    if census.get("schema") != "nextai.capability_census.v1":
+        raise ValueError("Capability census has an unexpected schema.")
+    if census.get("evidence_rules", {}).get("mastery_requires_native_execution_and_validation") is not True:
+        raise ValueError("Capability census does not preserve the native mastery evidence rule.")
+    capabilities = census.get("capabilities")
+    if not isinstance(capabilities, list):
+        raise ValueError("Capability census has no capabilities array.")
+
+    lessons = []
+    for capability in capabilities:
+        if not isinstance(capability, dict):
+            continue
+        capability_type = capability.get("capability_type")
+        if capability_type not in {"native_command", "native_gui_command", "native_api_member"}:
+            continue
+        application = capability.get("application")
+        if application not in {"nextcad", "nextbim"}:
+            continue
+        native_id = str(capability.get("native_id") or "").strip()
+        capability_id = str(capability.get("capability_id") or "").strip()
+        name = str(capability.get("name") or native_id).strip()
+        source_commit = str(capability.get("source_commit") or "").strip()
+        if not native_id or not capability_id or not source_commit:
+            raise ValueError("A native capability lesson requires a native ID, capability ID and source commit.")
+
+        metadata = capability.get("native_metadata") or {}
+        parameter_contract = str(
+            capability.get("parameter_contract") or metadata.get("parameter_contract") or ""
+        ).strip()
+        contract_kind = str(
+            capability.get("parameter_contract_kind") or metadata.get("parameter_contract_kind") or ""
+        ).strip()
+        known = {
+            "application": application,
+            "capability_name": name,
+            "native_id": native_id,
+            "capability_type": capability_type,
+            "source_evidence": capability.get("source_evidence"),
+            "source_commit": source_commit,
+            "source_path": capability.get("source_path"),
+            "application_version": capability.get("application_version"),
+            "menu_or_ui_label": capability.get("menu_text") or capability.get("menu"),
+            "tooltip": capability.get("tooltip"),
+            "status_tip": capability.get("status_tip"),
+            "registration_kind": capability.get("registration_kind") or metadata.get("registration_kind"),
+            "parameter_contract": parameter_contract or None,
+            "parameter_contract_kind": contract_kind or None,
+            "undoable": capability.get("undoable") if "undoable" in capability else metadata.get("undoable"),
+            "file_effect": capability.get("file_effect") or metadata.get("file_effect") or "not specified",
+            "assistant_execution_status": capability.get("assistant_execution_status")
+                or metadata.get("assistant_execution_status")
+                or capability.get("agent_tool_status")
+                or "requires_reviewed_typed_adapter",
+        }
+        if application == "nextcad":
+            license_name = "LGPL-2.1"
+            attribution = "FreeCAD contributors; pinned FreeCAD source metadata, adapted for Next3D."
+            policy = (
+                "A discovered FreeCAD GUI command or API member is not an approved AI operation. "
+                "NextCAD must use a reviewed typed adapter, exact argument schema and native validation. "
+                "The generic GUI command fallback is view-only."
+            )
+            domain = "nextcad_capability_knowledge"
+        else:
+            license_name = "MIT OR Apache-2.0"
+            attribution = "IPedrax and BIMCraft contributors; pinned BIMCraft command-registration metadata, adapted for Next3D."
+            policy = (
+                "Use the live BIMCraft list_commands result and exact native command description before "
+                "constructing an execute request. Respect the native Assistant's file/image restrictions "
+                "and the permissioned command bridge."
+            )
+            domain = "nextbim_capability_knowledge"
+
+        for dimension, objective in CAPABILITY_SKILL_DIMENSIONS.items():
+            prompt = (
+                f"Teach the '{dimension}' aspect of native capability '{native_id}' "
+                f"({name}) in {application}. Use only the pinned capability metadata below. "
+                "Do not invent parameters, units, prerequisites, commands, geometry or successful results."
+            )
+            completion = {
+                "lesson_type": "pinned_native_capability_metadata_knowledge",
+                "evidence_level": "L0_metadata_knowledge_authored",
+                "application": application,
+                "capability": known,
+                "learning_dimension": dimension,
+                "learning_objective": objective,
+                "known_from_pinned_metadata": {
+                    key: value for key, value in known.items()
+                    if value not in (None, "", [], {})
+                },
+                "parameter_rule": (
+                    "The parameter contract is human-readable registration text, not a formal JSON Schema. "
+                    "Treat it as a discovery hint and ask the live native command registry for current details."
+                    if contract_kind == "human_readable_registration_description_not_json_schema"
+                    else (
+                        "No formal parameter schema is present in this census record. Do not invent arguments or units; "
+                        "use the live native documentation or a reviewed typed adapter."
+                    ) if not parameter_contract else
+                    "This is descriptive metadata only. It is not a validated JSON Schema or proof that these arguments execute."
+                ),
+                "execution_permission_rule": policy,
+                "evidence_boundary": (
+                    "This lesson describes a pinned source/runtime capability, not an executed task. "
+                    "No native object was created, edited, saved, reopened or independently validated by generating this lesson. "
+                    "Mastery requires L3 native execution, L4 save/reopen and L5 independent validation."
+                ),
+            }
+            lessons.append({
+                "record_id": f"capability-knowledge-{application}-{native_id}-{dimension}",
+                "domain": domain,
+                "system": (
+                    "You are NextAI. Teach native software knowledge from version-pinned capability metadata. "
+                    "Be precise about known facts and unknowns. A catalogue entry is not execution proof or permission."
+                ),
+                "prompt": prompt,
+                "completion": json.dumps(completion, ensure_ascii=False),
+                "images": [],
+                "source": "Next3D pinned native capability metadata",
+                "license": license_name,
+                "attribution": attribution,
+                "source_commit": source_commit,
+                "capability_id": capability_id,
+                "learning_dimension": dimension,
+                "evidence_level": "L0_metadata_knowledge_authored",
+                "split_group": "capability-knowledge-" + application + "-" + capability_id,
+                "stage": "capability_metadata_knowledge",
+                "record_type": "authored_metadata_knowledge_not_native_execution",
+            })
+    return lessons
+
 def make_synthetic_curriculum() -> list[dict[str, Any]]:
     """Small, original, unit-aware lessons that cover gaps in public corpora."""
     lessons = (make_advanced_engineering_curriculum() + make_design_intake_curriculum() + make_engineering_operator_curriculum() + make_design_execution_curriculum() + make_bim_execution_curriculum() + make_local_skill_curriculum()) + [
@@ -3331,6 +3479,8 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "engineering_pipe_continuity_calculation": 0.03,
         "construction_concrete_quantity_calculation": 0.03,
         "engineering_skill_knowledge": 0.08,
+        "nextcad_capability_knowledge": 0.10,
+        "nextbim_capability_knowledge": 0.12,
         "design_intake_water_storage_tower": 0.04,
         "design_intake_mechanical_gear": 0.04,
         "design_intake_electrical_control_panel": 0.04,
@@ -3513,6 +3663,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "bim_room_boundaries": [], "bim_asset_handover": [],
         "bim_revision_change_impact": [], "construction_4d_sequence": [],
         "civil_site_coordination": [], "engineering_skill_knowledge": [],
+        "nextcad_capability_knowledge": [], "nextbim_capability_knowledge": [],
         "design_intake_architecture": [], "design_intake_commercial_architecture": [],
         "design_intake_vehicle_cad": [], "design_intake_mechanical_part": [],
         "design_intake_assembly_cad": [], "design_intake_sheet_metal_cad": [],
@@ -3621,6 +3772,18 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         counts[f"local_skill_{split_name}"] = sum(
             1 for row in split_rows if row.get("skill_name")
         )
+    capability_census_path = getattr(args, "capability_census", None)
+    if capability_census_path:
+        capability_lessons = make_capability_knowledge_curriculum(capability_census_path)
+        capability_splits = split_synthetic_curriculum(capability_lessons)
+        for lesson in capability_splits["train"]:
+            groups[lesson["domain"]].append(lesson)
+        validation.extend(capability_splits["validation"])
+        tests.extend(capability_splits["test"])
+        for split_name, split_rows in capability_splits.items():
+            counts[f"capability_knowledge_{split_name}"] = len(split_rows)
+        counts["capability_knowledge_total"] = len(capability_lessons)
+
     train = sample_balanced(groups, args.max_mixed_train, args.seed)
     random.Random(args.seed + 1).shuffle(validation)
     random.Random(args.seed + 2).shuffle(tests)
@@ -3635,6 +3798,13 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "student": "Qwen/Qwen3.5-0.8B",
         "method": "BF16 LoRA supervised fine-tuning",
         "sources": [
+            *([{
+                "repo": "Next3D pinned native capability census",
+                "license": "per-capability upstream source license",
+                "purpose": "L0 metadata-derived lessons for each pinned native command/API and ten learning dimensions; not execution traces",
+                "census_path": str(capability_census_path.resolve()),
+                "capability_lesson_records": counts.get("capability_knowledge_total", 0),
+            }] if capability_census_path else []),
             {"repo": CAD_DATASET, "license": "Apache-2.0", "purpose": "CAD visual feature recognition and construction sequence"},
             {"repo": BIM_DATASET, "license": "MIT", "purpose": "IFC/BIM instruction lessons; source must claim validation and score >=4.5"},
             {"repo": BIM_QA_DATASET, "license": "CC-BY-4.0", "attribution": "Dietmar2020", "purpose": "IFC/BIM conceptual QA"},
@@ -3696,6 +3866,8 @@ def main() -> int:
                         help="Optional directory containing Swiss Dwellings train/validation/test JSONL and rendered images.")
     parser.add_argument("--ifc-model-corpus-dir", type=Path,
                         help="Optional directory containing IfcOpenShell-parsed IFC model train/validation/test JSONL and manifest.")
+    parser.add_argument("--capability-census", type=Path,
+                        help="Optional capability-census.json from the pinned native NextCAD/Next BIM inventories.")
     # Legacy flags are train-only. Pass all three prepared files to keep the
     # native project's source lineage and held-out split separate.
     parser.add_argument("--nextcad-native", help="Legacy alias for --nextcad-native-train only.")
