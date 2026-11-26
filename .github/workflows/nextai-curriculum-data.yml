@@ -65,11 +65,12 @@ jobs:
               --workflow .github/workflows/native-application-build.yml \
               --branch "$GITHUB_REF_NAME" --limit 20 \
               --json databaseId,status,conclusion \
-              --jq '[.[] | select(.status == "completed")][0].databaseId // ""')"
+              --jq '[.[] | select(.status == "completed" and .conclusion == "success")][0].databaseId // ""')"
           fi
           runtime_report=""
+          native_trace=""
           if [[ -n "$run_id" ]]; then
-            echo "Checking native workflow run $run_id for a version-pinned runtime census."
+            echo "Checking successful native workflow run $run_id for NextCAD runtime and execution evidence."
             for artifact in nextcad-windows-capability-census nextcad-macos-capability-census nextcad-linux-gui-evidence; do
               target="$RUNNER_TEMP/native-evidence/$artifact"
               mkdir -p "$target"
@@ -81,6 +82,17 @@ jobs:
                 fi
               fi
             done
+            for artifact in nextcad-windows-ai-native-acceptance nextcad-macos-ai-native-acceptance nextcad-linux-ai-native-acceptance; do
+              target="$RUNNER_TEMP/native-evidence/$artifact"
+              mkdir -p "$target"
+              if gh run download "$run_id" --name "$artifact" --dir "$target"; then
+                candidate="$(find "$target" -type f -name 'nextcad-ai-native-acceptance-trace.jsonl' -print -quit)"
+                if [[ -n "$candidate" ]]; then
+                  native_trace="$candidate"
+                  break
+                fi
+              fi
+            done
           fi
           if [[ -n "$runtime_report" ]]; then
             echo "runtime_report=$runtime_report" >> "$GITHUB_OUTPUT"
@@ -88,6 +100,13 @@ jobs:
           else
             echo "runtime_report=" >> "$GITHUB_OUTPUT"
             echo "NEXTCAD_RUNTIME_CENSUS=NOT YET CAPTURED; source-only census will be marked incomplete." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ -n "$native_trace" ]]; then
+            echo "native_trace=$native_trace" >> "$GITHUB_OUTPUT"
+            echo "NEXTCAD_NATIVE_EXECUTION_TRACES=AVAILABLE; imported into the held-out test split only." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "native_trace=" >> "$GITHUB_OUTPUT"
+            echo "NEXTCAD_NATIVE_EXECUTION_TRACES=NOT YET CAPTURED; no native-operation training or test examples are claimed." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Build the pinned native capability census
@@ -109,20 +128,27 @@ jobs:
           python training/nextai/capability_census.py "${args[@]}"
 
       - name: Prepare the multimodal CAD, BIM and engineering curriculum
+        env:
+          NEXTCAD_NATIVE_TRACE: ${{ steps.native_census.outputs.native_trace }}
         run: |
-          python training/nextai/prepare_public_corpora.py \
-            --output-dir "$RUNNER_TEMP/nextai-corpus" \
-            --capability-census "$RUNNER_TEMP/nextai-capability-census/capability-census.json" \
-            --max-cad-train 2500 \
-            --max-cad-validation 250 \
-            --max-cad-test 250 \
-            --max-bim-train 30000 \
-            --max-bim-validation 3000 \
-            --max-ifcqa-train 5000 \
-            --max-ifcqa-test 1000 \
-            --max-mixed-train 24000 \
-            --max-validation 2500 \
+          args=(
+            --output-dir "$RUNNER_TEMP/nextai-corpus"
+            --capability-census "$RUNNER_TEMP/nextai-capability-census/capability-census.json"
+            --max-cad-train 2500
+            --max-cad-validation 250
+            --max-cad-test 250
+            --max-bim-train 30000
+            --max-bim-validation 3000
+            --max-ifcqa-train 5000
+            --max-ifcqa-test 1000
+            --max-mixed-train 24000
+            --max-validation 2500
             --max-test 1200
+          )
+          if [[ -n "$NEXTCAD_NATIVE_TRACE" ]]; then
+            args+=(--nextcad-native-test "$NEXTCAD_NATIVE_TRACE")
+          fi
+          python training/nextai/prepare_public_corpora.py "${args[@]}"
 
       - name: Validate train, validation, test and curriculum sidecar isolation
         working-directory: .
@@ -167,6 +193,7 @@ jobs:
               "nextcad_runtime_commands": census["counts"]["nextcad_runtime_commands"],
               "nextcad_runtime_api_members": census["counts"]["nextcad_runtime_api_members"],
               "nextbim_registered_commands": census["counts"]["nextbim_registered_commands"],
+              "nextcad_native_test_records": manifest["source_counts"].get("nextcad_native_test", 0),
               "capability_learning_obligations": census["counts"]["skill_obligations"],
               "capability_obligations_are_training_examples": False,
               "held_out_test_used_for_training": manifest["test_not_used_for_training"] is False,
