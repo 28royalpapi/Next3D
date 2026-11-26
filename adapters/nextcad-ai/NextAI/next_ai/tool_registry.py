@@ -1,7 +1,13 @@
 """Machine-readable tool catalogue and dispatcher for NextAI."""
 from __future__ import annotations
 
-from . import freecad_tools, knowledge
+import math
+import re
+
+from . import engineering_skills, freecad_tools, knowledge
+
+_TOOL_TOKEN = re.compile(r"[a-zA-Z][a-zA-Z0-9_+-]{1,}")
+_TOOL_STOP = {"create", "native", "tool", "the", "with", "from", "and", "for", "use", "read", "only"}
 
 TOOLS = [
     {
@@ -411,8 +417,58 @@ TOOLS = [
 ]
 
 
+def _terms(value: str) -> set[str]:
+    return {token.lower() for token in _TOOL_TOKEN.findall(str(value)) if token.lower() not in _TOOL_STOP}
+
+
+def rank_tools(query: str, limit: int = 12) -> list[dict]:
+    """Rank the fixed, reviewed native tool schemas for the current request.
+
+    This is deterministic and local. It is a recommendation signal, not an
+    access-control decision: every executable tool remains explicitly listed
+    in TOOLS and is still checked by execute_approved_plan.
+    """
+    limit = max(1, min(int(limit), len(TOOLS)))
+    query_terms = _terms(query)
+    if not query_terms:
+        return [
+            {"name": item["name"], "read_only": item["read_only"], "score": 0.0}
+            for item in TOOLS[:limit]
+        ]
+    documents = []
+    for item in TOOLS:
+        schema_text = str(item.get("parameters", {}))
+        documents.append(_terms(item["name"] + " " + item["description"] + " " + schema_text))
+    frequency = {}
+    for terms in documents:
+        for term in terms:
+            frequency[term] = frequency.get(term, 0) + 1
+    ranked = []
+    for item, terms in zip(TOOLS, documents):
+        overlap = query_terms.intersection(terms)
+        score = sum(math.log((len(TOOLS) + 1) / (frequency.get(term, 0) + 1)) + 1 for term in overlap)
+        if item["name"] in {"inspect_document", "discover_capabilities"}:
+            score += 0.15
+        ranked.append((score, item))
+    ranked.sort(key=lambda pair: (-pair[0], pair[1]["name"]))
+    return [
+        {"name": item["name"], "read_only": item["read_only"], "score": round(score, 3)}
+        for score, item in ranked[:limit]
+    ]
+
+
 def read_context(query: str = ""):
+    """Build a local task context with engineering knowledge and native API knowledge kept distinct."""
+    skill_context = engineering_skills.EngineeringSkillRegistry().retrieve(query)
     return {
+        "context_contract": {
+            "engineering_skills": "Explain WHAT the user wants to build, what to ask, domain components and deliverables.",
+            "native_capabilities": "Explain HOW this exact installation can build, inspect, edit and validate it.",
+            "authority": "Live native capabilities and reviewed typed tool schemas override any skill suggestion.",
+            "locality": "Skill files and manuals are read from this laptop; they are not uploaded to a remote knowledge service.",
+        },
+        "engineering_skills": skill_context,
+        "ranked_tools": rank_tools(query),
         "capabilities": freecad_tools.discover_capabilities(query),
         "document": freecad_tools.inspect_document(),
         "available_tools": TOOLS,
