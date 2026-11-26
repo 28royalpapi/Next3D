@@ -14,7 +14,7 @@ The scope is the full capability surface that can actually be discovered in the 
 
 The current repository baseline contains:
 
-- Next BIM's pinned native command catalogue: 214 command registrations from BIMCraft commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b. Of these, 159 are edit registrations, 34 are other/query-style registrations, 10 are file-oriented actions and 11 are edit/file registrations. These are command registrations, not 214 proven AI skills.
+- Next BIM's pinned native command catalogue: 215 command registrations from BIMCraft commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b. Of these, 159 are edit registrations, 34 are other/query-style registrations, 11 are other/file-oriented actions and 11 are edit/file registrations. These are command registrations, not 214 proven AI skills.
 - NextCAD retains the upstream FreeCAD workbench foundations for Part, PartDesign, Sketcher, Assembly, Draft, TechDraw, BIM, FEM and CAM. The current NextAI adapter exposes capability discovery and a restricted typed tool set, but it does not yet give the model typed first-class coverage of every operation in every workbench.
 - Current guided design intake: 114 scenarios and 342 dialogue-turn examples.
 - Current NextCAD execution curriculum: 12 native tool-plan examples.
@@ -52,7 +52,7 @@ Build a machine-readable inventory from the actual pinned applications, not from
 
 For NextCAD, discover every installed workbench and command ID at runtime, retain its native module/workbench identity, and map command families, object types, supported properties, creation/edit/query behaviour, and input schemas. Include Part, PartDesign, Sketcher, Assembly, Draft, TechDraw, BIM, FEM and CAM, plus all additional workbenches present in the build. Record commands that are visible to a human but not yet callable through NextAI as capability gaps rather than pretending the assistant can already use them.
 
-For Next BIM, ingest all 214 catalogue registrations and their exact descriptions, parameter schemas, undo behaviour and file effects. Rebuild this inventory whenever the pinned BIMCraft source changes. Do not infer that a command works merely because it appears in the catalogue; command-level tests must confirm its arguments and state effects.
+For Next BIM, ingest all 215 catalogue registrations and their exact descriptions, parameter schemas, undo behaviour and file effects. Rebuild this inventory whenever the pinned BIMCraft source changes. Do not infer that a command works merely because it appears in the catalogue; command-level tests must confirm its arguments and state effects.
 
 The census must distinguish: discoverable, documented, callable by the assistant, schema-tested, native-executed, and end-to-end validated.
 
@@ -182,7 +182,7 @@ The headline claim must match the strongest evidence actually obtained. “100,0
 ## Immediate next work
 
 1. Export the full live NextCAD workbench and command inventory from the pinned build.
-2. Expand the 214-command Next BIM catalogue into a command-by-command capability test plan, then verify each command's parameters and state effects.
+2. Expand the 215-command Next BIM catalogue into a command-by-command capability test plan, then verify each command's parameters and state effects.
 3. Build a shared capability graph linking objects, operations, dependencies, disciplines, project stages and validation checks.
 4. Add meaningful scenario families for architecture, high-rise floor variation, civil/structural, MEP, mechanical assemblies, consumer products, manufacturing, existing-model revisions and recovery.
 5. Generate the first 10,000-case candidate corpus with provenance and deduplication, then audit its coverage before any GPU training.
