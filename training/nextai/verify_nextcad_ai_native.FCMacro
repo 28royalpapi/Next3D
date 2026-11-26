@@ -123,11 +123,12 @@ try:
     require(body.Tip.Shape.isValid() and len(body.Tip.Shape.Solids) == 1,
             "PartDesign Pad is not one valid solid.")
     linear = run([{"tool": "linear_pattern", "args": {
-        "feature_name": pad["feature"], "direction": "X", "length": 30,
+        "feature_name": pad["feature"], "direction": "X", "length": 20,
         "occurrences": 3, "label": "Acceptance linear pattern"
     }}])[0]
-    require(body.Tip.Name == linear["created"] and body.Tip.Shape.isValid(),
-            "Native linear pattern did not become a valid Body tip.")
+    require(body.Tip.Name == linear["created"] and body.Tip.Shape.isValid()
+            and len(body.Tip.Shape.Solids) == 1,
+            "Native linear pattern did not become one valid Body solid.")
     report["checks"]["sketcher_partdesign_pad_and_linear_pattern"] = "PASS"
 
     # A separate Body exercises the circular pattern path.
@@ -138,7 +139,7 @@ try:
     }}])
     run([{"tool": "add_sketch_polygon", "args": {
         "sketch_name": "AcceptancePolarProfile",
-        "points": [[15, -2], [19, -2], [19, 2], [15, 2]]
+        "points": [[0, 0], [4, 0], [4, 2], [0, 2]]
     }}])
     polar_pad = run([{"tool": "create_partdesign_pad", "args": {
         "body_name": "AcceptancePolarBody", "sketch_name": "AcceptancePolarProfile",
@@ -149,8 +150,9 @@ try:
         "angle": 360, "occurrences": 4, "label": "Acceptance polar pattern"
     }}])[0]
     polar_body = doc.getObject("AcceptancePolarBody")
-    require(polar_body.Tip.Name == polar["created"] and polar_body.Tip.Shape.isValid(),
-            "Native polar pattern did not become a valid Body tip.")
+    require(polar_body.Tip.Name == polar["created"] and polar_body.Tip.Shape.isValid()
+            and len(polar_body.Tip.Shape.Solids) == 1,
+            "Native polar pattern did not become one valid Body solid.")
     report["checks"]["partdesign_polar_pattern"] = "PASS"
 
     # Native Spreadsheet generated from actual object geometry and properties.
