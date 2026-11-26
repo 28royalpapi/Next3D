@@ -42,7 +42,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
 
       - name: Install CPU-only corpus preparation dependencies
         run: python -m pip install --disable-pip-version-check datasets pillow
@@ -61,8 +60,8 @@ jobs:
             run_id="$(gh run list \
               --workflow .github/workflows/native-application-build.yml \
               --branch "$GITHUB_REF_NAME" --limit 20 \
-              --json databaseId,status \
-              --jq '[.[] | select(.status == "completed")][0].databaseId // ""')"
+              --json databaseId,status,conclusion \
+              --jq '[.[] | select(.status == "completed" and .conclusion == "success")][0].databaseId // ""')"
           fi
           runtime_report=""
           if [[ -n "$run_id" ]]; then
@@ -126,13 +125,15 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           import sys
           from pathlib import Path
 
           sys.path.insert(0, "training/nextai")
           from train_nextai import read_jsonl, validate_training_splits
 
-          root = Path("$RUNNER_TEMP/nextai-corpus")
+          runner_temp = Path(os.environ["RUNNER_TEMP"])
+          root = runner_temp / "nextai-corpus"
           reports = {}
           for prefix in ("", "skill_", "capability_"):
               train = read_jsonl(root / f"{prefix}train.jsonl")
@@ -148,7 +149,7 @@ jobs:
               }
 
           manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-          census = json.loads(Path("$RUNNER_TEMP/nextai-capability-census/capability-census.json").read_text(encoding="utf-8"))
+          census = json.loads((runner_temp / "nextai-capability-census" / "capability-census.json").read_text(encoding="utf-8"))
           profile = {
               "student": manifest["student"],
               "method": manifest["method"],
