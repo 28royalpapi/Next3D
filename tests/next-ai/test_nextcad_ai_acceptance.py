@@ -33,6 +33,10 @@ class NextCADNativeAcceptanceContractTests(unittest.TestCase):
         self.assertIn("App.closeDocument", source)
         self.assertIn("App.openDocument", source)
         self.assertIn("AcceptanceModelSchedule", source)
+        self.assertIn("partdesign_polar_pattern_with_hub", source)
+        self.assertIn("stage_project", source)
+        self.assertIn("nextcad-ai-native-acceptance-trace.jsonl", source)
+        self.assertIn("tool_schema_version", source)
         self.assertIn('report["status"] = "PASS"', source)
         self.assertIn('report["status"] = "FAIL"', source)
 
@@ -49,6 +53,8 @@ class NextCADNativeAcceptanceContractTests(unittest.TestCase):
         self.assertIn('result.get("status") != "PASS"', source)
         self.assertIn("NEXT3D_NEXTCAD_AI_ACCEPTANCE_PROJECT", source)
         self.assertIn("project.is_file()", source)
+        self.assertIn("stage_project.is_file()", source)
+        self.assertIn("len(trace_rows) != 2", source)
 
     def test_installer_places_first_party_adapter_where_native_runner_expects_it(self):
         source = INSTALLER.read_text(encoding="utf-8")
