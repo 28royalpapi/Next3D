@@ -349,6 +349,335 @@ def _assert_turn(token):
     return doc
 
 
+def _native_name(value, fallback):
+    raw = str(value or fallback).strip()
+    safe = re.sub(r"[^A-Za-z0-9_]", "_", raw)[:40]
+    if not safe or not safe[0].isalpha():
+        safe = "NextAI_" + safe
+    return safe
+
+
+def _document_object(doc, name):
+    if not isinstance(name, str) or not name.strip() or len(name) > 120:
+        raise ValueError("A valid native object name is required.")
+    obj = doc.getObject(name)
+    if obj is None:
+        raise ValueError(f"Native object '{name}' was not found in the active document.")
+    return obj
+
+
+def _native_shape(obj):
+    shape = getattr(obj, "Shape", None)
+    if shape is None or shape.isNull():
+        raise ValueError(f"'{obj.Label}' has no non-empty native shape.")
+    return shape
+
+
+def _verify_native_shape(obj, operation):
+    shape = _native_shape(obj)
+    if not shape.isValid():
+        raise RuntimeError(f"{operation} produced invalid geometry; the transaction will roll back.")
+    state = list(getattr(obj, "State", []) or [])
+    if any(item in ("Invalid", "Error") for item in state):
+        raise RuntimeError(f"{operation} left the native object in an invalid state: {state}.")
+    return {
+        "valid": True,
+        "solids": len(shape.Solids),
+        "faces": len(shape.Faces),
+        "edges": len(shape.Edges),
+        "volume_mm3": round(float(shape.Volume), 6),
+        "area_mm2": round(float(shape.Area), 6),
+    }
+
+
+def _find_partdesign_body(obj):
+    if str(getattr(obj, "TypeId", "")) == "PartDesign::Body":
+        return obj
+    try:
+        parents = list(getattr(obj, "InList", []) or [])
+    except Exception:
+        parents = []
+    return next((parent for parent in parents if str(getattr(parent, "TypeId", "")) == "PartDesign::Body"), None)
+
+
+def _apply_relative_placement(old, tx, ty, tz, ax, ay, az, angle):
+    """Translate in global coordinates and rotate in place about the object's origin."""
+    App, _Gui = _apps()
+    new_base = old.Base + App.Vector(tx, ty, tz)
+    if abs(angle) > 1e-12:
+        axis = App.Vector(ax, ay, az)
+        if axis.Length <= 1e-9:
+            raise ValueError("A non-zero rotation angle requires a non-zero rotation axis.")
+        delta_rotation = App.Rotation(axis, angle)
+        new_rotation = delta_rotation.multiply(old.Rotation)
+    else:
+        new_rotation = old.Rotation
+    return App.Placement(new_base, new_rotation)
+
+
+def _edge_references(shape, raw_edges):
+    if not isinstance(raw_edges, list) or not raw_edges or len(raw_edges) > 200:
+        raise ValueError("edges must contain 'all' or one or more explicit EdgeN references.")
+    if any(not isinstance(item, str) for item in raw_edges):
+        raise ValueError("Every edge reference must be a string.")
+    if len(set(raw_edges)) != len(raw_edges):
+        raise ValueError("Edge references cannot contain duplicates.")
+    if "all" in raw_edges:
+        if len(raw_edges) != 1:
+            raise ValueError("Use 'all' by itself; do not mix it with explicit EdgeN references.")
+        if not shape.Edges:
+            raise ValueError("The selected object has no edges.")
+        return [f"Edge{index}" for index in range(1, len(shape.Edges) + 1)]
+    resolved = []
+    for reference in raw_edges:
+        match = re.fullmatch(r"Edge([1-9][0-9]*)", reference)
+        if not match:
+            raise ValueError(f"Unsupported edge reference '{reference}'. Use 'all' or exact EdgeN names.")
+        index = int(match.group(1))
+        if index > len(shape.Edges):
+            raise ValueError(f"{reference} does not exist; the selected shape has {len(shape.Edges)} edges.")
+        resolved.append(reference)
+    return resolved
+
+
+def _create_boolean(doc, args):
+    App, _Gui = _apps()
+    operation = str(args.get("operation", "")).lower()
+    if operation not in {"fuse", "cut", "common"}:
+        raise ValueError("Boolean operation must be fuse, cut or common.")
+    first = _document_object(doc, args.get("object1"))
+    second = _document_object(doc, args.get("object2"))
+    if first is second:
+        raise ValueError("A boolean operation requires two different native objects.")
+    doc.recompute()
+    _native_shape(first)
+    _native_shape(second)
+    label = str(args.get("label", "")).strip()[:120]
+    native_name = _native_name(label, operation.capitalize())
+
+    if first.TypeId == "PartDesign::Body" and second.TypeId == "PartDesign::Body":
+        feature = first.newObject("PartDesign::Boolean", native_name)
+        feature.Type = {"fuse": "Fuse", "cut": "Cut", "common": "Common"}[operation]
+        feature.addObjects([second])
+        first.Tip = feature
+        doc.recompute()
+        verification = _verify_native_shape(feature, "PartDesign Boolean")
+        verification["body"] = first.Name
+        parametric = True
+    else:
+        part_type = {"fuse": "Part::Fuse", "cut": "Part::Cut", "common": "Part::Common"}[operation]
+        feature = doc.addObject(part_type, native_name)
+        feature.Base = first
+        feature.Tool = second
+        if label:
+            feature.Label = label
+        doc.recompute()
+        verification = _verify_native_shape(feature, "Part Boolean")
+        parametric = True
+
+    return {
+        "created": feature.Name,
+        "label": feature.Label,
+        "type": feature.TypeId,
+        "operation": operation,
+        "base_object": first.Name,
+        "tool_object": second.Name,
+        "parametric_native_feature": parametric,
+        "verification": verification,
+    }
+
+
+def _transform_native_object(doc, args):
+    App, _Gui = _apps()
+    obj = _document_object(doc, args.get("object_name"))
+    if not hasattr(obj, "Placement"):
+        raise ValueError(f"'{obj.Label}' does not expose a native Placement property.")
+    tx = _number(args.get("translate_x", 0.0), "translate_x")
+    ty = _number(args.get("translate_y", 0.0), "translate_y")
+    tz = _number(args.get("translate_z", 0.0), "translate_z")
+    ax = _number(args.get("rotate_axis_x", 0.0), "rotate_axis_x")
+    ay = _number(args.get("rotate_axis_y", 0.0), "rotate_axis_y")
+    az = _number(args.get("rotate_axis_z", 1.0), "rotate_axis_z")
+    angle = _number(args.get("rotate_angle", 0.0), "rotate_angle", -360000.0, 360000.0)
+    relative = args.get("relative", True)
+    if not isinstance(relative, bool):
+        raise ValueError("relative must be true or false.")
+
+    if relative:
+        obj.Placement = _apply_relative_placement(obj.Placement, tx, ty, tz, ax, ay, az, angle)
+    else:
+        axis = App.Vector(ax, ay, az)
+        if abs(angle) > 1e-12 and axis.Length <= 1e-9:
+            raise ValueError("A non-zero rotation angle requires a non-zero rotation axis.")
+        rotation = App.Rotation(axis, angle) if abs(angle) > 1e-12 else App.Rotation()
+        obj.Placement = App.Placement(App.Vector(tx, ty, tz), rotation)
+
+    doc.recompute()
+    verification = {}
+    if getattr(obj, "Shape", None) is not None and not obj.Shape.isNull():
+        verification = _verify_native_shape(obj, "Native transform")
+    return {
+        "edited": obj.Name,
+        "label": obj.Label,
+        "relative": relative,
+        "translation_mm": [tx, ty, tz],
+        "rotation_axis": [ax, ay, az],
+        "rotation_degrees": angle,
+        "verification": verification,
+    }
+
+
+def _duplicate_native_object(doc, args):
+    App, _Gui = _apps()
+    obj = _document_object(doc, args.get("object_name"))
+    copied = doc.copyObject(obj, True)
+    clone = copied[-1] if isinstance(copied, (list, tuple)) else copied
+    if clone is None:
+        raise RuntimeError(f"FreeCAD could not duplicate '{obj.Label}'.")
+    requested_label = str(args.get("label", "")).strip()
+    clone.Label = requested_label[:120] if requested_label else (str(obj.Label) + " Copy")[:120]
+    tx = _number(args.get("translate_x", 0.0), "translate_x")
+    ty = _number(args.get("translate_y", 0.0), "translate_y")
+    tz = _number(args.get("translate_z", 0.0), "translate_z")
+    angle = _number(args.get("rotate_angle", 0.0), "rotate_angle", -360000.0, 360000.0)
+    ax = _number(args.get("rotate_axis_x", 0.0), "rotate_axis_x")
+    ay = _number(args.get("rotate_axis_y", 0.0), "rotate_axis_y")
+    az = _number(args.get("rotate_axis_z", 1.0), "rotate_axis_z")
+    if tx or ty or tz or angle:
+        if not hasattr(clone, "Placement"):
+            raise ValueError(f"Duplicate '{clone.Label}' does not expose Placement for the requested offset.")
+        clone.Placement = _apply_relative_placement(clone.Placement, tx, ty, tz, ax, ay, az, angle)
+    doc.recompute()
+    verification = {}
+    if getattr(clone, "Shape", None) is not None and not clone.Shape.isNull():
+        verification = _verify_native_shape(clone, "Native duplicate")
+    return {
+        "created": clone.Name,
+        "label": clone.Label,
+        "type": clone.TypeId,
+        "source_object": obj.Name,
+        "source_unchanged": True,
+        "verification": verification,
+    }
+
+
+def _create_edge_feature(doc, args, operation):
+    App, _Gui = _apps()
+    obj = _document_object(doc, args.get("object_name"))
+    shape = _native_shape(obj)
+    edges = _edge_references(shape, args.get("edges"))
+    if operation == "fillet":
+        amount = _number(args.get("radius"), "radius", 0.001, 1_000_000.0)
+        feature_type = "PartDesign::Fillet"
+        property_name = "Radius"
+    else:
+        amount = _number(args.get("size"), "size", 0.001, 1_000_000.0)
+        feature_type = "PartDesign::Chamfer"
+        property_name = "Size"
+
+    body = _find_partdesign_body(obj)
+    label = str(args.get("label", "")).strip()[:120]
+    native_name = _native_name(label, operation.capitalize())
+    if body is not None:
+        base_feature = body.Tip if obj is body else obj
+        if base_feature is None:
+            raise ValueError(f"PartDesign body '{body.Label}' has no feature to modify.")
+        feature = body.newObject(feature_type, native_name)
+        feature.Base = (base_feature, edges)
+        setattr(feature, property_name, amount)
+        body.Tip = feature
+        doc.recompute()
+        verification = _verify_native_shape(feature, f"PartDesign {operation}")
+        verification["body"] = body.Name
+        parametric = True
+    else:
+        # Generic Part shapes have no PartDesign history. Keep the original
+        # object and create a separate result with an explicit source link.
+        selected = [shape.Edges[int(reference[4:]) - 1] for reference in edges]
+        output_shape = shape.makeFillet(amount, selected) if operation == "fillet" else shape.makeChamfer(amount, selected)
+        if output_shape.isNull() or not output_shape.isValid():
+            raise RuntimeError(f"Native Part {operation} returned invalid geometry.")
+        feature = doc.addObject("Part::Feature", native_name)
+        feature.Shape = output_shape
+        if hasattr(feature, "addProperty"):
+            feature.addProperty("App::PropertyLink", "NextAIBaseObject", "NextAI")
+            feature.NextAIBaseObject = obj
+            feature.addProperty("App::PropertyString", "NextAIOperation", "NextAI")
+            feature.NextAIOperation = operation
+            feature.addProperty("App::PropertyString", "NextAISelectedEdges", "NextAI")
+            feature.NextAISelectedEdges = ", ".join(edges)
+            feature.addProperty("App::PropertyLength", "NextAIAmount", "NextAI")
+            feature.NextAIAmount = amount
+        if label:
+            feature.Label = label
+        doc.recompute()
+        verification = _verify_native_shape(feature, f"Part {operation}")
+        parametric = False
+
+    return {
+        "created": feature.Name,
+        "label": feature.Label,
+        "type": feature.TypeId,
+        "operation": operation,
+        "amount_mm": amount,
+        "edges": edges,
+        "parametric_native_feature": parametric,
+        "verification": verification,
+    }
+
+
+def _create_partdesign_pattern(doc, args, pattern_kind):
+    App, _Gui = _apps()
+    feature = _document_object(doc, args.get("feature_name"))
+    body = _find_partdesign_body(feature)
+    if body is None or feature is body:
+        raise ValueError("The source feature must belong to a native PartDesign Body.")
+    if feature not in list(getattr(body, "Group", []) or []):
+        raise ValueError(f"Feature '{feature.Name}' is not part of body '{body.Name}'.")
+    direction = str(args.get("axis", args.get("direction", "Z"))).upper()
+    if direction not in {"X", "Y", "Z"}:
+        raise ValueError("Only body origin axes X, Y or Z are currently supported.")
+    origin = getattr(body, "Origin", None)
+    axes = list(getattr(origin, "OriginFeatures", []) or []) if origin else []
+    axis_role = direction + "_Axis"
+    axis_object = next((item for item in axes if getattr(item, "Role", None) == axis_role), None)
+    if axis_object is None:
+        raise RuntimeError(f"Could not resolve the native body {direction} axis.")
+    try:
+        occurrences = int(args.get("occurrences"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("occurrences must be an integer of at least 2.") from exc
+    if isinstance(args.get("occurrences"), bool) or occurrences < 2 or occurrences > 1000:
+        raise ValueError("occurrences must be an integer between 2 and 1000.")
+    label = str(args.get("label", "")).strip()[:120]
+    native_name = _native_name(label, pattern_kind.capitalize())
+    if pattern_kind == "linear":
+        length = _number(args.get("length"), "length", 0.001, 1_000_000.0)
+        pattern = body.newObject("PartDesign::LinearPattern", native_name)
+        pattern.Originals = [feature]
+        pattern.Direction = (axis_object, [""])
+        pattern.Length = length
+    else:
+        angle = _number(args.get("angle", 360.0), "angle", 0.001, 360.0)
+        pattern = body.newObject("PartDesign::PolarPattern", native_name)
+        pattern.Originals = [feature]
+        pattern.Axis = (axis_object, [""])
+        pattern.Angle = angle
+    pattern.Occurrences = occurrences
+    body.Tip = pattern
+    doc.recompute()
+    verification = _verify_native_shape(pattern, f"PartDesign {pattern_kind} pattern")
+    return {
+        "created": pattern.Name,
+        "label": pattern.Label,
+        "type": pattern.TypeId,
+        "source_feature": feature.Name,
+        "axis": direction,
+        "occurrences": occurrences,
+        "verification": verification,
+    }
+
+
 def _create_step(doc, tool, args):
     App, Gui = _apps()
     if not isinstance(args, dict):
@@ -356,6 +685,27 @@ def _create_step(doc, tool, args):
 
     if tool == "create_model_schedule":
         return _create_model_schedule(doc, args)
+
+    if tool == "boolean_operation":
+        return _create_boolean(doc, args)
+
+    if tool == "transform_object":
+        return _transform_native_object(doc, args)
+
+    if tool == "duplicate_object":
+        return _duplicate_native_object(doc, args)
+
+    if tool == "fillet_edges":
+        return _create_edge_feature(doc, args, "fillet")
+
+    if tool == "chamfer_edges":
+        return _create_edge_feature(doc, args, "chamfer")
+
+    if tool == "linear_pattern":
+        return _create_partdesign_pattern(doc, args, "linear")
+
+    if tool == "polar_pattern":
+        return _create_partdesign_pattern(doc, args, "polar")
 
     if tool == "create_draft_line":
         import Draft
