@@ -608,27 +608,26 @@ def select_tool_schemas(query: str, limit: int = 14) -> list[dict]:
     """Return only the most relevant reviewed tool schemas for this local turn.
 
     Read-only inspect/discovery are always retained. A task-specific schedule
-    request keeps the native Spreadsheet tool visible even when the noun is
-    expressed indirectly. Full capability discovery remains separate.
+    request reserves a schema slot for the native Spreadsheet tool even when
+    the user expresses the requirement indirectly.
     """
-    limit = max(2, min(int(limit), len(TOOLS)))
-    ranked = rank_tools(query, limit=limit)
-    selected_names = [item["name"] for item in ranked]
-    for required in ("inspect_document", "discover_capabilities"):
-        if required not in selected_names:
-            selected_names.append(required)
+    limit = max(3, min(int(limit), len(TOOLS)))
+    ranked = rank_tools(query, limit=len(TOOLS))
+    required = ["inspect_document", "discover_capabilities"]
     terms = _terms(query)
     if terms.intersection({"schedule", "schedules", "table", "tables", "bom", "bill", "quantities", "quantity", "component"}):
-        if "create_model_schedule" not in selected_names:
-            selected_names.append("create_model_schedule")
-    if len(selected_names) > limit + 1:
-        selected_names = selected_names[:limit + 1]
+        required.append("create_model_schedule")
+
+    selected_names = list(required)
+    for item in ranked:
+        name = item["name"]
+        if name not in selected_names and len(selected_names) < limit:
+            selected_names.append(name)
+
     selected = [tool for tool in TOOLS if tool["name"] in selected_names]
-    # Keep the list ordered by retrieval rank, not by the global source order.
     order = {name: index for index, name in enumerate(selected_names)}
     selected.sort(key=lambda tool: order.get(tool["name"], len(order)))
     return selected
-
 
 def read_context(query: str = ""):
     """Build a local task context with engineering skills and a progressively selected tool set."""
