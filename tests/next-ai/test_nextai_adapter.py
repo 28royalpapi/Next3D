@@ -447,6 +447,14 @@ class NativeToolSafetyTests(unittest.TestCase):
             )
         self.assertTrue(result["success"])
         self.assertEqual(gui.refreshes, 3)
+        self.assertEqual(len(result["operations"]), 2)
+        self.assertEqual([item["tool"] for item in result["operations"]],
+                         ["create_draft_line", "create_draft_text"])
+        self.assertTrue(all(item["status"] == "applied" for item in result["operations"]))
+        self.assertEqual(result["operations"][0]["transaction_id"],
+                         result["operations"][1]["transaction_id"])
+        self.assertTrue(all(len(item["before_state_hash"]) == 64 for item in result["operations"]))
+        self.assertTrue(all(len(item["after_state_hash"]) == 64 for item in result["operations"]))
         self.assertEqual(progress, [
             (1, 2, "create_draft_line", "starting"),
             (1, 2, "create_draft_line", "completed"),
