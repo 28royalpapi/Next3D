@@ -647,6 +647,24 @@ class NativeOperatorExtensionTests(unittest.TestCase):
             self.assertFalse(tool["read_only"])
             self.assertFalse(tool["parameters"].get("additionalProperties", True))
 
+    def test_generic_native_command_cannot_run_unreviewed_gui_action(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        class FakeDoc:
+            pass
+
+        fake_gui = SimpleNamespace()
+        with patch.object(freecad_tools, "_apps", return_value=(SimpleNamespace(), fake_gui)):
+            for command in ("Std_Delete", "Std_Save", "Std_Open", "Std_Macro"):
+                with self.subTest(command=command):
+                    with self.assertRaises(ValueError):
+                        freecad_tools._create_step(FakeDoc(), "run_native_command", {
+                            "command_id": command,
+                        })
+        self.assertIn("Std_ViewFitAll", freecad_tools.SAFE_VIEW_COMMANDS)
+        self.assertNotIn("Std_Delete", freecad_tools.SAFE_VIEW_COMMANDS)
+
     def test_edge_reference_validation_requires_explicit_topology_or_all(self):
         from types import SimpleNamespace
 
