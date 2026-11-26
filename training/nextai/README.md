@@ -10,6 +10,31 @@ The typed FreeCAD tools are also reranked per task. The model receives a small s
 
 The training corpus adds specialist three-turn design interviews for elevated water towers, mechanical gears, electrical control panels and civil road/drainage. These are authored L0 knowledge lessons; they are not native execution records. Existing residential interview examples continue to teach room-programme questions before floor-plan construction.
 
+## Full capability lessons and native operation traces
+
+The corpus builder accepts `capability-census.json` with `--capability-census`. It creates ten small L0 metadata lessons for each pinned NextCAD GUI command/API member and Next BIM registered command with a stable source ID and source commit. These lessons retain application, native ID, source path/commit, parameter descriptions and permission status. They are metadata knowledge—not executable plans or evidence of native success.
+
+For a source-only capability census:
+
+```bash
+python training/nextai/capability_census.py \
+  --bim-catalog docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json \
+  --nextcad-source-index docs/next-ai/catalogs/NEXTCAD_WORKBENCH_SOURCE_INDEX.v1.json \
+  --expected-nextcad-commit 00cb280454069966a2fb0a8e7dc184c46e7b38b3 \
+  --expected-nextbim-commit a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b \
+  --output-dir /workspace/nextai-capability-census
+```
+
+For complete live NextCAD coverage, download the `nextcad-runtime.json` artifact from the native application workflow and rerun the census with `--nextcad-runtime-report`. Pass the resulting file to the public corpus builder:
+
+```bash
+python training/nextai/prepare_public_corpora.py \
+  --output-dir /workspace/nextai-corpus \
+  --capability-census /workspace/nextai-capability-census/capability-census.json
+```
+
+The native GUI acceptance workflow is designed to emit two synthetic NextCAD training-record examples. Each contains the exact native tool calls/arguments, transaction IDs, before/after document-state hashes, source version, FCStd hash and successful save/close/reopen evidence. They are labelled L3/L4 software acceptance, not independent engineering validation, and remain in the held-out test split. The SFT converter maps NextCAD records into the runtime's exact `message` + `plan` structure; Next BIM retains its own `steps` structure.
+
 ## Comprehensive capability programme
 
 The implementation standard is documented in [COMPLETE_NATIVE_CAPABILITY_STANDARD.md](./COMPLETE_NATIVE_CAPABILITY_STANDARD.md). It defines full source/runtime discovery for both applications, ten learning obligations per native command, and separate counts for discovered capabilities, lessons, native execution and mastery.
