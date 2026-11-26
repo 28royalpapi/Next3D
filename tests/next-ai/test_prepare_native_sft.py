@@ -129,7 +129,8 @@ class PrepareNativeSftTests(unittest.TestCase):
             root = Path(temp)
             source = root / "records.jsonl"
             source.write_text(json.dumps(item) + "\\n", encoding="utf-8")
-            module.prepare(source, root / "out")
+            summary = module.prepare(source, root / "out")
+            self.assertEqual(summary["train"], 1, summary)
             example = json.loads((root / "out/train.jsonl").read_text(encoding="utf-8"))
             target = json.loads(example["messages"][2]["content"])
             self.assertIn("steps", target)
