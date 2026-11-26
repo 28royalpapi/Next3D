@@ -12,7 +12,7 @@ The training corpus adds specialist three-turn design interviews for elevated wa
 
 ## Full capability lessons and native operation traces
 
-The corpus builder accepts `capability-census.json` with `--capability-census`. It creates ten small L0 metadata lessons for each pinned NextCAD GUI command/API member and Next BIM registered command with a stable source ID and source commit. These lessons retain application, native ID, source path/commit, parameter descriptions and permission status. They are metadata knowledge—not executable plans or evidence of native success.
+The corpus builder accepts `capability-census.json` with `--capability-census`. It writes dedicated `skill_train/validation/test.jsonl` and `capability_train/validation/test.jsonl` sidecars. All of those first-party lessons are merged into the main train/validation/test files without passing through the capped 24,000-record mixed/public sampler. The `--max-mixed-train` limit applies only to the mixed public and authored project curriculum. It creates ten small L0 metadata lessons for each pinned NextCAD GUI command/API member and Next BIM registered command with a stable source ID and source commit. These lessons retain application, native ID, source path/commit, parameter descriptions and permission status. They are metadata knowledge—not executable plans or evidence of native success.
 
 For a source-only capability census:
 
