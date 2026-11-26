@@ -58,6 +58,80 @@ def flatten_scalars(value: Any, prefix: str = "") -> dict[str, Any]:
     return output
 
 
+def native_plan_metrics(expected_json: Any, predicted_json: Any) -> dict[str, Any]:
+    """Score operation sequence and argument-key structure when references contain native plans."""
+    expected_plan = expected_json.get("plan") if isinstance(expected_json, dict) else None
+    if not isinstance(expected_plan, list):
+        return {
+            "plan_target_present": None,
+            "plan_parse": None,
+            "plan_shape_valid": None,
+            "tool_sequence_exact": None,
+            "tool_recall": None,
+            "argument_key_recall": None,
+            "plan_step_count_match": None,
+        }
+
+    predicted_plan = predicted_json.get("plan") if isinstance(predicted_json, dict) else None
+    if not isinstance(predicted_plan, list):
+        return {
+            "plan_target_present": True,
+            "plan_parse": 0.0,
+            "plan_shape_valid": 0.0,
+            "tool_sequence_exact": 0.0,
+            "tool_recall": 0.0,
+            "argument_key_recall": 0.0,
+            "plan_step_count_match": 0.0,
+        }
+
+    def valid_step(step: Any) -> bool:
+        return (
+            isinstance(step, dict)
+            and set(step) == {"tool", "args"}
+            and isinstance(step.get("tool"), str)
+            and bool(step["tool"].strip())
+            and isinstance(step.get("args"), dict)
+        )
+
+    target_valid = all(valid_step(step) for step in expected_plan)
+    predicted_valid = all(valid_step(step) for step in predicted_plan)
+    expected_tools = [step.get("tool") for step in expected_plan if isinstance(step, dict)]
+    predicted_tools = [step.get("tool") for step in predicted_plan if isinstance(step, dict)]
+    target_set = set(expected_tools)
+    predicted_set = set(predicted_tools)
+    tool_recall = len(target_set & predicted_set) / max(1, len(target_set))
+
+    expected_argument_keys = {
+        f"{index}.{key}"
+        for index, step in enumerate(expected_plan)
+        if isinstance(step, dict) and isinstance(step.get("args"), dict)
+        for key in step["args"]
+    }
+    predicted_argument_keys = {
+        f"{index}.{key}"
+        for index, step in enumerate(predicted_plan)
+        if isinstance(step, dict) and isinstance(step.get("args"), dict)
+        for key in step["args"]
+    }
+    key_recall = (
+        len(expected_argument_keys & predicted_argument_keys)
+        / max(1, len(expected_argument_keys))
+    )
+    return {
+        "plan_target_present": True,
+        "plan_parse": 1.0,
+        "plan_shape_valid": 1.0 if predicted_valid else 0.0,
+        "tool_sequence_exact": (
+            1.0 if target_valid and predicted_valid and expected_tools == predicted_tools else 0.0
+        ),
+        "tool_recall": tool_recall,
+        "argument_key_recall": key_recall,
+        "plan_step_count_match": (
+            1.0 if len(expected_plan) == len(predicted_plan) else 0.0
+        ),
+    }
+
+
 def score_record(expected: str, predicted: str) -> dict[str, Any]:
     expected_json = parse_json_object(expected)
     predicted_json = parse_json_object(predicted)
@@ -67,9 +141,16 @@ def score_record(expected: str, predicted: str) -> dict[str, Any]:
             "key_recall": None,
             "scalar_match": None,
             "token_f1": token_f1(expected, predicted),
+            **native_plan_metrics(None, None),
         }
     if predicted_json is None:
-        return {"json_parse": 0.0, "key_recall": 0.0, "scalar_match": 0.0, "token_f1": token_f1(expected, predicted)}
+        return {
+            "json_parse": 0.0,
+            "key_recall": 0.0,
+            "scalar_match": 0.0,
+            "token_f1": token_f1(expected, predicted),
+            **native_plan_metrics(expected_json, None),
+        }
 
     expected_scalars = flatten_scalars(expected_json)
     predicted_scalars = flatten_scalars(predicted_json)
@@ -92,6 +173,7 @@ def score_record(expected: str, predicted: str) -> dict[str, Any]:
         "key_recall": key_recall,
         "scalar_match": scalar_match,
         "token_f1": token_f1(expected, predicted),
+        **native_plan_metrics(expected_json, predicted_json),
     }
 
 
