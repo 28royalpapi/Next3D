@@ -25,7 +25,7 @@ TOOLS = [
                     "uniqueItems": True
                 }
             },
-            "additionalProperties": false
+            "additionalProperties": False
         },
         "read_only": False,
     },
@@ -41,7 +41,7 @@ TOOLS = [
                 "label": {"type": "string", "maxLength": 120}
             },
             "required": ["operation", "object1", "object2"],
-            "additionalProperties": false
+            "additionalProperties": False
         },
         "read_only": False,
     },
@@ -62,7 +62,7 @@ TOOLS = [
                 "relative": {"type": "boolean", "default": True}
             },
             "required": ["object_name"],
-            "additionalProperties": false
+            "additionalProperties": False
         },
         "read_only": False,
     },
@@ -83,7 +83,7 @@ TOOLS = [
                 "label": {"type": "string", "maxLength": 120}
             },
             "required": ["object_name"],
-            "additionalProperties": false
+            "additionalProperties": False
         },
         "read_only": False,
     },
@@ -99,7 +99,7 @@ TOOLS = [
                 "label": {"type": "string", "maxLength": 120}
             },
             "required": ["object_name", "edges", "radius"],
-            "additionalProperties": false
+            "additionalProperties": False
         },
         "read_only": False,
     },
@@ -115,7 +115,7 @@ TOOLS = [
                 "label": {"type": "string", "maxLength": 120}
             },
             "required": ["object_name", "edges", "size"],
-            "additionalProperties": false
+            "additionalProperties": False
         },
         "read_only": False,
     },
@@ -132,7 +132,7 @@ TOOLS = [
                 "label": {"type": "string", "maxLength": 120}
             },
             "required": ["feature_name", "length", "occurrences"],
-            "additionalProperties": false
+            "additionalProperties": False
         },
         "read_only": False,
     },
@@ -149,7 +149,7 @@ TOOLS = [
                 "label": {"type": "string", "maxLength": 120}
             },
             "required": ["feature_name", "occurrences"],
-            "additionalProperties": false
+            "additionalProperties": False
         },
         "read_only": False,
     },
