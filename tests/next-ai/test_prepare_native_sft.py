@@ -40,7 +40,7 @@ def make_record(record_id="r1", split="train", source_id="project-a"):
         },
         "operations": [{
             "sequence": 0,
-            "tool": "create_box",
+            "tool": "create_part_box",
             "tool_schema_version": "1.0",
             "arguments": {"length": 100, "width": 100, "height": 100},
             "result": {"created": "Box"},
@@ -101,8 +101,13 @@ class PrepareNativeSftTests(unittest.TestCase):
             example = json.loads((out / "train.jsonl").read_text(encoding="utf-8"))
             target = json.loads(example["messages"][2]["content"])
             self.assertEqual(target["message"], "I have a confirmed specification and will carry out the approved native CAD plan.")
-            self.assertEqual(target["plan"][0]["tool"], "create_box")
+            self.assertEqual(target["plan"][0]["tool"], "create_part_box")
             self.assertEqual(target["plan"][0]["args"]["length"], 100)
+            schema_names = [item["function"]["name"] for item in example["tools"]]
+            self.assertIn("create_part_box", schema_names)
+            box_schema = next(item["function"] for item in example["tools"]
+                              if item["function"]["name"] == "create_part_box")
+            self.assertEqual(box_schema["parameters"]["properties"]["length"]["type"], "number")
             self.assertEqual(target["tool_schema_version"], "1.0")
             self.assertEqual(example["split"], "train")
             self.assertEqual(example["source"]["license"], "Apache-2.0")
@@ -152,6 +157,7 @@ class PrepareNativeSftTests(unittest.TestCase):
             self.assertIn("steps", target)
             self.assertNotIn("plan", target)
             self.assertEqual(target["steps"][0]["tool"], "wall")
+            self.assertNotIn("tools", example)
 
     def test_failed_native_validation_is_quarantined(self):
         item = make_record()
