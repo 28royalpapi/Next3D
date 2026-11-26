@@ -6,6 +6,8 @@ on:
     paths:
       - "scripts/verify_native_capability_indices.py"
       - "scripts/run_nextcad_capability_census.py"
+      - "scripts/run_nextcad_ai_acceptance.py"
+      - "training/nextai/verify_nextcad_ai_native.FCMacro"
       - "training/nextai/COMPLETE_NATIVE_CAPABILITY_STANDARD.md"
       - "docs/next-ai/catalogs/**"
       - ".github/workflows/native-application-build.yml"
@@ -142,6 +144,10 @@ jobs:
       - name: Verify NextCAD native create-edit-save-reopen
         working-directory: upstream/FreeCAD
         run: pixi run python ../../scripts/verify_nextcad_roundtrip.py
+      - name: Verify real NextAI typed operations in native FreeCAD on Windows
+        if: runner.os == 'Windows'
+        working-directory: upstream/FreeCAD
+        run: pixi run python ../../scripts/run_nextcad_ai_acceptance.py --executable build/relWithDebInfo/bin/FreeCAD.exe --output ../../artifacts/nextcad-ai-native-acceptance.json
 
       - name: Launch NextCAD on Windows
         if: runner.os == 'Windows'
@@ -163,6 +169,11 @@ jobs:
           path: artifacts/capability-census/
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Verify real NextAI typed operations in native FreeCAD on macOS
+        if: runner.os == 'macOS'
+        working-directory: upstream/FreeCAD
+        run: pixi run python ../../scripts/run_nextcad_ai_acceptance.py --executable build/relWithDebInfo/bin/FreeCAD --output ../../artifacts/nextcad-ai-native-acceptance.json
 
       - name: Launch NextCAD on macOS
         if: runner.os == 'macOS'
@@ -188,6 +199,13 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: upstream/FreeCAD
         run: pixi run install
+
+      - name: Verify real NextAI typed operations in native FreeCAD on Linux
+        if: runner.os == 'Linux'
+        working-directory: upstream/FreeCAD
+        run: |
+          mkdir -p ../../artifacts
+          xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/run_nextcad_ai_acceptance.py --command-prefix "pixi run freecad" --output ../../artifacts/nextcad-ai-native-acceptance.json
 
       - name: Capture the real NextCAD interface
         if: runner.os == 'Linux'
