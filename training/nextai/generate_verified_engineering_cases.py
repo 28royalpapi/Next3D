@@ -394,7 +394,7 @@ def _builder(
             ],
         }
         return {"prompt": prompt, "expected": expected, "solver": solver.__name__}
-    return make, family
+    return make, solver.__name__
 
 
 FAMILY_BUILDERS: dict[str, tuple[Callable[[random.Random], dict[str, Any]], str]] = {}
