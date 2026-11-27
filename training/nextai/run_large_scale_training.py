@@ -177,6 +177,11 @@ def validate_training_step_budget(max_steps: int, epochs: float) -> None:
         raise ValueError("epochs must be positive.")
 
 
+def training_run_scope(max_steps: int, token_target_met: bool) -> str:
+    """Never label a step-limited or below-target run as the full training programme."""
+    return "bounded_pilot" if max_steps > 0 or not token_target_met else "full_programme"
+
+
 def require_token_target(
     train_tokens: int,
     target_tokens: int,
@@ -647,6 +652,15 @@ def main() -> int:
 
     training_result_path = output_dir / "training_result.json"
     training_result = load_json(training_result_path)
+    run_scope = training_run_scope(args.max_steps, token_target_met)
+    training_result["run_scope"] = run_scope
+    training_result["max_steps_requested"] = args.max_steps
+    training_result["token_target_gate"] = token_gate
+    training_result["measured_unique_train_text_tokens"] = train_tokens
+    training_result_path.write_text(
+        json.dumps(training_result, indent=2, default=str) + "\n",
+        encoding="utf-8",
+    )
     merged_model = training_result.get("merged_16bit_checkpoint")
     if not merged_model or not (Path(merged_model) / "config.json").is_file():
         raise RuntimeError("Merged student checkpoint was not produced or is incomplete.")
@@ -778,13 +792,15 @@ def main() -> int:
         "status": "TRAINED_AND_HELDOUT_COMPARED" if heldout_comparison else "TRAINED_EVALUATION_PENDING",
         "base_model": args.base_model,
         "training_epochs": args.epochs,
+        "max_steps": args.max_steps,
+        "run_scope": run_scope,
         "max_sequence_length": args.max_seq_length,
         "target_unique_train_text_tokens": args.target_text_tokens,
         "measured_unique_train_text_tokens": train_tokens,
         "estimated_text_token_exposures": planned_exposures,
         "token_target_met": token_target_met,
         "token_target_gate": token_gate,
-        "pilot_run": bool(args.allow_below_token_target and not token_target_met),
+        "pilot_run": run_scope == "bounded_pilot",
         "compute_manifest": str(output_dir / "compute_manifest.json"),
         "corpus_audit": str(output_dir / "corpus_audit.json"),
         "training_result": str(training_result_path),
