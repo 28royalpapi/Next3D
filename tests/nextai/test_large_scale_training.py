@@ -25,6 +25,7 @@ from training.nextai.run_large_scale_training import (
     validate_native_trace_coverage,
     validate_training_step_budget,
     training_run_scope,
+    apply_pilot_profile,
 )
 from training.nextai.prepare_public_corpora import merge_native_trace_splits
 from training.nextai.prepare_large_scale_corpus import (
@@ -537,26 +538,60 @@ class NextCADNativeSplitCollectionTests(unittest.TestCase):
 
 
 class LargeScaleTrainingTests(unittest.TestCase):
-    def test_400m_token_gate_blocks_underfilled_corpus_by_default(self):
-        with self.assertRaisesRegex(RuntimeError, "Refusing GPU fine-tuning"):
-            require_token_target(125_000_000, 400_000_000)
+    def test_no_assistant_imposed_token_target_is_configured_by_default(self):
+        report = require_token_target(129_430_330)
+        self.assertEqual(report["decision"], "NO_TARGET_CONFIGURED")
+        self.assertIsNone(report["target_train_text_tokens"])
+        self.assertIsNone(report["target_met"])
+        self.assertEqual(training_run_scope(-1, None), "full_epoch_run")
 
-    def test_400m_token_gate_reports_exact_shortfall(self):
-        with self.assertRaisesRegex(RuntimeError, "275,000,000"):
-            require_token_target(125_000_000, 400_000_000)
+    def test_explicitly_configured_token_target_blocks_shortfall(self):
+        with self.assertRaisesRegex(RuntimeError, "Refusing training"):
+            require_token_target(125_000_000, 150_000_000)
+
+    def test_explicit_token_target_reports_exact_shortfall(self):
+        with self.assertRaisesRegex(RuntimeError, "25,000,000"):
+            require_token_target(125_000_000, 150_000_000)
 
     def test_explicit_pilot_override_is_recorded_not_misreported_as_target_met(self):
-        report = require_token_target(125_000_000, 400_000_000, allow_below_target=True)
+        report = require_token_target(125_000_000, 150_000_000, allow_below_target=True)
         self.assertEqual(report["decision"], "PILOT_OVERRIDE")
-        self.assertEqual(report["shortfall_tokens"], 275_000_000)
+        self.assertEqual(report["shortfall_tokens"], 25_000_000)
         self.assertFalse(report["target_met"])
         self.assertTrue(report["pilot_override_used"])
 
-    def test_full_token_target_passes_without_pilot_override(self):
-        report = require_token_target(400_000_000, 400_000_000)
+    def test_explicit_token_target_passes_when_measured_count_reaches_it(self):
+        report = require_token_target(150_000_000, 150_000_000)
         self.assertEqual(report["decision"], "PASS")
         self.assertTrue(report["target_met"])
         self.assertFalse(report["pilot_override_used"])
+
+    def test_bounded_pilot_profile_sets_safe_and_fast_defaults(self):
+        from argparse import Namespace
+        args = Namespace(
+            pilot=True, max_steps=-1, allow_below_token_target=False,
+            skip_upload=False, skip_compact_export=False,
+            evaluation_max_records=0,
+        )
+        configured = apply_pilot_profile(args)
+        self.assertEqual(configured.max_steps, 200)
+        self.assertTrue(configured.allow_below_token_target)
+        self.assertTrue(configured.skip_upload)
+        self.assertTrue(configured.skip_compact_export)
+        self.assertEqual(configured.evaluation_max_records, 128)
+
+    def test_bounded_pilot_profile_preserves_explicit_step_and_eval_limits(self):
+        from argparse import Namespace
+        args = Namespace(
+            pilot=True, max_steps=75, allow_below_token_target=False,
+            skip_upload=False, skip_compact_export=False,
+            evaluation_max_records=64,
+        )
+        configured = apply_pilot_profile(args)
+        self.assertEqual(configured.max_steps, 75)
+        self.assertEqual(configured.evaluation_max_records, 64)
+        self.assertTrue(configured.skip_upload)
+        self.assertTrue(configured.skip_compact_export)
 
     def test_conversation_text_and_tools_are_counted_separately(self):
         row = {
