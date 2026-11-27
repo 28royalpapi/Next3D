@@ -239,3 +239,24 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - At the existing 10,000-cases-per-family setting, the analytic curriculum target increases from 170,000 to 220,000 records (+50,000, +29.4%). Actual records are generated only when the full corpus builder runs; the tokenizer-measured token contribution remains unverified until its audit artifact exists.
 - The deep-training workflow now runs dedicated reference-solution tests for all five new solvers, deterministic family generation, record identity, and inclusion of worked calculation steps.
 - The 400M target is explicitly a target for Qwen-tokenizer-measured training-split text tokens. It is not an optimizer-step count, epoch count, image-token count, or current achieved total.
+
+
+## Expanded engineering calculation programme and training-stage integration — 27 November 2026, 10:56 WAT
+
+### Landed
+- Expanded the original analytic engineering generator from 17 to 22 families (+5 families, +29.4% at the default case count): Euler elastic column buckling; Rankine active earth pressure with surcharge; hydrostatic force and centre of pressure on a vertical gate; Terzaghi strip-footing bearing capacity using supplied factors; and infinite-slope limit equilibrium.
+- The five new solvers include unit-aware outputs, governing equations, stepwise method descriptions, explicit assumptions and limitations, and rejection of physically invalid inputs. Every analytic generator family now carries a calculation-step field; the older families receive a conservative common method checklist while the new solvers retain domain-specific steps.
+- The configured analytic generator target is now 10,000 cases × 22 families = 220,000 records (previously 170,000). These are generated L0 educational calculations only, not native executions, code compliance or design certification. No 220,000 cases have been materialized in this checkpoint.
+- Added regression tests for reference calculations, unit/output contract, deterministic generation, L0 labels, calculation steps, invalid input rejection and progressive-course placement. The five new domains are routed into the foundations stage.
+- Added the dedicated test file to the deep-training workflow path filter so future changes to it trigger CI.
+
+### Verification
+- Deep-training run [45977807724](https://github.com/28royalpapi/Next3D/actions/runs/45977807724) passed on commit `8c6e222986e83032b87fef4af6116dec758d66cd`.
+- Test groups passed: 65 large-scale corpus/training tests, 9 native SFT tests, 9 expanded engineering tests, 13 Next BIM split/evidence tests and 8 NextCAD split/lineage tests — **104 tests total**.
+- Python compilation and CLI-help checks passed.
+
+### Boundaries at this checkpoint
+- The five new families are authored and tested in the generator; the full corpus has not yet been rebuilt and Qwen-tokenizer-audited. The additional 50,000 records are a target at default scale, not yet existing rows or measured tokens.
+- The 400M requirement is Qwen-tokenizer-measured text tokens in the train split. It is a corpus-size gate, not an optimizer-step count or epoch count. Image patches and runtime chat-template overhead are not part of this count.
+- Hugging Face reported zero active jobs. The private NextAI model and dataset repositories contain only `.gitattributes`; no fine-tuning job, adapter, checkpoint or model weights exist.
+- The focused Linux native application workflow is separate: source preparation and NextAI data-pipeline tests passed; Next BIM native tests and NextCAD compilation were still running at last inspection. Neither collector has yet been confirmed to have produced real native trace artifacts.
