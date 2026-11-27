@@ -197,7 +197,7 @@ def fingerprint_records(rows: list[dict[str, Any]]) -> str:
             row, sort_keys=True, ensure_ascii=False, separators=(",", ":")
         )
         digest.update(canonical.encode("utf-8"))
-        digest.update(b"\\n")
+        digest.update(b"\n")
     return digest.hexdigest()
 
 
