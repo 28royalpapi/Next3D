@@ -368,6 +368,96 @@ def solve_earthwork_average_end_area(inputs: dict[str, float]) -> dict[str, Any]
     }
 
 
+GOVERNING_EQUATIONS: dict[str, list[str]] = {
+    "solve_beam_udl": [
+        "RA = RB = wL/2",
+        "Mmax = wL^2/8",
+        "delta_max = 5wL^4/(384EI)",
+        "1 kN/m = 1 N/mm for the millimetre-based deflection calculation",
+    ],
+    "solve_beam_centre_load": [
+        "RA = RB = P/2",
+        "Mmax = PL/4",
+        "delta_mid = PL^3/(48EI)",
+    ],
+    "solve_cantilever_tip_load": [
+        "Vfixed = P",
+        "Mfixed = PL",
+        "delta_tip = PL^3/(3EI)",
+    ],
+    "solve_axial_bar": [
+        "sigma = P/A",
+        "epsilon = sigma/E",
+        "delta = epsilon*L",
+        "1 GPa = 1000 MPa = 1000 N/mm^2",
+    ],
+    "solve_solid_shaft_torsion": [
+        "J = pi*d^4/32",
+        "tau_max = 16T/(pi*d^3)",
+        "theta = TL/(JG)",
+        "Convert T from kN m to N mm and L from m to mm",
+    ],
+    "solve_pipe_continuity": [
+        "A = pi*D^2/4",
+        "v = Q/A",
+        "Convert Q from L/s to m^3/s and D from mm to m",
+    ],
+    "solve_darcy_weisbach": [
+        "v = Q/A",
+        "hf = f*(L/D)*v^2/(2g)",
+        "g = 9.80665 m/s^2",
+    ],
+    "solve_manning_rectangular": [
+        "A = b*y",
+        "Pwet = b + 2y",
+        "R = A/Pwet",
+        "V = (1/n)*R^(2/3)*S^(1/2)",
+        "Q = A*V",
+    ],
+    "solve_effective_stress": [
+        "sigma_prime_v = sigma_v - u",
+    ],
+    "solve_consolidation": [
+        "sigma_final_prime = sigma_initial_prime + delta_sigma_prime",
+        "Sc = Cc*H/(1+e0)*log10(sigma_final_prime/sigma_initial_prime)",
+        "Convert settlement from m to mm",
+    ],
+    "solve_slab_concrete_quantity": [
+        "Aplan = L*B",
+        "Vconcrete = L*B*t",
+    ],
+    "solve_rebar_mass": [
+        "Abar = pi*d^2/4",
+        "mass_per_m = rho*Abar",
+        "total_mass = mass_per_m*total_length",
+        "rho_steel = 7850 kg/m^3",
+    ],
+    "solve_gear_ratio": [
+        "i = Zdriven/Zdriver",
+        "ndriven = ndriver/i",
+        "Ideal torque multiplier = i; output direction reverses for one external mesh",
+    ],
+    "solve_three_phase_power": [
+        "S = sqrt(3)*Vline*Iline",
+        "P = sqrt(3)*Vline*Iline*power_factor",
+    ],
+    "solve_leveling": [
+        "HI = RLbenchmark + BS",
+        "RLnew = HI - FS",
+        "Rise/Fall = RLnew - RLbenchmark",
+    ],
+    "solve_rectangle_section": [
+        "A = b*h",
+        "Ix = b*h^3/12",
+        "Zx = Ix/(h/2)",
+    ],
+    "solve_earthwork_average_end_area": [
+        "Amean = (A1 + A2)/2",
+        "V = L*Amean",
+    ],
+}
+
+
 def _builder(
     family: str,
     solver: Callable[[dict[str, float]], dict[str, Any]],
@@ -376,6 +466,10 @@ def _builder(
     method: str,
     assumptions: tuple[str, ...],
 ) -> tuple[Callable[[random.Random], dict[str, Any]], str]:
+    equations = GOVERNING_EQUATIONS.get(solver.__name__)
+    if not equations:
+        raise ValueError(f"No reviewed governing equations registered for {solver.__name__}")
+
     def make(rng: random.Random) -> dict[str, Any]:
         inputs = input_factory(rng)
         solved = solver(inputs)
@@ -383,7 +477,9 @@ def _builder(
         expected = {
             "status": "calculated",
             "method": method,
+            "governing_equations": equations,
             "inputs": inputs,
+            "calculation_results": solved["values"],
             "values": solved["values"],
             "units": solved["units"],
             "assumptions": list(assumptions),
@@ -728,8 +824,8 @@ def generate_cases(
     solver_names: dict[str, str] = {}
     seen_cases: set[str] = set()
 
-    for family, (make_case, _) in sorted(FAMILY_BUILDERS.items()):
-        solver_names[family] = str(make_case.__name__)
+    for family, (make_case, solver_name) in sorted(FAMILY_BUILDERS.items()):
+        solver_names[family] = solver_name
         for index in range(cases_per_domain):
             case_id = f"{family}-seed{seed}-{index:07d}"
             if case_id in seen_cases:
