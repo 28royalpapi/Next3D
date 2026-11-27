@@ -177,6 +177,17 @@ def validate_training_step_budget(max_steps: int, epochs: float) -> None:
         raise ValueError("epochs must be positive.")
 
 
+def estimate_example_exposures(
+    max_steps: int, batch_size: int, gradient_accumulation: int
+) -> int | None:
+    """Estimate row presentations for a step-limited run (not unique rows learned)."""
+    if max_steps == -1:
+        return None
+    if max_steps < 1 or batch_size < 1 or gradient_accumulation < 1:
+        raise ValueError("Step budget, batch size and gradient accumulation must be positive.")
+    return max_steps * batch_size * gradient_accumulation
+
+
 def training_run_scope(max_steps: int, token_target_met: bool | None) -> str:
     """Describe execution scope without inventing a project-wide token benchmark."""
     if max_steps > 0 or token_target_met is False:
@@ -844,6 +855,14 @@ def main() -> int:
         "max_sequence_length": args.max_seq_length,
         "target_unique_train_text_tokens": args.target_text_tokens,
         "pilot_profile_enabled": args.pilot,
+        "optimizer_steps_requested": args.max_steps,
+        "effective_batch_size": args.batch_size * args.gradient_accumulation,
+        "nominal_example_presentations_at_step_limit": estimate_example_exposures(
+            args.max_steps, args.batch_size, args.gradient_accumulation
+        ),
+        "nominal_example_presentations_note": (
+            "Estimate from step budget × batch size × gradient accumulation; not a unique-record count, mastery metric or guarantee of complete data coverage."
+        ),
         "pilot_scope_note": (
             "Bounded analytic-curriculum pilot only; does not establish native CAD/BIM execution capability."
             if args.pilot and native_coverage["total_native_execution_trace_records"] == 0
