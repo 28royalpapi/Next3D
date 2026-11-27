@@ -132,3 +132,26 @@ The trainer uses an indexed JSONL dataset: it first builds a compact byte-offset
 4. Native-executed training traces remain limited until the real application acceptance workflows pass and emit records.
 
 Do not mark the project as trained until \`training_result.json\`, adapter/checkpoint artifacts, measured token-audit report, held-out evaluation and native acceptance evidence exist.
+
+## Native collector manifest handoff
+
+The native execution path is deliberately separate from public/synthetic corpus generation. Build and launch the pinned native apps first; then collect each application's controlled train/validation/test acceptance runs:
+
+```bash
+python scripts/collect_nextcad_native_splits.py --executable /path/to/NextCAD --output-dir artifacts/native/nextcad
+python scripts/collect_nextbim_native_splits.py --cli /path/to/bimcraft-cli --output-dir artifacts/native/nextbim
+```
+
+After both collectors finish, the full-scale builder consumes the manifests, re-verifies their artifact inventories and split contents, and refuses to proceed unless both apps have all six non-empty split files:
+
+```bash
+python training/nextai/prepare_large_scale_corpus.py \
+  --output-dir artifacts/nextai-full-corpus \
+  --nextcad-native-manifest artifacts/native/nextcad/manifest.json \
+  --nextbim-native-manifest artifacts/native/nextbim/manifest.json \
+  --require-native-manifests \
+  --nextcad-runtime-report artifacts/nextcad-runtime/nextcad-runtime.json \
+  --require-nextcad-runtime
+```
+
+The runtime report is produced by running training/nextai/discover_nextcad_runtime.FCMacro inside the pinned NextCAD GUI. The build also performs the tokenizer audit unless explicitly disabled. A successful manifest check means the collected files and provenance declarations are internally consistent; it does not mean NextAI has been trained or has passed independent engineering validation.
