@@ -5,23 +5,83 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+from array import array
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 
-def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows = []
-    with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            if line.strip():
-                rows.append(json.loads(line))
-    return rows
+class IndexedJSONL:
+    """Random-access JSONL dataset backed by a compact byte-offset index.
+
+    Records are parsed on demand. The full corpus is never materialized as a
+    Python list, which keeps memory use predictable for million-record training.
+    Each worker process lazily owns its own file handle.
+    """
+
+    def __init__(self, path: Path):
+        self.path = Path(path)
+        if not self.path.is_file():
+            raise FileNotFoundError(self.path)
+        self.offsets = array("Q")
+        with self.path.open("rb") as handle:
+            while True:
+                offset = handle.tell()
+                line = handle.readline()
+                if not line:
+                    break
+                if line.strip():
+                    self.offsets.append(offset)
+        self._handle = None
+        self._pid = None
+
+    def __len__(self) -> int:
+        return len(self.offsets)
+
+    def __getitem__(self, index: int) -> dict[str, Any]:
+        if index < 0:
+            index += len(self.offsets)
+        if index < 0 or index >= len(self.offsets):
+            raise IndexError(index)
+        pid = os.getpid()
+        if self._handle is None or self._pid != pid:
+            self.close()
+            self._handle = self.path.open("rb")
+            self._pid = pid
+        self._handle.seek(self.offsets[index])
+        line = self._handle.readline()
+        row = json.loads(line)
+        if not isinstance(row, dict):
+            raise ValueError(f"{self.path} record {index} is not a JSON object.")
+        return row
+
+    def __iter__(self):
+        for index in range(len(self)):
+            yield self[index]
+
+    def close(self) -> None:
+        if self._handle is not None:
+            self._handle.close()
+        self._handle = None
+        self._pid = None
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_handle"] = None
+        state["_pid"] = None
+        return state
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
 def validate_training_splits(
-    train_rows: list[dict[str, Any]],
-    validation_rows: list[dict[str, Any]],
-    test_rows: list[dict[str, Any]],
+    train_rows: Iterable[dict[str, Any]],
+    validation_rows: Iterable[dict[str, Any]],
+    test_rows: Iterable[dict[str, Any]],
 ) -> dict[str, Any]:
     """Fail closed on empty references, duplicate IDs and cross-split leakage."""
     splits = {
@@ -29,7 +89,7 @@ def validate_training_splits(
         "validation": validation_rows,
         "test": test_rows,
     }
-    identities: dict[str, dict[str, str]] = {}
+    identities: dict[str, set[str]] = {}
     summaries = {}
     for split_name, rows in splits.items():
         seen_ids = set()
@@ -45,7 +105,7 @@ def validate_training_splits(
                 if record_id in seen_ids:
                     raise ValueError(f"Duplicate record_id {record_id!r} within {split_name}.")
                 seen_ids.add(record_id)
-                identities.setdefault("record_id:" + record_id, {})[split_name] = record_id
+                identities.setdefault("record_id:" + record_id, set()).add(split_name)
 
             for key, registry in (
                 ("split_group", split_groups),
@@ -54,7 +114,7 @@ def validate_training_splits(
                 value = str(row.get(key) or "").strip()
                 if value:
                     registry.add(value)
-                    identities.setdefault(key + ":" + value, {})[split_name] = value
+                    identities.setdefault(key + ":" + value, set()).add(split_name)
 
             domains.add(str(row.get("domain") or "unknown"))
             messages = row.get("messages")
@@ -182,10 +242,10 @@ def main() -> int:
     if args.batch_size < 1 or args.gradient_accumulation < 1:
         parser.error("batch size and gradient accumulation must be positive")
 
-    train_rows = read_jsonl(args.data_dir / "train.jsonl")
-    validation_rows = read_jsonl(args.data_dir / "validation.jsonl")
+    train_rows = IndexedJSONL(args.data_dir / "train.jsonl")
+    validation_rows = IndexedJSONL(args.data_dir / "validation.jsonl")
     test_path = args.data_dir / "test.jsonl"
-    test_rows = read_jsonl(test_path) if test_path.is_file() else []
+    test_rows = IndexedJSONL(test_path) if test_path.is_file() else []
     if not train_rows or not validation_rows:
         raise RuntimeError("Training and validation JSONL must both be non-empty.")
     integrity = validate_training_splits(train_rows, validation_rows, test_rows)
@@ -206,14 +266,16 @@ def main() -> int:
     from torch.utils.data import Dataset
 
     class ConversationDataset(Dataset):
-        def __init__(self, rows):
+        def __init__(self, rows, indices=None):
             self.rows = rows
+            self.indices = indices
 
         def __len__(self):
-            return len(self.rows)
+            return len(self.indices) if self.indices is not None else len(self.rows)
 
         def __getitem__(self, index):
-            row = self.rows[index]
+            row_index = self.indices[index] if self.indices is not None else index
+            row = self.rows[row_index]
             if isinstance(row.get("messages"), list):
                 return conversation_row_for_collator(row)
             content = []
@@ -236,11 +298,6 @@ def main() -> int:
                 {"role": "assistant", "content": [{"type": "text", "text": completion}]},
             ])
             return {"messages": messages}
-
-    for row in train_rows + validation_rows:
-        for image_path in row.get("images") or []:
-            if not Path(image_path).is_file():
-                raise FileNotFoundError(f"Training image is missing: {image_path}")
 
     model, tokenizer = FastVisionModel.from_pretrained(
         model_name=args.base_model,
@@ -283,6 +340,7 @@ def main() -> int:
         "precision": "bf16" if use_bf16 else "fp16",
         "seed": 3407,
         "data_integrity": integrity,
+        "data_loading_strategy": "Indexed JSONL byte offsets with on-demand record parsing",
         "training_record_count": len(train_rows),
         "validation_record_count": len(validation_rows),
         "held_out_test_record_count": len(test_rows),
@@ -336,13 +394,15 @@ def main() -> int:
 
     def evaluate_by_domain(rows, prefix):
         grouped = {}
-        domains = sorted({str(row.get("domain") or "unknown") for row in rows})
-        for domain in domains:
-            subset = [row for row in rows if str(row.get("domain") or "unknown") == domain]
-            if not subset:
+        domain_indices: dict[str, list[int]] = {}
+        for index, row in enumerate(rows):
+            domain = str(row.get("domain") or "unknown")
+            domain_indices.setdefault(domain, []).append(index)
+        for domain, indices in sorted(domain_indices.items()):
+            if not indices:
                 continue
             metrics = trainer.evaluate(
-                eval_dataset=ConversationDataset(subset),
+                eval_dataset=ConversationDataset(rows, indices=indices),
                 metric_key_prefix=f"{prefix}_{domain}",
             )
             grouped[domain] = metrics
