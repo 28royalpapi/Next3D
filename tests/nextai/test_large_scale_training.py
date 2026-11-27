@@ -104,6 +104,26 @@ class LargeScaleTrainingTests(unittest.TestCase):
             self.assertEqual(report["image_files_total"], 1)
             self.assertEqual(report["missing_image_files"], [])
 
+    def test_exact_duplicate_text_within_train_split_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            repeated = {"prompt": "Explain a simply supported beam.", "completion": "The reactions are equal for a centred load."}
+            records = {
+                "train": [
+                    {"record_id": "train-1", **repeated},
+                    {"record_id": "train-2", **repeated},
+                ],
+                "validation": [{"record_id": "validation-1", "prompt": "What is IFC?", "completion": "An information schema."}],
+                "test": [{"record_id": "test-1", "prompt": "What is a pad?", "completion": "A CAD extrusion feature."}],
+            }
+            for split, rows in records.items():
+                (root / f"{split}.jsonl").write_text(
+                    "".join(json.dumps(row) + "\\n" for row in rows),
+                    encoding="utf-8",
+                )
+            with self.assertRaisesRegex(ValueError, "duplicates within a split"):
+                audit_corpus(root, FakeTokenizer())
+
     def test_cross_split_source_group_leakage_fails_closed(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
