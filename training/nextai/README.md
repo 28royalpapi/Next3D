@@ -61,6 +61,7 @@ The next curriculum phase is specified in [COMPREHENSIVE_CAPABILITY_CURRICULUM.m
 - Autodesk Zero-to-CAD-100k (Apache-2.0): use bounded streaming samples from its train, validation and test splits. It includes eight rendered views and a structured construction-operation trace.
 - IFC BIM Alpaca 124K (MIT): admit only high-quality rows with the published `source` label containing `validated` (for example `validated-synthetic`) or an explicit `metadata.validated=true` flag, and a score of at least 4.5. This remains a dataset provenance claim, not actual IFC/BIMCraft validation.
 - IFC BIM QA (CC-BY-4.0): preserve Dietmar2020 attribution and keep its test split held out.
+- BuildEng V8 (Apache-2.0, 145,117 records): use the conservative civil/structural reasoning and safety corpus. Because it publishes only one train split, the adapter assigns deterministic internal train/validation/test partitions by normalized category and user brief; all records remain L0 authored reasoning, not native execution traces.
 - Native NextCAD and Next BIM training records: admit only when they pass the native training-record schema, permissions/consent, application recompute, geometry/model validation and save/reopen round trip.
 - Cairn IFC BIM deduplicated data is excluded from positive training until its generated IFC has been independently validated; its own dataset card says its IFC output is unvalidated.
 - CAD-Recode v1.5 (CC-BY-NC-4.0) is excluded from commercial model training unless separate commercial permission is obtained.
@@ -71,9 +72,21 @@ Install the training-only data libraries:
 
     pip install datasets pillow shapely ifcopenshell
 
-Prepare a bounded mixed corpus outside the app:
+Prepare a full-source candidate corpus outside the app (this streams the published source splits, runs the pinned capability census, and audits exact Qwen text-token counts):
 
-    python training/nextai/prepare_public_corpora.py --output-dir /workspace/nextai-corpus --max-cad-train 2500 --max-bim-train 30000 --max-mixed-train 24000 --swiss-dwellings-dir /workspace/swiss-dwellings-corpus --ifc-model-corpus-dir /workspace/gni-ifc-corpus
+    python training/nextai/prepare_large_scale_corpus.py --output-dir /workspace/nextai-large-corpus
+
+The full-source defaults cover all available Zero-to-CAD train/validation/test rows, all available IFC/BIM Alpaca train/validation rows, IFC/BIM QA train/test rows, and up to 145,117 BuildEng source rows. The mixed sampler cap is 400,000 records, with 50,000 validation and 40,000 test capacity. The Builder reports the accepted row counts and actual tokenizer count; 400 million tokens is a target, not an assumed achieved value.
+
+For a small pipeline smoke test only, the lower-level command remains available:
+
+    python training/nextai/prepare_public_corpora.py --output-dir /workspace/nextai-corpus-smoke --max-cad-train 2500 --max-bim-train 30000 --max-buildeng-records 2000 --max-mixed-train 24000
+
+### Independent long-horizon examination
+
+[Google Physical-Engineering's Last Exam](https://huggingface.co/datasets/google/physical-engineerings-last-exam) is a gated, CC-BY-4.0 benchmark of long-horizon project work across electrical, civil, structural and mechanical engineering. It must remain an evaluation-only holdout: never use its benchmark task workspaces or expected deliverables in SFT or retrieval. The dataset requires access approval; do not claim it has been evaluated until the connected account can fetch its files and a fixed evaluation protocol is implemented.
+
+MechQA (202,068 material-property QA pairs) is not currently admitted because the Hub dataset card does not declare a dataset-level licence and the derived scientific-article contexts need rights review. OpenPyStruct's two-million-case structural dataset is also excluded until the dataset file itself has a clear reuse licence; the MIT licence on the source code is not treated as a blanket licence for the Zenodo data files.
 
 ### Optional real architectural and IFC model lessons
 
