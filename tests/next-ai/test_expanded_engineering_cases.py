@@ -92,6 +92,9 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
             "engineering_hydraulics_hydrostatic_gate": "foundations",
             "engineering_geotechnical_terzaghi_strip_footing": "foundations",
             "engineering_geotechnical_infinite_slope": "foundations",
+            "engineering_hydraulics_rational_method_runoff": "foundations",
+            "engineering_hydraulics_water_pump_power": "foundations",
+            "engineering_geotechnical_elastic_foundation_settlement": "foundations",
         }
         for domain, expected_stage in expected_stages.items():
             with self.subTest(domain=domain):
@@ -107,6 +110,9 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
             (MODULE.solve_hydrostatic_vertical_gate, {"gate_width_m": 2, "gate_height_m": 3, "gate_top_depth_below_free_surface_m": 1.5}),
             (MODULE.solve_terzaghi_strip_footing, {"effective_cohesion_kPa": 10, "surcharge_at_foundation_level_kPa": 20, "effective_soil_unit_weight_kN_m3": 18, "footing_width_m": 2, "bearing_factor_Nc": 37.2, "bearing_factor_Nq": 22.5, "bearing_factor_Ngamma": 19.7, "factor_of_safety": 3}),
             (MODULE.solve_infinite_slope_factor_of_safety, {"effective_cohesion_kPa": 5, "soil_unit_weight_kN_m3": 18, "normal_soil_thickness_m": 2, "pore_water_pressure_kPa": 5, "slope_angle_deg": 30, "effective_friction_angle_deg": 25}),
+            (MODULE.solve_rational_method_runoff, {"runoff_coefficient": 0.6, "rainfall_intensity_mm_hr": 50, "catchment_area_ha": 10}),
+            (MODULE.solve_water_pump_power, {"flow_rate_L_per_s": 10, "total_dynamic_head_m": 20, "pump_efficiency": 0.7, "motor_efficiency": 0.9}),
+            (MODULE.solve_elastic_shallow_foundation_settlement, {"net_contact_pressure_kPa": 150, "footing_width_m": 2, "poisson_ratio": 0.3, "soil_elastic_modulus_MPa": 20, "settlement_influence_factor": 1}),
         )
         for solver, inputs in cases:
             with self.subTest(solver=solver.__name__):
@@ -123,16 +129,52 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
             (MODULE.solve_hydrostatic_vertical_gate, {"gate_width_m": 2, "gate_height_m": 0, "gate_top_depth_below_free_surface_m": 1}),
             (MODULE.solve_terzaghi_strip_footing, {"effective_cohesion_kPa": 0, "surcharge_at_foundation_level_kPa": 0, "effective_soil_unit_weight_kN_m3": 18, "footing_width_m": 2, "bearing_factor_Nc": 0, "bearing_factor_Nq": 20, "bearing_factor_Ngamma": 20, "factor_of_safety": 3}),
             (MODULE.solve_infinite_slope_factor_of_safety, {"effective_cohesion_kPa": 0, "soil_unit_weight_kN_m3": 18, "normal_soil_thickness_m": 2, "pore_water_pressure_kPa": 999, "slope_angle_deg": 30, "effective_friction_angle_deg": 25}),
+            (MODULE.solve_rational_method_runoff, {"runoff_coefficient": 1.2, "rainfall_intensity_mm_hr": 50, "catchment_area_ha": 10}),
+            (MODULE.solve_water_pump_power, {"flow_rate_L_per_s": 10, "total_dynamic_head_m": 20, "pump_efficiency": 0, "motor_efficiency": 0.9}),
+            (MODULE.solve_elastic_shallow_foundation_settlement, {"net_contact_pressure_kPa": 150, "footing_width_m": 2, "poisson_ratio": 0.5, "soil_elastic_modulus_MPa": 20, "settlement_influence_factor": 1}),
         )
         for solver, inputs in invalid_cases:
             with self.subTest(solver=solver.__name__):
                 with self.assertRaises(ValueError):
                     solver(inputs)
 
+
+    def test_rational_method_converts_mm_per_hour_and_hectares_before_multiplication(self):
+        result = MODULE.solve_rational_method_runoff({
+            "runoff_coefficient": 0.6,
+            "rainfall_intensity_mm_hr": 50.0,
+            "catchment_area_ha": 10.0,
+        })
+        self.assertAlmostEqual(result["values"]["peak_runoff_m3_per_s"], 0.83333333, places=7)
+        self.assertAlmostEqual(result["values"]["peak_runoff_L_per_s"], 833.333333, places=5)
+
+    def test_pump_power_propagates_pump_and_motor_efficiencies(self):
+        result = MODULE.solve_water_pump_power({
+            "flow_rate_L_per_s": 10.0,
+            "total_dynamic_head_m": 20.0,
+            "pump_efficiency": 0.7,
+            "motor_efficiency": 0.9,
+        })
+        hydraulic = 1000.0 * 9.80665 * 0.01 * 20.0 / 1000.0
+        self.assertAlmostEqual(result["values"]["hydraulic_power_kW"], hydraulic, places=6)
+        self.assertAlmostEqual(result["values"]["pump_shaft_power_kW"], hydraulic / 0.7, places=6)
+        self.assertAlmostEqual(result["values"]["electrical_input_power_kW"], hydraulic / (0.7 * 0.9), places=6)
+
+    def test_elastic_foundation_settlement_converts_modulus_and_reports_mm(self):
+        result = MODULE.solve_elastic_shallow_foundation_settlement({
+            "net_contact_pressure_kPa": 150.0,
+            "footing_width_m": 2.0,
+            "poisson_ratio": 0.3,
+            "soil_elastic_modulus_MPa": 20.0,
+            "settlement_influence_factor": 1.0,
+        })
+        self.assertAlmostEqual(result["values"]["soil_elastic_modulus_kPa"], 20000.0, places=6)
+        self.assertAlmostEqual(result["values"]["elastic_settlement_mm"], 13.65, places=6)
+
     def test_new_families_join_deterministic_l0_corpus_generation(self):
         splits, manifest = MODULE.generate_cases(cases_per_domain=3, seed=20261127)
-        self.assertEqual(len(MODULE.FAMILY_BUILDERS), 22)
-        self.assertEqual(manifest["total_records"], 66)
+        self.assertEqual(len(MODULE.FAMILY_BUILDERS), 25)
+        self.assertEqual(manifest["total_records"], 75)
         rows = [row for split_rows in splits.values() for row in split_rows]
         self.assertEqual(len({row["record_id"] for row in rows}), 66)
         by_family = {}
@@ -145,7 +187,7 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
             self.assertTrue(expected["governing_equations"])
             self.assertTrue(expected["assumptions"])
             self.assertTrue(expected["limitations"])
-        self.assertEqual(len(by_family), 22)
+        self.assertEqual(len(by_family), 25)
         self.assertTrue(all(count == 3 for count in by_family.values()))
 
 
