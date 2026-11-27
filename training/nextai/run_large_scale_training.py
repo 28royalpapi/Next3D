@@ -169,6 +169,41 @@ def load_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def require_token_target(
+    train_tokens: int,
+    target_tokens: int,
+    *,
+    allow_below_target: bool = False,
+) -> dict[str, Any]:
+    """Fail closed before GPU use when the measured corpus misses its target."""
+    if train_tokens < 0 or target_tokens < 1:
+        raise ValueError("Measured train tokens must be non-negative and target tokens must be positive.")
+    shortfall = max(0, target_tokens - train_tokens)
+    result = {
+        "measured_train_text_tokens": train_tokens,
+        "target_train_text_tokens": target_tokens,
+        "shortfall_tokens": shortfall,
+        "target_met": shortfall == 0,
+        "pilot_override_used": bool(shortfall and allow_below_target),
+        "decision": (
+            "PASS"
+            if shortfall == 0
+            else "PILOT_OVERRIDE"
+            if allow_below_target
+            else "BLOCKED"
+        ),
+    }
+    if shortfall and not allow_below_target:
+        raise RuntimeError(
+            "Refusing GPU fine-tuning: the measured corpus contains "
+            f"{train_tokens:,} train text tokens, below the required "
+            f"{target_tokens:,} by {shortfall:,}. Add licence-cleared, non-duplicated "
+            "material and rerun the exact tokenizer audit. For a deliberately bounded "
+            "pilot only, pass --allow-below-token-target and label the run as a pilot."
+        )
+    return result
+
+
 def compare_engineering_benchmarks(
     base_path: Path,
     candidate_path: Path,
@@ -346,6 +381,11 @@ def main() -> int:
     parser.add_argument("--curriculum-replay-fraction", type=float, default=0.10)
     parser.add_argument("--curriculum-replay-chunk-size", type=int, default=32)
     parser.add_argument("--target-text-tokens", type=int, default=400_000_000)
+    parser.add_argument(
+        "--allow-below-token-target",
+        action="store_true",
+        help="Explicitly allow a bounded pilot below the measured corpus target; never represents the 400M programme.",
+    )
     parser.add_argument("--resume-from-checkpoint", type=Path)
     parser.add_argument("--llama-cpp-dir", type=Path)
     parser.add_argument("--skip-baseline-evaluation", action="store_true")
@@ -365,6 +405,13 @@ def main() -> int:
         parser.error("gradient accumulation, LoRA rank and token target must be positive.")
     if args.model_budget_bytes < 1 or args.evaluation_max_records < 0 or args.engineering_max_cases < 0:
         parser.error("Model budget must be positive and evaluation limits cannot be negative.")
+    if not args.skip_upload and not os.environ.get("HF_TOKEN", "").strip():
+        parser.error(
+            "HF_TOKEN is required before GPU training so completed weights and evidence can be published. "
+            "Use --skip-upload only for an explicitly temporary/local-only run."
+        )
+    if not args.model_repo.strip():
+        parser.error("Model repository cannot be empty.")
     if not 0.0 <= args.curriculum_replay_fraction <= 0.5 or args.curriculum_replay_chunk_size < 1:
         parser.error("Curriculum replay fraction must be in [0, 0.5] and chunk size must be positive.")
 
@@ -390,6 +437,12 @@ def main() -> int:
         raise ValueError("The measured training text-token count is zero.")
     planned_exposures = train_tokens * args.epochs
     token_target_met = train_tokens >= args.target_text_tokens
+    token_gate = require_token_target(
+        train_tokens,
+        args.target_text_tokens,
+        allow_below_target=args.allow_below_token_target,
+    )
+    print("NEXTAI TOKEN-TARGET GATE: " + json.dumps(token_gate, ensure_ascii=False), flush=True)
     print(
         f"Measured unique train text tokens: {train_tokens:,} / target {args.target_text_tokens:,}. "
         f"Target met: {token_target_met}.",
@@ -603,6 +656,8 @@ def main() -> int:
         "measured_unique_train_text_tokens": train_tokens,
         "estimated_text_token_exposures": planned_exposures,
         "token_target_met": token_target_met,
+        "token_target_gate": token_gate,
+        "pilot_run": bool(args.allow_below_token_target and not token_target_met),
         "compute_manifest": str(output_dir / "compute_manifest.json"),
         "corpus_audit": str(output_dir / "corpus_audit.json"),
         "training_result": str(training_result_path),
