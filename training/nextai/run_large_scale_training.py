@@ -532,8 +532,7 @@ def main() -> int:
             "COMPLETED_AFTER_TRAINING_ON_UNTOUCHED_SPLIT"
         )
         training_result_path.write_text(
-            json.dumps(training_result, indent=2, default=str) + "
-",
+            json.dumps(training_result, indent=2, default=str) + "\n",
             encoding="utf-8",
         )
 
