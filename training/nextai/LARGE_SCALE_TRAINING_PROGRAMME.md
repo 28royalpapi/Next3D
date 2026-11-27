@@ -18,6 +18,21 @@ Training should begin with a bounded, instrumented pilot on the audited dataset,
 
 The exact Qwen tokenizer audit reports train/validation/test text tokens separately, plus source/domain balance, tool schemas and image assets. Vision patch tokens and runtime chat-template overhead remain separate measurements.
 
+## First fine-tuning pilot
+
+The training runner exposes a single bounded first-run profile. With the audited corpus available locally and an authorised CUDA runtime, launch:
+
+```bash
+python training/nextai/run_large_scale_training.py \\
+  --data-dir /path/to/nextai-corpus \\
+  --output-dir /path/to/nextai-first-pilot \\
+  --pilot
+```
+
+The profile defaults to 200 optimizer steps, evaluates at most 128 validation and held-out records, skips compact GGUF export, and keeps resulting files local. Add `--upload` only when a write-enabled HF_TOKEN is configured and the private model repository should receive the pilot. The pilot does not require native CAD/BIM traces; if they are absent, its report explicitly limits the result to analytic engineering education. It must not be presented as a finished model or native operator.
+
+The runner refuses CPU fallback and never rents compute. It must run in a CUDA environment whose cost and persistence have been authorised separately.
+
 ## Five-stage learning programme
 
 ### Stage 0 — Baseline and data admission
