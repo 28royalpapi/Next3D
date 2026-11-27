@@ -305,6 +305,7 @@ def publish_artifacts(output_dir: Path, repo_id: str, token: str) -> None:
     evidence_files = (
         "training_config.json",
         "training_result.json",
+        "curriculum_schedule.json",
         "compute_manifest.json",
         "corpus_audit.json",
         "base_validation_evaluation.json",
@@ -341,6 +342,9 @@ def main() -> int:
     parser.add_argument("--gradient-accumulation", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=1.0e-4)
     parser.add_argument("--lora-rank", type=int, default=16)
+    parser.add_argument("--seed", type=int, default=3407)
+    parser.add_argument("--curriculum-replay-fraction", type=float, default=0.10)
+    parser.add_argument("--curriculum-replay-chunk-size", type=int, default=32)
     parser.add_argument("--target-text-tokens", type=int, default=400_000_000)
     parser.add_argument("--resume-from-checkpoint", type=Path)
     parser.add_argument("--llama-cpp-dir", type=Path)
@@ -361,6 +365,8 @@ def main() -> int:
         parser.error("gradient accumulation, LoRA rank and token target must be positive.")
     if args.model_budget_bytes < 1 or args.evaluation_max_records < 0 or args.engineering_max_cases < 0:
         parser.error("Model budget must be positive and evaluation limits cannot be negative.")
+    if not 0.0 <= args.curriculum_replay_fraction <= 0.5 or args.curriculum_replay_chunk_size < 1:
+        parser.error("Curriculum replay fraction must be in [0, 0.5] and chunk size must be positive.")
 
     data_dir = args.data_dir.resolve()
     output_dir = args.output_dir.resolve()
@@ -450,6 +456,9 @@ def main() -> int:
         "--gradient-accumulation", str(args.gradient_accumulation),
         "--learning-rate", str(args.learning_rate),
         "--lora-rank", str(args.lora_rank),
+        "--seed", str(args.seed),
+        "--curriculum-replay-fraction", str(args.curriculum_replay_fraction),
+        "--curriculum-replay-chunk-size", str(args.curriculum_replay_chunk_size),
         "--save-merged-model",
     ]
     if args.resume_from_checkpoint:
@@ -597,6 +606,7 @@ def main() -> int:
         "compute_manifest": str(output_dir / "compute_manifest.json"),
         "corpus_audit": str(output_dir / "corpus_audit.json"),
         "training_result": str(training_result_path),
+        "curriculum_schedule": str(output_dir / "curriculum_schedule.json"),
         "base_validation_evaluation": None if args.skip_baseline_evaluation else str(baseline_validation_eval),
         "candidate_validation_evaluation": None if args.skip_candidate_evaluation else str(candidate_validation_eval),
         "base_heldout_evaluation": str(base_heldout_eval) if heldout_comparison else None,
