@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Collect split-disjoint native NextCAD acceptance traces and prepare SFT sidecars."""
 from __future__ import annotations
-import argparse, hashlib, json, subprocess, sys
+import argparse, hashlib, json, re, subprocess, sys
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +37,11 @@ def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[st
         source_id = str((row.get("source") or {}).get("source_id") or "")
         if not source_id:
             raise ValueError(f"NextCAD {split} trace is missing source lineage")
+        expected_scenario = SCENARIOS[split][0]
+        if expected_scenario not in source_id or split not in source_id:
+            raise ValueError(
+                f"NextCAD {split} trace source lineage does not match its scenario"
+            )
         source_ids.add(source_id)
         prompts.add(str((row.get("task") or {}).get("prompt") or ""))
         validation = row.get("validation") or {}
@@ -45,8 +50,8 @@ def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[st
         if validation.get("round_trip_passed") is not True or validation.get("recompute_passed") is not True:
             raise ValueError(f"NextCAD {split} trace lacks save/reopen or recompute evidence")
         after = (row.get("native_states") or {}).get("after") or {}
-        if not after.get("sha256"):
-            raise ValueError(f"NextCAD {split} trace lacks a saved native after-state")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(after.get("sha256") or "")):
+            raise ValueError(f"NextCAD {split} trace lacks a valid saved native after-state SHA-256")
         operations = row.get("operations")
         if not isinstance(operations, list) or not operations or any(op.get("status") != "applied" for op in operations):
             raise ValueError(f"NextCAD {split} trace has missing or failed native operations")
