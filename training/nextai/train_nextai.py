@@ -428,6 +428,58 @@ def build_progressive_curriculum_order(
     }
     return ordered_indices, manifest
 
+
+def validate_resume_compatibility(
+    previous_config: dict[str, Any],
+    current_config: dict[str, Any],
+) -> None:
+    """Require the identical model, data, schedule and optimizer setup on resume."""
+    scalar_keys = (
+        "base_model",
+        "max_steps",
+        "num_train_epochs",
+        "max_seq_length",
+        "batch_size",
+        "gradient_accumulation",
+        "learning_rate",
+        "lora_rank",
+        "precision",
+        "seed",
+        "train_sampling_strategy",
+    )
+    differences = [
+        key for key in scalar_keys
+        if previous_config.get(key) != current_config.get(key)
+    ]
+
+    previous_schedule = previous_config.get("curriculum_schedule") or {}
+    current_schedule = current_config.get("curriculum_schedule") or {}
+    schedule_keys = (
+        "stage_order",
+        "training_records_sha256",
+        "ordered_index_sha256",
+        "replay_fraction_per_chunk",
+        "replay_chunk_size",
+        "seed",
+    )
+    differences.extend(
+        "curriculum_schedule." + key
+        for key in schedule_keys
+        if previous_schedule.get(key) != current_schedule.get(key)
+    )
+
+    previous_splits = (previous_config.get("data_integrity") or {}).get("splits") or {}
+    current_splits = (current_config.get("data_integrity") or {}).get("splits") or {}
+    for split in ("train", "validation", "test"):
+        if previous_splits.get(split, {}).get("records_sha256") != current_splits.get(split, {}).get("records_sha256"):
+            differences.append("data_integrity.splits." + split + ".records_sha256")
+
+    if differences:
+        raise ValueError(
+            "Checkpoint resume refused because the run configuration or corpus changed: "
+            + ", ".join(sorted(set(differences)))
+        )
+
 def conversation_row_for_collator(
     row: dict[str, Any],
     image_loader=None,
@@ -646,6 +698,15 @@ def main() -> int:
         "held_out_test_record_count": len(test_rows),
         "test_set_used_for_training": False,
     }
+    if args.resume_from_checkpoint is not None:
+        previous_config_path = output / "training_config.json"
+        if not previous_config_path.is_file():
+            raise FileNotFoundError(
+                "Cannot safely resume without the original training_config.json in the run output directory."
+            )
+        previous_config = json.loads(previous_config_path.read_text(encoding="utf-8"))
+        validate_resume_compatibility(previous_config, run_config)
+
     (output / "curriculum_schedule.json").write_text(
         json.dumps(curriculum_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
