@@ -29,9 +29,10 @@ def main() -> int:
     parser.add_argument("--ifcqa-train", type=int, default=10000)
     parser.add_argument("--ifcqa-test", type=int, default=4000)
     parser.add_argument("--buildeng-records", type=int, default=145117)
-    parser.add_argument("--mixed-train-cap", type=int, default=400000)
-    parser.add_argument("--validation-cap", type=int, default=50000)
-    parser.add_argument("--test-cap", type=int, default=40000)
+    parser.add_argument("--analytic-cases-per-domain", type=int, default=10000)
+    parser.add_argument("--mixed-train-cap", type=int, default=700000)
+    parser.add_argument("--validation-cap", type=int, default=60000)
+    parser.add_argument("--test-cap", type=int, default=50000)
     parser.add_argument("--swiss-dwellings-dir", type=Path)
     parser.add_argument("--ifc-model-corpus-dir", type=Path)
     parser.add_argument("--skip-capability-census", action="store_true")
@@ -42,7 +43,7 @@ def main() -> int:
     limits = (
         args.cad_train, args.cad_validation, args.cad_test,
         args.bim_train, args.bim_validation, args.ifcqa_train, args.ifcqa_test,
-        args.buildeng_records,
+        args.buildeng_records, args.analytic_cases_per_domain,
         args.mixed_train_cap, args.validation_cap, args.test_cap,
     )
     if any(value < 0 for value in limits):
@@ -85,6 +86,7 @@ def main() -> int:
         "--max-ifcqa-train", str(args.ifcqa_train),
         "--max-ifcqa-test", str(args.ifcqa_test),
         "--max-buildeng-records", str(args.buildeng_records),
+        "--analytic-cases-per-domain", str(args.analytic_cases_per_domain),
         "--max-mixed-train", str(args.mixed_train_cap),
         "--max-validation", str(args.validation_cap),
         "--max-test", str(args.test_cap),
@@ -114,6 +116,8 @@ def main() -> int:
             "ifcqa_train_source_rows": args.ifcqa_train,
             "ifcqa_test_source_rows": args.ifcqa_test,
             "buildeng_source_rows": args.buildeng_records,
+            "analytic_cases_per_domain": args.analytic_cases_per_domain,
+            "analytic_engineering_total_target": args.analytic_cases_per_domain * 17,
             "mixed_train_cap": args.mixed_train_cap,
             "validation_cap": args.validation_cap,
             "test_cap": args.test_cap,
@@ -126,6 +130,12 @@ def main() -> int:
             "quarantined": manifest.get("quarantined_rows", 0),
         },
         "training_domain_counts": manifest.get("training_domain_counts", {}),
+        "analytic_engineering_split_counts": {
+            "train": manifest.get("source_counts", {}).get("analytic_engineering_train", 0),
+            "validation": manifest.get("source_counts", {}).get("analytic_engineering_validation", 0),
+            "test": manifest.get("source_counts", {}).get("analytic_engineering_test", 0),
+            "families": manifest.get("source_counts", {}).get("analytic_engineering_families", 0),
+        },
         "capability_census": str(census_path),
         "corpus_dir": str(out / "corpus"),
         "requires_token_audit_before_gpu": True,
