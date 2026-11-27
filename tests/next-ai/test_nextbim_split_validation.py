@@ -1,8 +1,33 @@
+import hashlib
+import tempfile
 import unittest
-from scripts.collect_nextbim_native_splits import validate_split_trace_rows, validate_source_lineage_separation
+from pathlib import Path
+from scripts.collect_nextbim_native_splits import describe_artifact, validate_split_trace_rows, validate_source_lineage_separation
 
 
 class NextBIMNativeSplitValidationTests(unittest.TestCase):
+    def test_artifact_inventory_records_portable_path_size_and_digest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / "sft" / "train.jsonl"
+            path.parent.mkdir()
+            payload = b'{"record_id":"r1"}\\n'
+            path.write_bytes(payload)
+            item = describe_artifact(path, root, records=1)
+            self.assertEqual(item["path"], "sft/train.jsonl")
+            self.assertEqual(item["bytes"], len(payload))
+            self.assertEqual(item["sha256"], hashlib.sha256(payload).hexdigest())
+            self.assertEqual(item["records"], 1)
+
+    def test_artifact_inventory_rejects_paths_outside_output_directory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "output"
+            outside = Path(temp) / "outside.jsonl"
+            root.mkdir()
+            outside.write_text("{}\\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "escapes the output directory"):
+                describe_artifact(outside, root)
+
     def rows(self, split, scenario):
         result = []
         for index, stage in enumerate(("a", "b")):
