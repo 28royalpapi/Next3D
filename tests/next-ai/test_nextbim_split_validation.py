@@ -19,6 +19,14 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
             self.assertEqual(item["sha256"], hashlib.sha256(payload).hexdigest())
             self.assertEqual(item["records"], 1)
 
+    def test_artifact_inventory_rejects_record_count_mismatch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / "train.jsonl"
+            path.write_text('{"record_id":"r1"}\\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "record count mismatch"):
+                describe_artifact(path, root, records=2)
+
     def test_artifact_inventory_rejects_paths_outside_output_directory(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "output"
