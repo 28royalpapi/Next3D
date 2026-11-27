@@ -32,7 +32,14 @@ def describe_artifact(path: Path, output_dir: Path, *, records: int | None = Non
         "sha256": sha256_file(resolved),
     }
     if records is not None:
-        result["records"] = records
+        with resolved.open("r", encoding="utf-8") as handle:
+            actual_records = sum(1 for line in handle if line.strip())
+        if actual_records != records:
+            raise ValueError(
+                f"Native trace artifact record count mismatch for {relative}: "
+                f"expected {records}, found {actual_records}"
+            )
+        result["records"] = actual_records
     return result
 
 
