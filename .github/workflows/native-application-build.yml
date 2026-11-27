@@ -71,7 +71,7 @@ concurrency:
 
 jobs:
   source-preparation:
-    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.modified, '.github/workflows/native-application-build.yml')
+    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.message, '[run-native-build]')
     name: Verify pinned sources and Next AI patches
     runs-on: ubuntu-24.04
     steps:
@@ -106,7 +106,7 @@ jobs:
           python -m py_compile training/nextai/*.py
 
   nextcad:
-    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.modified, '.github/workflows/native-application-build.yml')
+    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.message, '[run-native-build]')
     name: NextCAD / ${{ matrix.os }}
     needs: source-preparation
     runs-on: ${{ matrix.runner }}
@@ -307,7 +307,7 @@ jobs:
           fi
 
   next-bim:
-    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.modified, '.github/workflows/native-application-build.yml')
+    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.message, '[run-native-build]')
     name: Next BIM / ${{ matrix.os }}
     needs: source-preparation
     runs-on: ${{ matrix.runner }}
