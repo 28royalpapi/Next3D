@@ -115,9 +115,14 @@ jobs:
               "fine_tuning_started": False
           }
           (root / "milestone-summary.json").write_text(
-              json.dumps(summary, indent=2, ensure_ascii=False) + "\\n",
+              json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
               encoding="utf-8",
           )
+          persisted_summary = json.loads(
+              (root / "milestone-summary.json").read_text(encoding="utf-8")
+          )
+          if persisted_summary != summary:
+              raise SystemExit("Persisted milestone summary is invalid or differs from verified values")
           print(json.dumps(summary, indent=2, ensure_ascii=False))
           PY
 
