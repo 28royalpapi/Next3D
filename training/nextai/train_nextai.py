@@ -6,6 +6,8 @@ import argparse
 import hashlib
 import json
 import os
+import sqlite3
+import tempfile
 from array import array
 from pathlib import Path
 from typing import Any, Iterable
@@ -83,107 +85,175 @@ def validate_training_splits(
     validation_rows: Iterable[dict[str, Any]],
     test_rows: Iterable[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Fail closed on empty references, duplicate IDs and cross-split leakage."""
+    """Fail closed on invalid records, duplicate IDs and cross-split leakage.
+
+    Identity indexes are held in a temporary SQLite file, not large Python sets.
+    This keeps validation memory bounded when the corpus grows to hundreds of
+    thousands or millions of records.
+    """
     splits = {
         "train": train_rows,
         "validation": validation_rows,
         "test": test_rows,
     }
-    identities: dict[str, set[str]] = {}
     summaries = {}
-    for split_name, rows in splits.items():
-        seen_ids = set()
-        source_groups = set()
-        split_groups = set()
-        image_count = 0
-        domains = set()
-        for index, row in enumerate(rows):
-            if not isinstance(row, dict):
-                raise ValueError(f"{split_name}[{index}] is not a JSON object.")
-            record_id = str(row.get("record_id") or "").strip()
-            if record_id:
-                if record_id in seen_ids:
-                    raise ValueError(f"Duplicate record_id {record_id!r} within {split_name}.")
-                seen_ids.add(record_id)
-                identities.setdefault("record_id:" + record_id, set()).add(split_name)
+    with tempfile.TemporaryDirectory(prefix="nextai-integrity-") as temp_dir:
+        db_path = Path(temp_dir) / "identities.sqlite3"
+        connection = sqlite3.connect(str(db_path))
+        try:
+            connection.execute("PRAGMA journal_mode=OFF")
+            connection.execute("PRAGMA synchronous=OFF")
+            connection.execute("PRAGMA temp_store=FILE")
+            connection.execute("PRAGMA cache_size=-16384")
+            connection.execute(
+                "CREATE TABLE identities ("
+                "identity TEXT NOT NULL, split TEXT NOT NULL, "
+                "PRIMARY KEY (identity, split)) WITHOUT ROWID"
+            )
+            connection.execute(
+                "CREATE TABLE record_ids ("
+                "record_id TEXT NOT NULL, split TEXT NOT NULL, "
+                "PRIMARY KEY (record_id, split)) WITHOUT ROWID"
+            )
+            connection.execute(
+                "CREATE TABLE group_ids ("
+                "group_type TEXT NOT NULL, group_id TEXT NOT NULL, split TEXT NOT NULL, "
+                "PRIMARY KEY (group_type, group_id, split)) WITHOUT ROWID"
+            )
 
-            for key, registry in (
-                ("split_group", split_groups),
-                ("source_group_sha256", source_groups),
-            ):
-                value = str(row.get(key) or "").strip()
-                if value:
-                    registry.add(value)
-                    identities.setdefault(key + ":" + value, set()).add(split_name)
+            for split_name, rows in splits.items():
+                record_count = 0
+                image_count = 0
+                domains: set[str] = set()
 
-            domains.add(str(row.get("domain") or "unknown"))
-            messages = row.get("messages")
-            if isinstance(messages, list):
-                roles = {
-                    message.get("role")
-                    for message in messages
-                    if isinstance(message, dict)
+                for index, row in enumerate(rows):
+                    if not isinstance(row, dict):
+                        raise ValueError(f"{split_name}[{index}] is not a JSON object.")
+                    record_count += 1
+                    record_id = str(row.get("record_id") or "").strip()
+                    if record_id:
+                        cursor = connection.execute(
+                            "INSERT OR IGNORE INTO record_ids(record_id, split) VALUES (?, ?)",
+                            (record_id, split_name),
+                        )
+                        if cursor.rowcount == 0:
+                            raise ValueError(
+                                f"Duplicate record_id {record_id!r} within {split_name}."
+                            )
+                        connection.execute(
+                            "INSERT OR IGNORE INTO identities(identity, split) VALUES (?, ?)",
+                            ("record_id:" + record_id, split_name),
+                        )
+
+                    for key, group_type in (
+                        ("split_group", "split_group"),
+                        ("source_group_sha256", "source_group_sha256"),
+                    ):
+                        value = str(row.get(key) or "").strip()
+                        if value:
+                            connection.execute(
+                                "INSERT OR IGNORE INTO group_ids(group_type, group_id, split) "
+                                "VALUES (?, ?, ?)",
+                                (group_type, value, split_name),
+                            )
+                            connection.execute(
+                                "INSERT OR IGNORE INTO identities(identity, split) VALUES (?, ?)",
+                                (key + ":" + value, split_name),
+                            )
+
+                    domains.add(str(row.get("domain") or "unknown"))
+                    messages = row.get("messages")
+                    if isinstance(messages, list):
+                        roles = {
+                            message.get("role")
+                            for message in messages
+                            if isinstance(message, dict)
+                        }
+                        if "user" not in roles or "assistant" not in roles:
+                            raise ValueError(
+                                f"{split_name} record {record_id or index!r} must contain user and assistant messages."
+                            )
+                        last_assistant = next(
+                            (
+                                message for message in reversed(messages)
+                                if isinstance(message, dict) and message.get("role") == "assistant"
+                            ),
+                            None,
+                        )
+                        assistant_content = (last_assistant or {}).get("content")
+                        has_text = (
+                            isinstance(assistant_content, str) and bool(assistant_content.strip())
+                        ) or (
+                            isinstance(assistant_content, list)
+                            and any(
+                                isinstance(part, dict)
+                                and part.get("type") in {"text", "tool_call"}
+                                and (part.get("text") or part.get("tool_call"))
+                                for part in assistant_content
+                            )
+                        ) or bool((last_assistant or {}).get("tool_calls"))
+                        if not has_text:
+                            raise ValueError(
+                                f"{split_name} record {record_id or index!r} has no assistant target."
+                            )
+                        conversation_row_for_collator(row)
+                    else:
+                        prompt = str(row.get("prompt") or "").strip()
+                        completion = str(row.get("completion") or "").strip()
+                        if not prompt or not completion:
+                            raise ValueError(
+                                f"{split_name} record {record_id or index!r} needs non-empty prompt and completion."
+                            )
+
+                    for image_path in row.get("images") or []:
+                        if not Path(image_path).is_file():
+                            raise FileNotFoundError(
+                                f"{split_name} record {record_id or index!r} references missing image: {image_path}"
+                            )
+                        image_count += 1
+
+                connection.commit()
+                unique_record_ids = connection.execute(
+                    "SELECT COUNT(*) FROM record_ids WHERE split = ?",
+                    (split_name,),
+                ).fetchone()[0]
+                split_group_count = connection.execute(
+                    "SELECT COUNT(*) FROM group_ids WHERE split = ? AND group_type = 'split_group'",
+                    (split_name,),
+                ).fetchone()[0]
+                source_group_count = connection.execute(
+                    "SELECT COUNT(*) FROM group_ids WHERE split = ? AND group_type = 'source_group_sha256'",
+                    (split_name,),
+                ).fetchone()[0]
+                summaries[split_name] = {
+                    "records": record_count,
+                    "unique_record_ids": unique_record_ids,
+                    "split_groups": split_group_count,
+                    "source_groups": source_group_count,
+                    "image_files": image_count,
+                    "domains": sorted(domains),
                 }
-                if "user" not in roles or "assistant" not in roles:
-                    raise ValueError(
-                        f"{split_name} record {record_id or index!r} must contain user and assistant messages."
-                    )
-                last_assistant = next(
-                    (
-                        message for message in reversed(messages)
-                        if isinstance(message, dict) and message.get("role") == "assistant"
-                    ),
-                    None,
-                )
-                assistant_content = (last_assistant or {}).get("content")
-                has_text = (
-                    isinstance(assistant_content, str) and bool(assistant_content.strip())
-                ) or (
-                    isinstance(assistant_content, list)
-                    and any(
-                        isinstance(part, dict) and part.get("type") in {"text", "tool_call"}
-                        and (part.get("text") or part.get("tool_call"))
-                        for part in assistant_content
-                    )
-                ) or bool((last_assistant or {}).get("tool_calls"))
-                if not has_text:
-                    raise ValueError(f"{split_name} record {record_id or index!r} has no assistant target.")
-                conversation_row_for_collator(row)
-            else:
-                prompt = str(row.get("prompt") or "").strip()
-                completion = str(row.get("completion") or "").strip()
-                if not prompt or not completion:
-                    raise ValueError(
-                        f"{split_name} record {record_id or index!r} needs non-empty prompt and completion."
-                    )
-            for image_path in row.get("images") or []:
-                if not Path(image_path).is_file():
-                    raise FileNotFoundError(
-                        f"{split_name} record {record_id or index!r} references missing image: {image_path}"
-                    )
-                image_count += 1
-        summaries[split_name] = {
-            "records": len(rows),
-            "unique_record_ids": len(seen_ids),
-            "split_groups": len(split_groups),
-            "source_groups": len(source_groups),
-            "image_files": image_count,
-            "domains": sorted(domains),
-        }
 
-    conflicts = []
-    for identity, appearances in identities.items():
-        if len(appearances) > 1:
-            conflicts.append({"identity": identity, "splits": sorted(appearances)})
-    if conflicts:
-        sample = conflicts[:8]
-        raise ValueError(
-            "Data leakage detected: record IDs or source/split groups occur in more than one split: "
-            + json.dumps(sample, ensure_ascii=False)
-        )
+            conflicts = connection.execute(
+                "SELECT identity, GROUP_CONCAT(split) AS splits "
+                "FROM identities GROUP BY identity HAVING COUNT(*) > 1 LIMIT 8"
+            ).fetchall()
+            if conflicts:
+                sample = [
+                    {"identity": identity, "splits": sorted(str(splits_value).split(","))}
+                    for identity, splits_value in conflicts
+                ]
+                raise ValueError(
+                    "Data leakage detected: record IDs or source/split groups occur in more than one split: "
+                    + json.dumps(sample, ensure_ascii=False)
+                )
+        finally:
+            connection.close()
+
     return {
         "status": "PASS",
         "cross_split_identity_conflicts": 0,
+        "identity_index_storage": "temporary_disk_backed_sqlite",
         "splits": summaries,
         "test_used_for_gradient_updates": False,
     }
