@@ -631,7 +631,7 @@ def main() -> int:
         "test_set_used_for_training": False,
     }
     (output / "curriculum_schedule.json").write_text(
-        json.dumps(curriculum_manifest, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+        json.dumps(curriculum_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     (output / "training_config.json").write_text(
         json.dumps(run_config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
