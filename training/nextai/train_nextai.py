@@ -491,6 +491,9 @@ def main() -> int:
     parser.add_argument("--gradient-accumulation", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=1.0e-4)
     parser.add_argument("--lora-rank", type=int, default=16)
+    parser.add_argument("--seed", type=int, default=3407)
+    parser.add_argument("--curriculum-replay-fraction", type=float, default=0.10)
+    parser.add_argument("--curriculum-replay-chunk-size", type=int, default=32)
     parser.add_argument("--skip-gguf", action="store_true")
     parser.add_argument(
         "--resume-from-checkpoint", type=Path,
@@ -513,6 +516,13 @@ def main() -> int:
         raise RuntimeError("Training and validation JSONL must both be non-empty.")
     integrity = validate_training_splits(train_rows, validation_rows, test_rows)
     print("NEXTAI DATA INTEGRITY PASS: " + json.dumps(integrity, ensure_ascii=False))
+    training_indices, curriculum_manifest = build_progressive_curriculum_order(
+        train_rows,
+        seed=args.seed,
+        replay_fraction=args.curriculum_replay_fraction,
+        replay_chunk_size=args.curriculum_replay_chunk_size,
+    )
+    print("NEXTAI PROGRESSIVE CURRICULUM: " + json.dumps(curriculum_manifest, ensure_ascii=False))
 
     # Fail before downloading the model if no CUDA device is available.
     import torch
@@ -586,7 +596,7 @@ def main() -> int:
         lora_alpha=args.lora_rank,
         lora_dropout=0,
         bias="none",
-        random_state=3407,
+        random_state=args.seed,
         use_rslora=False,
     )
     FastVisionModel.for_training(model)
@@ -607,7 +617,12 @@ def main() -> int:
         "learning_rate": args.learning_rate,
         "lora_rank": args.lora_rank,
         "precision": "bf16" if use_bf16 else "fp16",
-        "seed": 3407,
+        "seed": args.seed,
+        "curriculum_schedule": curriculum_manifest,
+        "unique_training_records": len(train_rows),
+        "ordered_training_exposures": len(training_indices),
+        "spaced_replay_exposures": curriculum_manifest["spaced_replay_exposures"],
+        "train_sampling_strategy": "sequential",
         "data_integrity": integrity,
         "data_loading_strategy": "Indexed JSONL byte offsets with on-demand record parsing",
         "training_record_count": len(train_rows),
@@ -615,6 +630,9 @@ def main() -> int:
         "held_out_test_record_count": len(test_rows),
         "test_set_used_for_training": False,
     }
+    (output / "curriculum_schedule.json").write_text(
+        json.dumps(curriculum_manifest, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+    )
     (output / "training_config.json").write_text(
         json.dumps(run_config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
@@ -636,7 +654,9 @@ def main() -> int:
         optim="adamw_8bit",
         weight_decay=0.01,
         lr_scheduler_type="cosine",
-        seed=3407,
+        seed=args.seed,
+        train_sampling_strategy="sequential",
+        shuffle_dataset=False,
         report_to="none",
         remove_unused_columns=False,
         dataset_text_field="",
@@ -646,7 +666,7 @@ def main() -> int:
         model=model,
         tokenizer=tokenizer,
         data_collator=UnslothVisionDataCollator(model, tokenizer),
-        train_dataset=ConversationDataset(train_rows),
+        train_dataset=ConversationDataset(train_rows, indices=training_indices),
         eval_dataset=ConversationDataset(validation_rows),
         args=config,
     )
@@ -695,6 +715,9 @@ def main() -> int:
         "vision_encoder_lora_adapted": True,
         "language_layers_trainable": True,
         "train_records": len(train_rows),
+        "training_exposures": len(training_indices),
+        "spaced_replay_exposures": curriculum_manifest["spaced_replay_exposures"],
+        "curriculum_schedule": str(output / "curriculum_schedule.json"),
         "validation_records": len(validation_rows),
         "held_out_test_records": len(test_rows),
         "data_integrity": integrity,
