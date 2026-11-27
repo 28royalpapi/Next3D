@@ -213,6 +213,11 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
         sft_splits = {}
         split_counts = {}
         split_reports = {}
+        scenario_catalog = {
+            "train": ("train-compact", 0.8),
+            "validation": ("validation-standard", 1.0),
+            "test": ("test-expanded", 1.25),
+        }
         for split in ("train", "validation", "test"):
             row = {
                 "application": application,
@@ -231,6 +236,8 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
             split_counts[split] = 1
             split_reports[split] = {
                 "records": 1,
+                "scenario_id": scenario_catalog[split][0],
+                "scenario_scale": scenario_catalog[split][1],
                 "record_ids": [row["record_id"]],
                 "source_id": row["source"]["source_id"],
             }
@@ -313,6 +320,15 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
             manifest["synthetic_acceptance_fixtures"] = False
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "controlled synthetic fixtures"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
+
+
+    def test_manifest_split_scenario_id_and_scale_must_match_split(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manifest_path, manifest = self._build_manifest(Path(temp))
+            manifest["splits"]["test"]["scenario_scale"] = 1.0
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "wrong scenario scale"):
                 verify_native_collection_manifest(manifest_path, "nextcad")
 
     def test_manifest_rejects_missing_split_lineage_separation_flag(self):
