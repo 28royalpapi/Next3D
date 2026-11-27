@@ -1,0 +1,36 @@
+name: NextAI deep-training pipeline validation
+
+on:
+  push:
+    branches:
+      - nextai-deep-training
+    paths:
+      - "training/nextai/audit_nextai_corpus.py"
+      - "training/nextai/prepare_large_scale_corpus.py"
+      - "training/nextai/LARGE_SCALE_TRAINING_PROGRAMME.md"
+      - "tests/nextai/test_large_scale_training.py"
+      - ".github/workflows/nextai-deep-training-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run large-scale corpus audit unit tests
+        run: python -m unittest tests.nextai.test_large_scale_training -v
+      - name: Compile training pipeline scripts
+        run: |
+          python -m py_compile \
+            training/nextai/audit_nextai_corpus.py \
+            training/nextai/prepare_large_scale_corpus.py
+      - name: Check CLI help without downloading any model
+        run: |
+          python training/nextai/prepare_large_scale_corpus.py --help
+          python training/nextai/audit_nextai_corpus.py --help
