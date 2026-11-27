@@ -7,6 +7,18 @@ from pathlib import Path
 
 from training.nextai.audit_nextai_corpus import audit_corpus, render_record_text
 from training.nextai.buildeng_dataset import make_buildeng_record, SOURCE_LICENSE
+from training.nextai.generate_verified_engineering_cases import (
+    generate_cases,
+    solve_beam_udl,
+    solve_axial_bar,
+    solve_pipe_continuity,
+    solve_effective_stress,
+    solve_slab_concrete_quantity,
+    solve_three_phase_power,
+    solve_leveling,
+    solve_earthwork_average_end_area,
+    FAMILY_BUILDERS,
+)
 
 
 class FakeTokenizer:
@@ -150,6 +162,98 @@ class LargeScaleTrainingTests(unittest.TestCase):
         }
         with self.assertRaises(ValueError):
             make_buildeng_record(row, 1)
+
+
+class AnalyticEngineeringCurriculumTests(unittest.TestCase):
+    def test_engineering_formula_reference_cases(self):
+        beam = solve_beam_udl({
+            "span_m": 4.0,
+            "udl_kN_per_m": 10.0,
+            "elastic_modulus_GPa": 200.0,
+            "second_moment_mm4": 80_000_000.0,
+        })
+        self.assertEqual(beam["values"]["reaction_A_kN"], 20.0)
+        self.assertEqual(beam["values"]["reaction_B_kN"], 20.0)
+        self.assertEqual(beam["values"]["maximum_sagging_moment_kN_m"], 20.0)
+        self.assertAlmostEqual(beam["values"]["maximum_deflection_mm"], 2.083333, places=5)
+
+        axial = solve_axial_bar({
+            "axial_force_kN": 100.0,
+            "area_mm2": 1000.0,
+            "length_m": 2.0,
+            "elastic_modulus_GPa": 200.0,
+        })
+        self.assertEqual(axial["values"]["normal_stress_MPa"], 100.0)
+        self.assertEqual(axial["values"]["normal_strain"], 0.0005)
+        self.assertEqual(axial["values"]["elongation_mm"], 1.0)
+
+        flow = solve_pipe_continuity({
+            "flow_L_per_s": 10.0,
+            "internal_diameter_mm": 100.0,
+        })
+        self.assertAlmostEqual(flow["values"]["mean_velocity_m_per_s"], 1.27324, places=5)
+
+        stress = solve_effective_stress({
+            "total_vertical_stress_kPa": 250.0,
+            "pore_water_pressure_kPa": 100.0,
+        })
+        self.assertEqual(stress["values"]["effective_vertical_stress_kPa"], 150.0)
+
+        slab = solve_slab_concrete_quantity({
+            "slab_length_m": 5.0,
+            "slab_width_m": 4.0,
+            "slab_thickness_m": 0.15,
+        })
+        self.assertEqual(slab["values"]["concrete_volume_m3"], 3.0)
+
+        power = solve_three_phase_power({
+            "line_voltage_V": 400.0,
+            "line_current_A": 10.0,
+            "power_factor": 0.8,
+        })
+        self.assertAlmostEqual(power["values"]["apparent_power_kVA"], 6.928203, places=5)
+        self.assertAlmostEqual(power["values"]["active_power_kW"], 5.542563, places=5)
+
+        leveling = solve_leveling({
+            "benchmark_reduced_level_m": 100.0,
+            "backsight_m": 1.5,
+            "foresight_m": 2.2,
+        })
+        self.assertEqual(leveling["values"]["height_of_instrument_m"], 101.5)
+        self.assertEqual(leveling["values"]["new_point_reduced_level_m"], 99.3)
+
+        earthwork = solve_earthwork_average_end_area({
+            "section_spacing_m": 20.0,
+            "cut_area_1_m2": 5.0,
+            "cut_area_2_m2": 7.0,
+        })
+        self.assertEqual(earthwork["values"]["earthwork_volume_m3"], 120.0)
+
+    def test_generator_has_17_formula_families_and_keeps_all_splits(self):
+        self.assertEqual(len(FAMILY_BUILDERS), 17)
+        first, manifest = generate_cases(cases_per_domain=3, seed=3407)
+        second, _ = generate_cases(cases_per_domain=3, seed=3407)
+        self.assertEqual(manifest["total_records"], 17 * 3)
+        self.assertEqual(manifest["families"], {key: 3 for key in sorted(FAMILY_BUILDERS)})
+        for split in ("train", "validation", "test"):
+            self.assertEqual(
+                [row["record_id"] for row in first[split]],
+                [row["record_id"] for row in second[split]],
+            )
+        all_rows = [row for split in first.values() for row in split]
+        self.assertEqual(len({row["record_id"] for row in all_rows}), 51)
+        for row in all_rows:
+            expected = row["expected"]
+            self.assertEqual(row["evidence_level"], "L0")
+            self.assertFalse(row["native_execution_verified"])
+            self.assertTrue(expected["governing_equations"])
+            self.assertTrue(expected["units"])
+            self.assertTrue(expected["assumptions"])
+            self.assertEqual(row["source_split"], "original_synthetic")
+
+    def test_generator_rejects_negative_case_count(self):
+        with self.assertRaises(ValueError):
+            generate_cases(cases_per_domain=-1)
 
 
 if __name__ == "__main__":
