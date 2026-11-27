@@ -212,6 +212,7 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
         raw_splits = {}
         sft_splits = {}
         split_counts = {}
+        split_reports = {}
         for split in ("train", "validation", "test"):
             row = {
                 "application": application,
@@ -228,6 +229,11 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
                 f"sft-{split}", f"sft/{split}.jsonl", line.encode(), records=1
             )
             split_counts[split] = 1
+            split_reports[split] = {
+                "records": 1,
+                "record_ids": [row["record_id"]],
+                "source_id": row["source"]["source_id"],
+            }
 
         add_artifact("raw_trace", "native-records.jsonl", "".join(raw_rows).encode(), records=3)
         add_artifact("sft_quarantine", "sft/quarantine.jsonl", b"", records=0)
@@ -247,6 +253,7 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
             "independent_engineering_validation": "not_claimed",
             "sft_summary": sft_summary,
             "split_record_counts": split_counts,
+            "splits": split_reports,
             "artifact_inventory": {
                 "raw_trace": inventory["raw_trace"],
                 "raw_splits": raw_splits,
@@ -324,6 +331,15 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "pinned source revision"):
                 verify_native_collection_manifest(manifest_path, "nextcad")
 
+
+
+    def test_manifest_split_report_must_match_raw_project_lineage_and_record_ids(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manifest_path, manifest = self._build_manifest(Path(temp))
+            manifest["splits"]["train"]["record_ids"] = ["not-the-raw-record"]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "lineage report record IDs do not match raw_trace"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
 
     def test_manifest_rejects_raw_to_sft_record_identity_loss(self):
         import hashlib
