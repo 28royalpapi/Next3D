@@ -26,6 +26,7 @@ from training.nextai.train_nextai import (
     conversation_row_for_collator,
     build_progressive_curriculum_order,
     curriculum_stage_for_record,
+    validate_resume_compatibility,
 )
 
 
@@ -681,6 +682,78 @@ class ProgressiveCurriculumScheduleTests(unittest.TestCase):
         self.assertIn('"--curriculum-replay-fraction"', source)
         self.assertIn('"--curriculum-replay-chunk-size"', source)
         self.assertIn('"curriculum_schedule.json"', source)
+
+
+
+    def test_checkpoint_resume_requires_identical_data_and_curriculum(self):
+        previous = {
+            "base_model": "Qwen/Qwen3.5-0.8B",
+            "max_steps": -1,
+            "num_train_epochs": 1.0,
+            "max_seq_length": 4096,
+            "batch_size": 1,
+            "gradient_accumulation": 8,
+            "learning_rate": 1.0e-4,
+            "lora_rank": 16,
+            "precision": "bf16",
+            "seed": 3407,
+            "train_sampling_strategy": "sequential",
+            "curriculum_schedule": {
+                "stage_order": ["foundations", "cad_bim_fluency"],
+                "training_records_sha256": "train-data",
+                "ordered_index_sha256": "order",
+                "replay_fraction_per_chunk": 0.1,
+                "replay_chunk_size": 32,
+                "seed": 3407,
+            },
+            "data_integrity": {
+                "splits": {
+                    "train": {"records_sha256": "train-data"},
+                    "validation": {"records_sha256": "validation-data"},
+                    "test": {"records_sha256": "test-data"},
+                }
+            },
+        }
+        validate_resume_compatibility(previous, previous)
+
+        changed = json.loads(json.dumps(previous))
+        changed["data_integrity"]["splits"]["test"]["records_sha256"] = "new-test-data"
+        with self.assertRaisesRegex(ValueError, "Checkpoint resume refused"):
+            validate_resume_compatibility(previous, changed)
+
+    def test_checkpoint_resume_rejects_changed_curriculum_order(self):
+        previous = {
+            "base_model": "Qwen/Qwen3.5-0.8B",
+            "max_steps": -1,
+            "num_train_epochs": 1.0,
+            "max_seq_length": 4096,
+            "batch_size": 1,
+            "gradient_accumulation": 8,
+            "learning_rate": 1.0e-4,
+            "lora_rank": 16,
+            "precision": "bf16",
+            "seed": 3407,
+            "train_sampling_strategy": "sequential",
+            "curriculum_schedule": {
+                "stage_order": ["foundations", "cad_bim_fluency"],
+                "training_records_sha256": "train-data",
+                "ordered_index_sha256": "order",
+                "replay_fraction_per_chunk": 0.1,
+                "replay_chunk_size": 32,
+                "seed": 3407,
+            },
+            "data_integrity": {
+                "splits": {
+                    "train": {"records_sha256": "train-data"},
+                    "validation": {"records_sha256": "validation-data"},
+                    "test": {"records_sha256": "test-data"},
+                }
+            },
+        }
+        changed = json.loads(json.dumps(previous))
+        changed["curriculum_schedule"]["ordered_index_sha256"] = "different-order"
+        with self.assertRaisesRegex(ValueError, "curriculum_schedule.ordered_index_sha256"):
+            validate_resume_compatibility(previous, changed)
 
     def test_curriculum_rejects_invalid_replay_configuration(self):
         with self.assertRaises(ValueError):
