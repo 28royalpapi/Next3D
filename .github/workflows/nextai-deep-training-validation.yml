@@ -7,6 +7,7 @@ on:
     paths:
       - "training/nextai/audit_nextai_corpus.py"
       - "training/nextai/prepare_large_scale_corpus.py"
+      - "training/nextai/run_large_scale_training.py"
       - "training/nextai/LARGE_SCALE_TRAINING_PROGRAMME.md"
       - "tests/nextai/test_large_scale_training.py"
       - ".github/workflows/nextai-deep-training-validation.yml"
@@ -29,8 +30,10 @@ jobs:
         run: |
           python -m py_compile \
             training/nextai/audit_nextai_corpus.py \
-            training/nextai/prepare_large_scale_corpus.py
+            training/nextai/prepare_large_scale_corpus.py \
+            training/nextai/run_large_scale_training.py
       - name: Check CLI help without downloading any model
         run: |
           python training/nextai/prepare_large_scale_corpus.py --help
           python training/nextai/audit_nextai_corpus.py --help
+          python training/nextai/run_large_scale_training.py --help
