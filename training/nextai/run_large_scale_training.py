@@ -204,6 +204,55 @@ def require_token_target(
     return result
 
 
+def validate_native_trace_coverage(
+    corpus_manifest: dict[str, Any],
+    *,
+    require: bool = False,
+) -> dict[str, Any]:
+    """Summarize native trace coverage and optionally require all six evidence splits."""
+    source_counts = corpus_manifest.get("native_execution_trace_records") or {}
+    expected = ("train", "validation", "test")
+    counts: dict[str, dict[str, int]] = {}
+    missing: list[str] = []
+    for application in ("nextcad", "nextbim"):
+        app_counts = source_counts.get(application) or {}
+        counts[application] = {}
+        for split in expected:
+            try:
+                value = int(app_counts.get(split, 0))
+            except (TypeError, ValueError):
+                value = 0
+            counts[application][split] = value
+            if value <= 0:
+                missing.append(f"{application}.{split}")
+
+    preserved = corpus_manifest.get("native_execution_traces_retained_outside_public_sampling_caps") is True
+    passed = not missing and preserved
+    report = {
+        "status": "PASS" if passed else ("NOT_REQUIRED" if not require else "FAIL"),
+        "required": require,
+        "native_execution_trace_records": counts,
+        "total_native_execution_trace_records": sum(
+            count for app_counts in counts.values() for count in app_counts.values()
+        ),
+        "all_six_application_splits_non_empty": not missing,
+        "retained_outside_public_sampling_caps": preserved,
+        "missing_or_empty_splits": missing,
+        "native_execution_mastery_claimed": False,
+    }
+    if require and not passed:
+        reasons = []
+        if missing:
+            reasons.append("missing or empty splits: " + ", ".join(missing))
+        if not preserved:
+            reasons.append("the corpus manifest does not prove native traces bypassed public sampling caps")
+        raise RuntimeError(
+            "Native-execution training gate failed before model/tokenizer download or GPU use: "
+            + "; ".join(reasons)
+        )
+    return report
+
+
 def compare_engineering_benchmarks(
     base_path: Path,
     candidate_path: Path,
@@ -362,6 +411,7 @@ def publish_artifacts(output_dir: Path, repo_id: str, token: str) -> None:
     evidence_files = (
         "training_config.json",
         "training_result.json",
+        "native_trace_coverage.json",
         "curriculum_schedule.json",
         "compute_manifest.json",
         "corpus_audit.json",
@@ -403,6 +453,10 @@ def main() -> int:
     parser.add_argument("--curriculum-replay-fraction", type=float, default=0.10)
     parser.add_argument("--curriculum-replay-chunk-size", type=int, default=32)
     parser.add_argument("--target-text-tokens", type=int, default=400_000_000)
+    parser.add_argument(
+        "--require-native-traces", action="store_true",
+        help="Require non-empty validated NextCAD and Next BIM native traces in all six app/split combinations before any model download or GPU use.",
+    )
     parser.add_argument(
         "--allow-below-token-target",
         action="store_true",
@@ -465,6 +519,19 @@ def main() -> int:
         raise FileNotFoundError(f"Training corpus not found at {data_dir / 'train.jsonl'}")
     if not (data_dir / "validation.jsonl").is_file() or not (data_dir / "test.jsonl").is_file():
         raise FileNotFoundError("Training, validation and held-out test files are all required.")
+
+    manifest_path = data_dir / "manifest.json"
+    corpus_manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
+    native_coverage = validate_native_trace_coverage(
+        corpus_manifest,
+        require=args.require_native_traces,
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "native_trace_coverage.json").write_text(
+        json.dumps(native_coverage, indent=2, ensure_ascii=False) + "\\n",
+        encoding="utf-8",
+    )
+    print("NEXTAI NATIVE TRACE COVERAGE: " + json.dumps(native_coverage, ensure_ascii=False), flush=True)
 
     from transformers import AutoTokenizer
     from audit_nextai_corpus import audit_corpus

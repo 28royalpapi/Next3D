@@ -19,7 +19,11 @@ from training.nextai.generate_verified_engineering_cases import (
     solve_earthwork_average_end_area,
     FAMILY_BUILDERS,
 )
-from training.nextai.run_large_scale_training import compare_heldout_evaluations, require_token_target
+from training.nextai.run_large_scale_training import (
+    compare_heldout_evaluations,
+    require_token_target,
+    validate_native_trace_coverage,
+)
 from training.nextai.prepare_public_corpora import merge_native_trace_splits
 from training.nextai.prepare_large_scale_corpus import (
     build_capability_census_command,
@@ -182,6 +186,40 @@ class NativeTraceRetentionTests(unittest.TestCase):
         self.assertEqual({row["record_id"] for row in test}, {
             "public-test", "cad-test", "bim-test"
         })
+
+
+class NativeTraceTrainingGateTests(unittest.TestCase):
+    def test_strict_training_gate_requires_all_six_non_empty_native_splits(self):
+        manifest = {
+            "native_execution_traces_retained_outside_public_sampling_caps": True,
+            "native_execution_trace_records": {
+                app: {split: 3 for split in ("train", "validation", "test")}
+                for app in ("nextcad", "nextbim")
+            },
+        }
+        report = validate_native_trace_coverage(manifest, require=True)
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["total_native_execution_trace_records"], 18)
+        self.assertFalse(report["native_execution_mastery_claimed"])
+
+    def test_strict_training_gate_blocks_when_native_heldout_split_is_empty(self):
+        manifest = {
+            "native_execution_traces_retained_outside_public_sampling_caps": True,
+            "native_execution_trace_records": {
+                app: {split: 2 for split in ("train", "validation", "test")}
+                for app in ("nextcad", "nextbim")
+            },
+        }
+        manifest["native_execution_trace_records"]["nextbim"]["test"] = 0
+        with self.assertRaisesRegex(RuntimeError, "before model/tokenizer download or GPU use"):
+            validate_native_trace_coverage(manifest, require=True)
+
+    def test_non_strict_training_gate_reports_missing_coverage_without_claiming_mastery(self):
+        report = validate_native_trace_coverage({}, require=False)
+        self.assertEqual(report["status"], "NOT_REQUIRED")
+        self.assertEqual(report["total_native_execution_trace_records"], 0)
+        self.assertTrue(report["missing_or_empty_splits"])
+        self.assertFalse(report["native_execution_mastery_claimed"])
 
 
 class LargeScaleTrainingTests(unittest.TestCase):
