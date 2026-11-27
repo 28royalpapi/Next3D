@@ -186,3 +186,27 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - The native application workflow has not yet been run on the new collection path, so the planned six NextCAD and six Next BIM native examples do not yet exist as collected artifacts.
 - These controlled scenarios are software acceptance fixtures for specific typed operations/CLI commands, not broad user design coverage, not 100k/10k capability mastery, and not independent L5 engineering validation.
 - No training corpus reaching 400M measured Qwen text tokens has been built or audited. No Hugging Face GPU job has been launched; no adapter/checkpoint/quantized student weights have been produced. Paid compute remains unstarted.
+## Native collection manifest → full-corpus handoff — verified checkpoint 27 November 2026, 10:15 WAT
+
+### Implementation committed
+
+- Both native collectors now emit portable artifact inventories for raw traces, per-split raw files, SFT train/validation/test files, quarantine output and SFT summary. Each inventory entry records relative path, byte size and SHA-256; JSONL entries also record their non-empty row count.
+- The collectors refuse to write a successful collection manifest when SFT conversion quarantines records or detects source-group split leakage.
+- prepare_large_scale_corpus.py now accepts --nextcad-native-manifest and --nextbim-native-manifest. It verifies manifest schema, application, pinned upstream source revision, all artifact paths, sizes, hashes and line counts before accepting the SFT files.
+- --require-native-manifests requires both application manifests and all six non-empty train/validation/test SFT splits. The builder rejects mixing a manifest with explicit split paths for the same application.
+- The builder parses the raw trace and each split sidecar, verifies application/split identity, checks project lineage separation across all three splits, and requires the converted SFT record-ID sets to match the raw accepted record-ID sets exactly. The hashed SFT summary must agree with the manifest summary, and quarantine/leakage must be zero.
+- This is file integrity and provenance validation, not a signed or cryptographic attestation of the native application. It does not upgrade the underlying acceptance fixture's engineering validation level.
+
+### Latest validation
+
+- Validated code commit: f349e9b9c8ad28e17226d73dc694d31afed54afc.
+- Deep-training CI run 45972091495: 61 corpus/training tests, 9 native SFT tests, 13 Next BIM split/evidence tests and 8 NextCAD split/artifact tests passed (91 total). Python compilation and CLI help checks passed.
+- Run: https://github.com/28royalpapi/Next3D/actions/runs/45972091495
+- Selector visual smoke run 45972091502: macOS Intel and Windows steps passed; Linux was still running at the time this checkpoint was written. Check the final run result separately.
+
+### Work not yet performed
+
+- The native GUI/CLI collection workflow was not dispatched. No actual NextCAD or Next BIM trace corpus artifacts have been collected from the pinned native builds; current coverage is collector and pipeline fixtures/tests only.
+- No live NextCAD runtime census was captured.
+- The 400M measured Qwen text-token target has not been achieved or audited, and no model fine-tune/checkpoint/weights have been produced.
+- No paid GPU or other paid compute was started.
