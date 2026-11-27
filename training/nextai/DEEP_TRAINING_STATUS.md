@@ -267,3 +267,14 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - The analytic generator now has 25 deterministic calculation families. Three additional families cover Rational Method peak runoff (with explicit mm/h and hectare conversion), hydraulic/shaft/electrical water-pump power (separate pump and motor efficiencies), and simplified immediate elastic settlement beneath a shallow footing (with MPa-to-kPa conversion and supplied influence factor).
 - Each method reports equations, ordered calculation steps, units, assumptions and limitations, and rejects invalid physical inputs. These remain L0 teaching calculations: Rational Method runoff is not a hydrograph; pump output is not motor starting/system selection; elastic settlement is not consolidation or layered-soil analysis.
 - The configured analytic generator target is now 25 × 10,000 = 250,000 records if the full build runs. The extra 80,000 over the original 17-family target is a generator target only; it has not been materialized or tokenizer-audited in this checkpoint.
+
+
+## Verified 25-family engineering curriculum checkpoint — 27 November 2026, 11:00 WAT
+
+- Current branch head before this status entry: `ccd286243edc21b03f5486837beaa88c27244b2e`.
+- The deterministic calculation curriculum is now 25 families at 10,000 target cases each (250,000 target L0 records if generated). The latest three additions are Rational Method runoff, pump hydraulic/shaft/electrical power, and simplified immediate elastic shallow-foundation settlement.
+- All 25 domain identifiers have a defined place in progressive training; the new families are explicitly routed into the foundations stage. All generator families emit calculation-step guidance.
+- Deep-training validation [45978290551](https://github.com/28royalpapi/Next3D/actions/runs/45978290551) passed: 65 large-scale corpus/training tests, 9 native SFT tests, 12 expanded analytic engineering tests, 13 Next BIM split/evidence tests, and 8 NextCAD split/lineage tests — **107 tests total**. Python compilation and CLI help checks passed.
+- The focused Linux native application run [45974244091](https://github.com/28royalpapi/Next3D/actions/runs/45974244091) remains in progress. Source preparation and capability-index verification passed; Next BIM is still in its native Rust test suite and NextCAD is still compiling. No application build, save/reopen acceptance or real native trace artifact is yet confirmed.
+- Hugging Face reports zero active jobs. Both private NextAI repositories still contain only `.gitattributes`. Fine-tuning has not started and no student adapter/checkpoint/weights have been produced.
+- No 250,000-case analytic corpus, 400M-token full corpus or Qwen tokenizer audit has been materialized in this checkpoint. The 250,000 records are a configured generation target, not an existing dataset.
