@@ -28,6 +28,7 @@ BIM_QA_DATASET = "Dietmar2020/ifc-bim-qa-dataset"
 BUILDENG_DATASET = "Irfanuruchi/buildeng"
 
 from buildeng_dataset import make_buildeng_record
+from generate_verified_engineering_cases import generate_cases
 
 CAD_SYSTEM = (
     "You are NextAI, a CAD geometry and parametric-design specialist. "
@@ -3493,6 +3494,23 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "construction_concrete_quantity_calculation": 0.03,
         "engineering_skill_knowledge": 0.08,
         "engineering_buildeng_reasoning": 0.18,
+        "engineering_statics_beam_udl": 0.04,
+        "engineering_statics_beam_centre_load": 0.035,
+        "engineering_statics_cantilever_tip_load": 0.03,
+        "engineering_structural_axial_bar": 0.035,
+        "engineering_mechanical_torsion": 0.03,
+        "engineering_hydraulics_continuity": 0.03,
+        "engineering_hydraulics_darcy_weisbach": 0.03,
+        "engineering_hydraulics_manning": 0.025,
+        "engineering_geotechnical_effective_stress": 0.035,
+        "engineering_geotechnical_consolidation": 0.035,
+        "construction_concrete_quantity": 0.03,
+        "construction_reinforcement_mass": 0.025,
+        "engineering_mechanical_gear_ratio": 0.025,
+        "engineering_electrical_three_phase_power": 0.025,
+        "engineering_surveying_leveling": 0.03,
+        "engineering_structural_section_properties": 0.03,
+        "civil_earthwork_average_end_area": 0.025,
         "nextcad_capability_knowledge": 0.10,
         "nextbim_capability_knowledge": 0.12,
         "design_intake_water_storage_tower": 0.04,
@@ -3690,6 +3708,26 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "nextcad_native": [], "nextbim_native": [],
         "engineering_buildeng_reasoning": [],
     }
+    for domain in (
+        "engineering_statics_beam_udl",
+        "engineering_statics_beam_centre_load",
+        "engineering_statics_cantilever_tip_load",
+        "engineering_structural_axial_bar",
+        "engineering_mechanical_torsion",
+        "engineering_hydraulics_continuity",
+        "engineering_hydraulics_darcy_weisbach",
+        "engineering_hydraulics_manning",
+        "engineering_geotechnical_effective_stress",
+        "engineering_geotechnical_consolidation",
+        "construction_concrete_quantity",
+        "construction_reinforcement_mass",
+        "engineering_mechanical_gear_ratio",
+        "engineering_electrical_three_phase_power",
+        "engineering_surveying_leveling",
+        "engineering_structural_section_properties",
+        "civil_earthwork_average_end_area",
+    ):
+        groups.setdefault(domain, [])
     validation, tests, quarantine = [], [], []
     counts = Counter()
     ifc_model_manifest = None
@@ -3779,6 +3817,21 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
                 "row": index,
                 "reason": str(exc),
             })
+
+    # Generate deterministic original engineering calculation cases from
+    # reviewed closed-form solvers. These are L0 analytic lessons, not native traces.
+    analytic_splits, analytic_manifest = generate_cases(
+        cases_per_domain=args.analytic_cases_per_domain,
+        seed=args.seed,
+    )
+    for record in analytic_splits["train"]:
+        groups[record["domain"]].append(record)
+    validation.extend(analytic_splits["validation"])
+    tests.extend(analytic_splits["test"])
+    counts["analytic_engineering_train"] = len(analytic_splits["train"])
+    counts["analytic_engineering_validation"] = len(analytic_splits["validation"])
+    counts["analytic_engineering_test"] = len(analytic_splits["test"])
+    counts["analytic_engineering_families"] = len(analytic_manifest.get("families", {}))
 
     if args.swiss_dwellings_dir:
         swiss_records = read_swiss_dwellings_directory(args.swiss_dwellings_dir)
@@ -3882,6 +3935,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": BIM_DATASET, "license": "MIT", "purpose": "IFC/BIM instruction lessons; source must claim validation and score >=4.5"},
             {"repo": BIM_QA_DATASET, "license": "CC-BY-4.0", "attribution": "Dietmar2020", "purpose": "IFC/BIM conceptual QA"},
             {"repo": BUILDENG_DATASET, "license": "Apache-2.0", "purpose": "145,117 publisher-described civil/structural/building-engineering chat examples covering conservative reasoning, missing-input discipline, calculations, inspection and repair; split deterministically by normalized category and user brief; L0 material, not Next3D native execution"},
+            {"repo": analytic_manifest["source"], "license": analytic_manifest["license"], "purpose": "Original formula-checked analytic cases across statics, structural mechanics, hydraulics, geotechnical calculations, quantities, mechanical systems, electrical power and surveying; explicit governing equations, inputs, units and assumptions; L0 analytic examples, not native application execution", "generation_method": analytic_manifest["generation_method"], "seed": args.seed, "cases_per_domain": args.analytic_cases_per_domain, "families": analytic_manifest["families"], "split_counts": analytic_manifest["split_counts"]},
             {"repo": "Swiss Dwellings v3.0.0", "doi": "10.5281/zenodo.7788422", "license": "CC-BY-4.0", "attribution": "Standfest et al., Archilyse AG", "purpose": "Image-grounded architectural floor-plan geometry, room typology and shared-boundary relationships; optional training-only corpus"},
             {"repo": "optional IFC model corpus", "license": "manifest-declared", "purpose": "Parsed IFC2x3/IFC4 model hierarchy, element classes, safe properties, materials and relationships; no original GlobalIds or free-text personal metadata"},
             {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, multi-turn CAD/BIM design intake, BIM concepts and construction workflows"},
@@ -3909,6 +3963,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "Native design-execution examples use the current NextCAD typed tool schemas and are validated against the registry in tests; watchtower member dimensions are concept placeholders, and the floor-plan example is room zoning only.",
             "BuildEng source validation is a publisher-described dataset claim; its examples remain L0 authored reasoning and are not NextCAD/Next BIM execution or professional design approval.",
             "BuildEng has only one published train split; internal validation/test partitions are generated deterministically from normalized category and user-request fingerprints, not published benchmark splits.",
+            "Original analytic engineering cases are generated by closed-form formula functions with governing equations, inputs, units and assumptions. They are educational L0 examples, not code-compliant designs or native CAD/BIM traces.",
         ],
     }
     if ifc_model_manifest:
@@ -3937,6 +3992,8 @@ def main() -> int:
     parser.add_argument("--max-ifcqa-train", type=int, default=5000)
     parser.add_argument("--max-ifcqa-test", type=int, default=1000)
     parser.add_argument("--max-buildeng-records", type=int, default=145117)
+    parser.add_argument("--analytic-cases-per-domain", type=int, default=0,
+                        help="Original formula-checked analytic cases per engineering family; 0 disables this source.")
     parser.add_argument("--max-mixed-train", type=int, default=24000)
     parser.add_argument("--max-validation", type=int, default=2500)
     parser.add_argument("--max-test", type=int, default=1200)
@@ -3962,6 +4019,7 @@ def main() -> int:
         args.max_cad_train, args.max_cad_validation, args.max_cad_test,
         args.max_bim_train, args.max_bim_validation, args.max_ifcqa_train,
         args.max_ifcqa_test, args.max_buildeng_records, args.max_mixed_train,
+        args.analytic_cases_per_domain,
     )):
         parser.error("sample limits cannot be negative")
     print(json.dumps(prepare(args), indent=2))
