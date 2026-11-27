@@ -8,10 +8,16 @@ import json
 import math
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from training.nextai.schema_validation import validate_training_record
+
 PINNED_NEXTBIM_COMMIT = "a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b"
 COMMAND_SCHEMA_VERSION = "BIMCRAFT_NATIVE_COMMANDS.v1"
 
@@ -211,7 +217,6 @@ def run_acceptance(cli: Path, output_dir: Path, split: str, scenario_id: str, sc
         records.append(record)
         previous_state, previous_count = after_state, wall_count
 
-    from training.nextai.schema_validation import validate_training_record
     for record in records:
         validate_training_record(record)
     trace_path = output_dir / "nextbim-ai-native-acceptance-trace.jsonl"
