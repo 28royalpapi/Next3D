@@ -356,6 +356,7 @@ def build_progressive_curriculum_order(
 
     ordered_indices: list[int] = []
     prior_indices: list[int] = []
+    unique_row_count = len(rows)  # IndexedJSONL exposes an inexpensive constant-time length.
     stage_reports: dict[str, Any] = {}
     replay_total = 0
 
@@ -382,10 +383,13 @@ def build_progressive_curriculum_order(
         }
         prior_indices.extend(current)
 
-    if len(ordered_indices) < len(rows):
+    assigned_record_count = sum(len(stage_indices[stage]) for stage in CURRICULUM_STAGE_ORDER)
+    if assigned_record_count != unique_row_count:
+        raise RuntimeError(
+            f"Progressive curriculum assigned {assigned_record_count} of {unique_row_count} records."
+        )
+    if len(ordered_indices) < unique_row_count:
         raise RuntimeError("Progressive curriculum ordering dropped one or more training records.")
-    if len(set(range(len(rows))) - set(ordered_indices)) > 0:
-        raise RuntimeError("Progressive curriculum ordering omitted original training records.")
 
     order_digest = hashlib.sha256()
     for index in ordered_indices:
