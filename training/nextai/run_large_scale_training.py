@@ -358,7 +358,7 @@ def main() -> int:
             ],
             log_path, env,
         )
-    if not args.skip-engineering-benchmark:
+    if not args.skip_engineering_benchmark:
         execute(
             [
                 sys.executable, str(TRAINING / "run_engineering_benchmark.py"),
@@ -423,7 +423,7 @@ def main() -> int:
             log_path, env,
         )
 
-    if not args.skip-engineering-benchmark:
+    if not args.skip_engineering_benchmark:
         execute(
             [
                 sys.executable, str(TRAINING / "run_engineering_benchmark.py"),
@@ -466,9 +466,9 @@ def main() -> int:
         "training_result": str(training_result_path),
         "base_evaluation": None if args.skip_baseline_evaluation else str(baseline_corpus_eval),
         "candidate_evaluation": None if args.skip_candidate_evaluation else str(output_dir / "candidate_heldout_evaluation.json"),
-        "base_engineering_benchmark": None if args.skip-engineering-benchmark else str(baseline_benchmark),
-        "candidate_engineering_benchmark": None if args.skip-engineering-benchmark else str(output_dir / "candidate_engineering_benchmark.json"),
-        "engineering_benchmark_comparison": None if args.skip-engineering-benchmark else str(output_dir / "engineering_benchmark_comparison.json"),
+        "base_engineering_benchmark": None if args.skip_engineering_benchmark else str(baseline_benchmark),
+        "candidate_engineering_benchmark": None if args.skip_engineering_benchmark else str(output_dir / "candidate_engineering_benchmark.json"),
+        "engineering_benchmark_comparison": None if args.skip_engineering_benchmark else str(output_dir / "engineering_benchmark_comparison.json"),
         "compact_export": str(output_dir / "gguf_q4_k_m") if compact_manifest else None,
         "compact_model_bytes": compact_bytes,
         "model_budget_bytes": args.model_budget_bytes,
