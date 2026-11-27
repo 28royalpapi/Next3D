@@ -20,6 +20,7 @@ on:
       - "tests/nextai/test_large_scale_training.py"
       - "tests/next-ai/test_nextbim_native_collection.py"
       - "tests/next-ai/test_nextbim_split_validation.py"
+      - "tests/next-ai/test_collect_nextcad_native_splits.py"
       - ".github/workflows/nextai-deep-training-validation.yml"
   workflow_dispatch:
 
@@ -40,6 +41,8 @@ jobs:
         run: python -m unittest discover -s tests/next-ai -p 'test_nextbim_native_collection.py' -v
       - name: Test Next BIM train/validation/test isolation gates
         run: python -m unittest discover -s tests/next-ai -p 'test_nextbim_split_validation.py' -v
+      - name: Test NextCAD native split lineage and state fingerprints
+        run: python -m unittest discover -s tests/next-ai -p 'test_collect_nextcad_native_splits.py' -v
       - name: Compile training pipeline scripts
         run: |
           python - <<'PY'
