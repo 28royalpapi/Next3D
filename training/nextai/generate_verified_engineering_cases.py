@@ -489,6 +489,8 @@ def _builder(
                 "Check the applicable project standards and independent engineering requirements before real use.",
             ],
         }
+        if solved.get("steps"):
+            expected["calculation_steps"] = solved["steps"]
         return {"prompt": prompt, "expected": expected, "solver": solver.__name__}
     return make, solver.__name__
 
@@ -932,6 +934,360 @@ def main() -> int:
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
     return 0
+
+
+
+# Additional structural, geotechnical and hydraulic calculation families.
+# These are deliberately bounded analytical lessons, not code-compliance checks.
+def solve_euler_column_buckling(inputs: dict[str, float]) -> dict[str, Any]:
+    length_mm = float(inputs["unsupported_length_m"]) * 1000.0
+    factor = float(inputs["effective_length_factor"])
+    modulus = float(inputs["elastic_modulus_GPa"]) * 1000.0
+    inertia = float(inputs["second_moment_mm4"])
+    area = float(inputs["area_mm2"])
+    if min(length_mm, factor, modulus, inertia, area) <= 0:
+        raise ValueError("Column length, effective-length factor, E, I and area must be positive.")
+    effective_length_mm = factor * length_mm
+    radius = math.sqrt(inertia / area)
+    slenderness = effective_length_mm / radius
+    critical_load_n = math.pi**2 * modulus * inertia / effective_length_mm**2
+    critical_load_kn = critical_load_n / 1000.0
+    critical_stress_mpa = critical_load_n / area
+    return {
+        "values": {
+            "effective_length_mm": _round(effective_length_mm, 6),
+            "radius_of_gyration_mm": _round(radius, 6),
+            "slenderness_ratio": _round(slenderness, 6),
+            "Euler_critical_load_kN": _round(critical_load_kn, 6),
+            "Euler_critical_stress_MPa": _round(critical_stress_mpa, 6),
+        },
+        "units": {
+            "effective_length_mm": "mm",
+            "radius_of_gyration_mm": "mm",
+            "slenderness_ratio": "dimensionless",
+            "Euler_critical_load_kN": "kN",
+            "Euler_critical_stress_MPa": "MPa",
+        },
+        "steps": [
+            "Convert E from GPa to N/mm² and the unsupported length from m to mm.",
+            "Calculate effective length Le = K L and radius of gyration r = sqrt(I/A).",
+            "Calculate slenderness Le/r.",
+            "Calculate ideal elastic Euler load Pcr = pi² E I / Le², then convert N to kN.",
+            "Calculate the corresponding average elastic critical stress Pcr/A.",
+        ],
+    }
+
+
+def solve_rankine_active_pressure(inputs: dict[str, float]) -> dict[str, Any]:
+    gamma = float(inputs["soil_unit_weight_kN_m3"])
+    height = float(inputs["retained_height_m"])
+    surcharge = float(inputs["uniform_surcharge_kPa"])
+    phi_deg = float(inputs["friction_angle_deg"])
+    if gamma <= 0 or height <= 0 or surcharge < 0 or not 0 < phi_deg < 60:
+        raise ValueError("Require positive soil weight/height, non-negative surcharge and 0 < phi < 60 degrees.")
+    phi = math.radians(phi_deg)
+    ka = (1.0 - math.sin(phi)) / (1.0 + math.sin(phi))
+    soil_resultant = 0.5 * ka * gamma * height**2
+    surcharge_resultant = ka * surcharge * height
+    total = soil_resultant + surcharge_resultant
+    base_pressure = ka * (gamma * height + surcharge)
+    moment_about_base = soil_resultant * height / 3.0 + surcharge_resultant * height / 2.0
+    line_of_action = moment_about_base / total if total else 0.0
+    return {
+        "values": {
+            "active_pressure_coefficient_Ka": _round(ka, 8),
+            "soil_pressure_resultant_kN_per_m": _round(soil_resultant, 6),
+            "surcharge_pressure_resultant_kN_per_m": _round(surcharge_resultant, 6),
+            "total_active_resultant_kN_per_m": _round(total, 6),
+            "lateral_pressure_at_base_kPa": _round(base_pressure, 6),
+            "resultant_height_above_base_m": _round(line_of_action, 6),
+        },
+        "units": {
+            "active_pressure_coefficient_Ka": "dimensionless",
+            "soil_pressure_resultant_kN_per_m": "kN/m",
+            "surcharge_pressure_resultant_kN_per_m": "kN/m",
+            "total_active_resultant_kN_per_m": "kN/m",
+            "lateral_pressure_at_base_kPa": "kPa",
+            "resultant_height_above_base_m": "m",
+        },
+        "steps": [
+            "Convert the friction angle from degrees to radians.",
+            "For level cohesionless backfill, calculate Ka = (1 - sin(phi))/(1 + sin(phi)).",
+            "Integrate the triangular soil pressure: Pa,soil = 0.5 Ka gamma H².",
+            "Integrate the rectangular surcharge pressure: Pa,q = Ka q H.",
+            "Sum the resultants and take moments about the base to locate the combined line of action.",
+        ],
+    }
+
+
+def solve_hydrostatic_vertical_gate(inputs: dict[str, float]) -> dict[str, Any]:
+    width = float(inputs["gate_width_m"])
+    height = float(inputs["gate_height_m"])
+    top_depth = float(inputs["gate_top_depth_below_free_surface_m"])
+    unit_weight = float(inputs.get("water_unit_weight_kN_m3", 9.81))
+    if min(width, height, unit_weight) <= 0 or top_depth < 0:
+        raise ValueError("Gate dimensions and water unit weight must be positive; top depth cannot be negative.")
+    area = width * height
+    centroid_depth = top_depth + height / 2.0
+    force = unit_weight * area * centroid_depth
+    second_moment = width * height**3 / 12.0
+    centre_pressure_depth = centroid_depth + second_moment / (area * centroid_depth)
+    return {
+        "values": {
+            "gate_area_m2": _round(area, 6),
+            "centroid_depth_below_free_surface_m": _round(centroid_depth, 6),
+            "hydrostatic_resultant_kN": _round(force, 6),
+            "second_moment_area_horizontal_centroidal_axis_m4": _round(second_moment, 6),
+            "centre_of_pressure_depth_below_free_surface_m": _round(centre_pressure_depth, 6),
+            "centre_of_pressure_below_gate_top_m": _round(centre_pressure_depth - top_depth, 6),
+        },
+        "units": {
+            "gate_area_m2": "m²",
+            "centroid_depth_below_free_surface_m": "m",
+            "hydrostatic_resultant_kN": "kN",
+            "second_moment_area_horizontal_centroidal_axis_m4": "m⁴",
+            "centre_of_pressure_depth_below_free_surface_m": "m",
+            "centre_of_pressure_below_gate_top_m": "m",
+        },
+        "steps": [
+            "Calculate the rectangular gate area A = b h and centroid depth ybar = ytop + h/2.",
+            "Calculate the hydrostatic resultant F = gamma_w A ybar.",
+            "Calculate the centroidal second moment I_G = b h³/12.",
+            "Locate the centre of pressure y_cp = ybar + I_G/(A ybar).",
+            "Express the centre-of-pressure position relative to both the free surface and gate top.",
+        ],
+    }
+
+
+def solve_terzaghi_strip_footing(inputs: dict[str, float]) -> dict[str, Any]:
+    cohesion = float(inputs["effective_cohesion_kPa"])
+    surcharge = float(inputs["surcharge_at_foundation_level_kPa"])
+    gamma = float(inputs["effective_soil_unit_weight_kN_m3"])
+    width = float(inputs["footing_width_m"])
+    nc = float(inputs["bearing_factor_Nc"])
+    nq = float(inputs["bearing_factor_Nq"])
+    ngamma = float(inputs["bearing_factor_Ngamma"])
+    factor = float(inputs["factor_of_safety"])
+    if cohesion < 0 or surcharge < 0 or min(gamma, width, nc, nq, ngamma) <= 0 or factor <= 1:
+        raise ValueError("Require non-negative cohesion/surcharge, positive soil/footing/factors and FS greater than one.")
+    cohesion_term = cohesion * nc
+    surcharge_term = surcharge * nq
+    unit_weight_term = 0.5 * gamma * width * ngamma
+    gross_ultimate = cohesion_term + surcharge_term + unit_weight_term
+    net_ultimate = gross_ultimate - surcharge
+    if net_ultimate <= 0:
+        raise ValueError("Calculated net ultimate bearing pressure must be positive.")
+    net_allowable = net_ultimate / factor
+    gross_allowable = surcharge + net_allowable
+    return {
+        "values": {
+            "cohesion_term_kPa": _round(cohesion_term, 6),
+            "surcharge_term_kPa": _round(surcharge_term, 6),
+            "unit_weight_term_kPa": _round(unit_weight_term, 6),
+            "gross_ultimate_bearing_pressure_kPa": _round(gross_ultimate, 6),
+            "net_ultimate_bearing_pressure_kPa": _round(net_ultimate, 6),
+            "net_allowable_bearing_pressure_kPa": _round(net_allowable, 6),
+            "gross_allowable_bearing_pressure_kPa": _round(gross_allowable, 6),
+        },
+        "units": {key: "kPa" for key in (
+            "cohesion_term_kPa", "surcharge_term_kPa", "unit_weight_term_kPa",
+            "gross_ultimate_bearing_pressure_kPa", "net_ultimate_bearing_pressure_kPa",
+            "net_allowable_bearing_pressure_kPa", "gross_allowable_bearing_pressure_kPa",
+        )},
+        "steps": [
+            "Use the supplied bearing factors for the selected soil friction angle and Terzaghi convention.",
+            "Calculate c Nc, q Nq and 0.5 gamma B Ngamma separately.",
+            "Sum the three terms to obtain gross ultimate bearing pressure.",
+            "Subtract the existing foundation-level surcharge to obtain net ultimate pressure.",
+            "Apply the stated factor of safety to net ultimate pressure, then add surcharge back for gross allowable pressure.",
+        ],
+    }
+
+
+def solve_infinite_slope_factor_of_safety(inputs: dict[str, float]) -> dict[str, Any]:
+    cohesion = float(inputs["effective_cohesion_kPa"])
+    gamma = float(inputs["soil_unit_weight_kN_m3"])
+    depth = float(inputs["normal_soil_thickness_m"])
+    pore = float(inputs["pore_water_pressure_kPa"])
+    beta_deg = float(inputs["slope_angle_deg"])
+    phi_deg = float(inputs["effective_friction_angle_deg"])
+    if cohesion < 0 or gamma <= 0 or depth <= 0 or pore < 0:
+        raise ValueError("Require non-negative cohesion/pore pressure and positive unit weight/thickness.")
+    if not 0 < beta_deg < 60 or not 0 <= phi_deg < 60:
+        raise ValueError("Require slope angle in (0, 60) degrees and friction angle in [0, 60) degrees.")
+    beta = math.radians(beta_deg)
+    phi = math.radians(phi_deg)
+    total_normal = gamma * depth * math.cos(beta)**2
+    effective_normal = total_normal - pore
+    driving_shear = gamma * depth * math.sin(beta) * math.cos(beta)
+    if effective_normal < 0 or driving_shear <= 0:
+        raise ValueError("Pore pressure exceeds total normal stress or driving shear is not positive.")
+    available_strength = cohesion + effective_normal * math.tan(phi)
+    factor = available_strength / driving_shear
+    return {
+        "values": {
+            "total_normal_stress_kPa": _round(total_normal, 6),
+            "effective_normal_stress_kPa": _round(effective_normal, 6),
+            "available_shear_strength_kPa": _round(available_strength, 6),
+            "driving_shear_stress_kPa": _round(driving_shear, 6),
+            "factor_of_safety": _round(factor, 6),
+        },
+        "units": {
+            "total_normal_stress_kPa": "kPa",
+            "effective_normal_stress_kPa": "kPa",
+            "available_shear_strength_kPa": "kPa",
+            "driving_shear_stress_kPa": "kPa",
+            "factor_of_safety": "dimensionless",
+        },
+        "steps": [
+            "Convert beta and phi-prime from degrees to radians.",
+            "Calculate total normal stress sigma_n = gamma z cos²(beta).",
+            "Subtract supplied pore pressure u to obtain effective normal stress.",
+            "Calculate available shear strength c-prime + sigma-prime tan(phi-prime).",
+            "Calculate driving shear stress gamma z sin(beta) cos(beta) and divide strength by driving stress.",
+        ],
+    }
+
+
+GOVERNING_EQUATIONS.update({
+    "solve_euler_column_buckling": [
+        "Le = K L",
+        "r = sqrt(I/A)",
+        "lambda = Le/r",
+        "Pcr = pi² E I / Le²",
+        "sigma_cr = Pcr/A",
+        "Use E in N/mm², I in mm⁴, Le and r in mm",
+    ],
+    "solve_rankine_active_pressure": [
+        "Ka = (1 - sin(phi))/(1 + sin(phi))",
+        "Pa,soil = 0.5 Ka gamma H²",
+        "Pa,q = Ka q H",
+        "yR = [Pa,soil(H/3) + Pa,q(H/2)]/[Pa,soil + Pa,q]",
+    ],
+    "solve_hydrostatic_vertical_gate": [
+        "A = b h",
+        "ybar = ytop + h/2",
+        "F = gamma_w A ybar",
+        "I_G = b h³/12",
+        "y_cp = ybar + I_G/(A ybar)",
+    ],
+    "solve_terzaghi_strip_footing": [
+        "q_ult,gross = c' Nc + q Nq + 0.5 gamma' B Ngamma",
+        "q_ult,net = q_ult,gross - q",
+        "q_allow,net = q_ult,net/FS",
+        "q_allow,gross = q + q_allow,net",
+    ],
+    "solve_infinite_slope_factor_of_safety": [
+        "sigma_n = gamma z cos²(beta)",
+        "sigma'_n = sigma_n - u",
+        "tau_f = c' + sigma'_n tan(phi')",
+        "tau_d = gamma z sin(beta) cos(beta)",
+        "FS = tau_f/tau_d",
+    ],
+})
+
+
+def _euler_column_inputs(rng: random.Random) -> dict[str, float]:
+    return {
+        "unsupported_length_m": _round(rng.uniform(2.0, 10.0), 2),
+        "effective_length_factor": _round(rng.uniform(0.5, 2.0), 2),
+        "elastic_modulus_GPa": _round(rng.uniform(70.0, 210.0), 2),
+        "second_moment_mm4": _round(rng.uniform(2.0e6, 2.0e8), 0),
+        "area_mm2": _round(rng.uniform(1200.0, 30000.0), 1),
+    }
+
+
+def _rankine_inputs(rng: random.Random) -> dict[str, float]:
+    return {
+        "soil_unit_weight_kN_m3": _round(rng.uniform(16.0, 22.0), 2),
+        "retained_height_m": _round(rng.uniform(2.0, 10.0), 2),
+        "uniform_surcharge_kPa": _round(rng.uniform(0.0, 30.0), 2),
+        "friction_angle_deg": _round(rng.uniform(20.0, 40.0), 2),
+    }
+
+
+def _hydrostatic_gate_inputs(rng: random.Random) -> dict[str, float]:
+    return {
+        "gate_width_m": _round(rng.uniform(0.5, 4.0), 2),
+        "gate_height_m": _round(rng.uniform(0.5, 5.0), 2),
+        "gate_top_depth_below_free_surface_m": _round(rng.uniform(0.0, 10.0), 2),
+        "water_unit_weight_kN_m3": 9.81,
+    }
+
+
+def _terzaghi_inputs(rng: random.Random) -> dict[str, float]:
+    return {
+        "effective_cohesion_kPa": _round(rng.uniform(0.0, 25.0), 2),
+        "surcharge_at_foundation_level_kPa": _round(rng.uniform(0.0, 150.0), 2),
+        "effective_soil_unit_weight_kN_m3": _round(rng.uniform(16.0, 22.0), 2),
+        "footing_width_m": _round(rng.uniform(1.0, 5.0), 2),
+        "bearing_factor_Nc": _round(rng.uniform(10.0, 50.0), 2),
+        "bearing_factor_Nq": _round(rng.uniform(5.0, 40.0), 2),
+        "bearing_factor_Ngamma": _round(rng.uniform(5.0, 60.0), 2),
+        "factor_of_safety": _round(rng.uniform(2.5, 3.5), 2),
+    }
+
+
+def _infinite_slope_inputs(rng: random.Random) -> dict[str, float]:
+    beta = _round(rng.uniform(10.0, 35.0), 2)
+    gamma = _round(rng.uniform(16.0, 22.0), 2)
+    depth = _round(rng.uniform(0.5, 5.0), 2)
+    total_normal = gamma * depth * math.cos(math.radians(beta))**2
+    return {
+        "effective_cohesion_kPa": _round(rng.uniform(0.0, 20.0), 2),
+        "soil_unit_weight_kN_m3": gamma,
+        "normal_soil_thickness_m": depth,
+        "pore_water_pressure_kPa": _round(rng.uniform(0.0, max(0.01, total_normal * 0.65)), 2),
+        "slope_angle_deg": beta,
+        "effective_friction_angle_deg": _round(rng.uniform(15.0, 35.0), 2),
+    }
+
+
+_register(
+    "engineering_structural_euler_column_buckling", solve_euler_column_buckling, _euler_column_inputs,
+    (
+        "An ideal elastic column has unsupported length {unsupported_length_m} m and effective-length factor K={effective_length_factor}. Its E={elastic_modulus_GPa} GPa, I={second_moment_mm4} mm4 and A={area_mm2} mm2. Calculate slenderness and Euler critical load.",
+        "Estimate the elastic Euler buckling load for a prismatic column: L={unsupported_length_m} m, K={effective_length_factor}, E={elastic_modulus_GPa} GPa, I={second_moment_mm4} mm4 and A={area_mm2} mm2.",
+    ),
+    "Ideal elastic Euler buckling of a prismatic column",
+    ("Straight prismatic column with constant E and I", "Effective-length factor represents the selected ideal end restraint model", "Linear-elastic Euler buckling only", "Initial crookedness, residual stress, local buckling, inelasticity and code reduction factors are excluded"),
+)
+_register(
+    "engineering_geotechnical_rankine_active_pressure", solve_rankine_active_pressure, _rankine_inputs,
+    (
+        "A vertical smooth wall retains level cohesionless backfill of height {retained_height_m} m, unit weight {soil_unit_weight_kN_m3} kN/m3 and friction angle {friction_angle_deg} degrees. A uniform surcharge of {uniform_surcharge_kPa} kPa acts at the surface. Estimate Rankine active thrust per metre run.",
+        "For level cohesionless soil behind a vertical smooth wall, H={retained_height_m} m, gamma={soil_unit_weight_kN_m3} kN/m3, phi={friction_angle_deg} degrees and uniform surcharge q={uniform_surcharge_kPa} kPa. Find active resultant and lever arm.",
+    ),
+    "Rankine active earth pressure for level cohesionless backfill with uniform surcharge",
+    ("Vertical smooth wall", "Horizontal level backfill", "Cohesionless drained soil", "No groundwater, wall friction, seismic load, compaction pressure or layered strata"),
+)
+_register(
+    "engineering_hydraulics_hydrostatic_gate", solve_hydrostatic_vertical_gate, _hydrostatic_gate_inputs,
+    (
+        "A vertical rectangular gate is {gate_width_m} m wide and {gate_height_m} m high. Its top edge is {gate_top_depth_below_free_surface_m} m below the free surface. Using water unit weight {water_unit_weight_kN_m3} kN/m3, calculate hydrostatic force and centre of pressure.",
+        "Determine the hydrostatic resultant on a vertical rectangular gate with width {gate_width_m} m, height {gate_height_m} m and top depth {gate_top_depth_below_free_surface_m} m. Use gamma_w={water_unit_weight_kN_m3} kN/m3.",
+    ),
+    "Hydrostatic resultant and centre of pressure on a vertical plane area",
+    ("Static water with a horizontal free surface", "Uniform water unit weight", "Rectangular vertical gate with uniform width", "No dynamic, wave, impact or gate self-weight effects"),
+)
+_register(
+    "engineering_geotechnical_terzaghi_strip_footing", solve_terzaghi_strip_footing, _terzaghi_inputs,
+    (
+        "A strip footing has width {footing_width_m} m, effective cohesion {effective_cohesion_kPa} kPa, foundation-level surcharge {surcharge_at_foundation_level_kPa} kPa and effective soil unit weight {effective_soil_unit_weight_kN_m3} kN/m3. With supplied Terzaghi factors Nc={bearing_factor_Nc}, Nq={bearing_factor_Nq}, Ngamma={bearing_factor_Ngamma} and FS={factor_of_safety}, estimate gross and net allowable bearing pressures.",
+        "Using the supplied Terzaghi bearing factors, calculate strip-footing capacity for B={footing_width_m} m, c'={effective_cohesion_kPa} kPa, q={surcharge_at_foundation_level_kPa} kPa, gamma'={effective_soil_unit_weight_kN_m3} kN/m3, Nc={bearing_factor_Nc}, Nq={bearing_factor_Nq}, Ngamma={bearing_factor_Ngamma} and FS={factor_of_safety}.",
+    ),
+    "Terzaghi general-shear bearing capacity for a continuous strip footing",
+    ("Vertical concentric load on a continuous strip footing", "Level ground and general shear failure", "Bearing factors are supplied for the chosen phi and bearing-capacity convention", "Effective unit weight is supplied after any water-table correction", "No shape, depth, inclination, eccentricity, slope or layered-soil correction"),
+)
+_register(
+    "engineering_geotechnical_infinite_slope", solve_infinite_slope_factor_of_safety, _infinite_slope_inputs,
+    (
+        "An infinite slope has normal soil thickness {normal_soil_thickness_m} m, unit weight {soil_unit_weight_kN_m3} kN/m3, c'={effective_cohesion_kPa} kPa, pore pressure u={pore_water_pressure_kPa} kPa, slope angle beta={slope_angle_deg} degrees and phi'={effective_friction_angle_deg} degrees. Calculate the simplified factor of safety.",
+        "For an infinite slope with beta={slope_angle_deg} degrees, z={normal_soil_thickness_m} m, gamma={soil_unit_weight_kN_m3} kN/m3, c'={effective_cohesion_kPa} kPa, u={pore_water_pressure_kPa} kPa and phi'={effective_friction_angle_deg} degrees, evaluate the planar failure factor of safety.",
+    ),
+    "Infinite-slope limit-equilibrium factor of safety for a plane parallel to the surface",
+    ("Homogeneous infinite slope and planar failure surface", "Normal soil thickness is measured perpendicular to the slope", "Effective-stress Mohr-Coulomb strength with supplied pore pressure", "No finite-slope end effects, transient seepage, tension cracks or seismic load"),
+)
 
 
 if __name__ == "__main__":
