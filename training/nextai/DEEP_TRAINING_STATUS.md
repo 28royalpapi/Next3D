@@ -28,7 +28,7 @@ This is a corpus-integrity improvement only. It does not mean the full public co
 
 - Full-source corpus builder for the published Zero-to-CAD, IFC/BIM Alpaca and IFC/BIM QA splits.
 - BuildEng V8 ingestion: 145,117 published civil/structural/building-engineering chat records under Apache-2.0. Since the source publishes one train split, Next3D assigns deterministic internal partitions by category and normalized user brief.
-- Original analytic engineering generator: 22 families, 10,000 parameterised cases per family (220,000 target generated records), with governing equations, inputs, units, assumptions, expected values and limitations.
+- Original analytic engineering generator: 25 families, 10,000 parameterised cases per family (250,000 target generated records), with governing equations, inputs, units, assumptions, expected values and limitations.
 - Five-stage progressive curriculum: foundations, CAD/BIM fluency, engineering disciplines, operator methods and integrated projects.
 - 10% spaced rehearsal from earlier stages after each 32 new examples; sequential training sampler preserves the schedule.
 - Indexed JSONL data access and disk-backed SQLite split-integrity checks.
@@ -40,7 +40,7 @@ This is a corpus-integrity improvement only. It does not mean the full public co
 
 ## Configured corpus scale
 
-The full-source builder currently targets a mixed train cap of 700,000 records, validation capacity of 60,000 records and held-out test capacity of 50,000 records. The source limits include the full published source splits and the 220,000 analytic-case target.
+The full-source builder currently targets a mixed train cap of 700,000 records, validation capacity of 60,000 records and held-out test capacity of 50,000 records. The source limits include the full published source splits and the 250,000 analytic-case target.
 
 The programme uses 400 million measured Qwen text tokens as a planning target. It is not an achieved count. The final measured number must come from `corpus_audit.json`; image patches and runtime chat-template overhead are counted separately. If the permitted corpus falls short, the report must state the shortfall and add further licence-cleared sources rather than duplicate records to inflate the token count.
 
@@ -260,3 +260,10 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - The 400M requirement is Qwen-tokenizer-measured text tokens in the train split. It is a corpus-size gate, not an optimizer-step count or epoch count. Image patches and runtime chat-template overhead are not part of this count.
 - Hugging Face reported zero active jobs. The private NextAI model and dataset repositories contain only `.gitattributes`; no fine-tuning job, adapter, checkpoint or model weights exist.
 - The focused Linux native application workflow is separate: source preparation and NextAI data-pipeline tests passed; Next BIM native tests and NextCAD compilation were still running at last inspection. Neither collector has yet been confirmed to have produced real native trace artifacts.
+
+
+## Applied hydrology, pumping and shallow-settlement additions — 27 November 2026
+
+- The analytic generator now has 25 deterministic calculation families. Three additional families cover Rational Method peak runoff (with explicit mm/h and hectare conversion), hydraulic/shaft/electrical water-pump power (separate pump and motor efficiencies), and simplified immediate elastic settlement beneath a shallow footing (with MPa-to-kPa conversion and supplied influence factor).
+- Each method reports equations, ordered calculation steps, units, assumptions and limitations, and rejects invalid physical inputs. These remain L0 teaching calculations: Rational Method runoff is not a hydrograph; pump output is not motor starting/system selection; elastic settlement is not consolidation or layered-soil analysis.
+- The configured analytic generator target is now 25 × 10,000 = 250,000 records if the full build runs. The extra 80,000 over the original 17-family target is a generator target only; it has not been materialized or tokenizer-audited in this checkpoint.
