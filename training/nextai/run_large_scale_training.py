@@ -492,6 +492,26 @@ def main() -> int:
             log_path, env,
         )
 
+    # Persist the same per-domain validation reports that were used to
+    # compare pre-training and post-training behaviour. These reports are
+    # development metrics; the independent test split remains untouched.
+    training_result = load_json(training_result_path)
+    if baseline_validation_eval.is_file():
+        training_result["base_validation_metrics_by_domain"] = (
+            load_json(baseline_validation_eval).get("metrics_by_domain", {})
+        )
+    if candidate_validation_eval.is_file():
+        training_result["candidate_validation_metrics_by_domain"] = (
+            load_json(candidate_validation_eval).get("metrics_by_domain", {})
+        )
+    training_result["validation_evaluation_status"] = (
+        "COMPLETED" if candidate_validation_eval.is_file() else "PENDING"
+    )
+    training_result_path.write_text(
+        json.dumps(training_result, indent=2, default=str) + "\n",
+        encoding="utf-8",
+    )
+
     heldout_comparison = None
     if not args.skip_baseline_evaluation and not args.skip_candidate_evaluation:
         # Freeze the candidate first, then perform the one final base-versus-
