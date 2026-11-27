@@ -344,11 +344,19 @@ def build_progressive_curriculum_order(
     domain_counts: dict[str, dict[str, int]] = {
         stage: {} for stage in CURRICULUM_STAGE_ORDER
     }
+    record_fingerprint = hashlib.sha256()
     for index, row in enumerate(rows):
         stage = curriculum_stage_for_record(row)
         stage_indices[stage].append(index)
         domain = str(row.get("domain") or "unknown")
         domain_counts[stage][domain] = domain_counts[stage].get(domain, 0) + 1
+        # Hash the full canonical JSON record so a resumed checkpoint cannot
+        # silently attach to a changed corpus with the same number of rows.
+        canonical_record = json.dumps(
+            row, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        )
+        record_fingerprint.update(canonical_record.encode("utf-8"))
+        record_fingerprint.update(b"\n")
 
     rng = random.Random(seed)
     for stage_index, stage in enumerate(CURRICULUM_STAGE_ORDER):
@@ -401,6 +409,7 @@ def build_progressive_curriculum_order(
         "stage_order": list(CURRICULUM_STAGE_ORDER),
         "stages": stage_reports,
         "unique_training_records": len(rows),
+        "training_records_sha256": record_fingerprint.hexdigest(),
         "ordered_training_exposures": len(ordered_indices),
         "spaced_replay_exposures": replay_total,
         "replay_fraction_per_chunk": replay_fraction,
