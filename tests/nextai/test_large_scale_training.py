@@ -28,6 +28,7 @@ from training.nextai.run_large_scale_training import (
 )
 from training.nextai.prepare_public_corpora import merge_native_trace_splits
 from training.nextai.prepare_large_scale_corpus import (
+    analytic_generation_target,
     build_capability_census_command,
     capability_census_summary,
     inspect_native_trace_inputs,
@@ -52,6 +53,24 @@ class FakeTokenizer:
     def encode(self, text, add_special_tokens=False):
         return text.split()
 
+
+
+class AnalyticGenerationTargetTests(unittest.TestCase):
+    def test_target_uses_all_25_materialized_families(self):
+        result = analytic_generation_target(10_000, {"analytic_engineering_families": 25})
+        self.assertEqual(result, {
+            "analytic_engineering_family_count": 25,
+            "analytic_engineering_cases_per_family": 10_000,
+            "analytic_engineering_total_target": 250_000,
+        })
+
+    def test_missing_generator_family_count_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "does not report"):
+            analytic_generation_target(10_000, {})
+
+    def test_negative_per_family_target_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            analytic_generation_target(-1, {"analytic_engineering_families": 25})
 
 
 class BoundedTrainingPilotTests(unittest.TestCase):
