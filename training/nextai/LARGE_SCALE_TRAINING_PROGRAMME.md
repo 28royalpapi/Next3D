@@ -6,7 +6,7 @@ Status: implementation programme and corpus builder. This document does not clai
 
 The earlier notebook defaults selected 2,500 of the 81,000 available Zero-to-CAD training rows, 30,000 of the 112,476 IFC/BIM Alpaca training rows, and 5,000 IFC/BIM QA rows. It then capped the mixed/public sample at 24,000 records. Most of the licensed upstream material was therefore excluded before training.
 
-The new full-source builder uses the published splits and raises the mixed sampler to 300,000 records. It keeps a real validation set and untouched held-out test set, while also retaining every first-party skill and native-capability knowledge lesson.
+The new full-source builder includes all available licensed rows from the published CAD and BIM splits plus the 145,117-record BuildEng source. It raises the mixed sampler to 400,000 records and creates deterministic internal validation/test partitions for BuildEng, which publishes only one train split. It keeps the other source splits separate and untouched, while also retaining every first-party skill and native-capability knowledge lesson.
 
 ## Target scale
 
@@ -70,10 +70,17 @@ If the complete licensed source corpus does not reach 400M unique text tokens, t
 | ADSKAILab/Zero-To-CAD-100k | 81.0K train, 9.7K validation, 9.8K test; Apache-2.0 | Multi-view synthetic CAD and feature-operation traces | Translate CadQuery concepts into the neutral plan; do not pretend CadQuery calls are FreeCAD-native commands |
 | Dietmar2020/ifc-bim-alpaca-124k | 112.5K train, 12.5K validation; MIT | IFC/BIM instruction and relationship knowledge | Keep the existing source-validated + score >=4.5 filter; source validation is not Next3D validation |
 | Dietmar2020/ifc-bim-qa-dataset | 9.8K train, 3.7K test; CC-BY-4.0 | IFC conceptual/schema QA | Preserve attribution; test remains held out |
+| Irfanuruchi/buildeng | 145,117 train rows; Apache-2.0 | Civil/structural/building reasoning, beam calculations, inspection-first decisions, missing-input discipline, repair, foundations, settlement, MEP safety | One published train split only; create deterministic internal partitions by normalized category + user brief; publisher-described validated is not Next3D native verification |
 | Next3D authored curriculum | Project-authored | Design intake, operator method, engineering examples and native plans | Authored lessons remain L0 unless native execution evidence exists |
 | Pinned capability census | Upstream source licences | Ten knowledge dimensions per discovered native capability | L0 metadata lessons, not command-execution proof |
 | Swiss Dwellings (optional) | CC-BY-4.0 | Measured residential floor-plan geometry and room relationships | Keep building-level split and source attribution |
 | GNI BIM IFC models (optional) | CC-BY-4.0 as declared by preparation manifest | IFC model hierarchy and object/property relationships | Coursework examples; never use as engineering truth |
+
+## External examination candidates
+
+**Google Physical-Engineering's Last Exam** is a gated Hugging Face benchmark with long-horizon engineering workspaces across electrical, civil, structural and mechanical engineering. It carries a CC-BY-4.0 tag. It is an evaluation candidate, not training material: keep its task workspaces and expected deliverables out of training, retrieval and prompt examples. The current Justin75685 Hub connection cannot inspect the gated files; use it only after the dataset access terms are accepted and the evaluation protocol is reviewed.
+
+Two other potentially useful datasets remain quarantined rather than being silently admitted. MechQA contains 202,068 material-property QA pairs derived from 125,967 research papers, and its paper is CC-BY-4.0, but the dataset repository does not declare a dataset licence and the underlying article-context rights need a record-level review. OpenPyStruct describes a two-million-case structural-response dataset, but the Zenodo dataset record does not state a dataset licence; its MIT software licence does not, by itself, establish the data licence. Neither is included in this corpus builder until those rights are resolved.
 
 ## Why 400M tokens is not automatically the right first fine-tuning run
 
