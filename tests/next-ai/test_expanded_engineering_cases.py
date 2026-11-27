@@ -176,7 +176,7 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
         self.assertEqual(len(MODULE.FAMILY_BUILDERS), 25)
         self.assertEqual(manifest["total_records"], 75)
         rows = [row for split_rows in splits.values() for row in split_rows]
-        self.assertEqual(len({row["record_id"] for row in rows}), 66)
+        self.assertEqual(len({row["record_id"] for row in rows}), 75)
         by_family = {}
         for row in rows:
             by_family[row["case_family"]] = by_family.get(row["case_family"], 0) + 1
