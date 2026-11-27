@@ -569,12 +569,13 @@ class LargeScaleTrainingTests(unittest.TestCase):
     def test_bounded_pilot_profile_sets_safe_and_fast_defaults(self):
         from argparse import Namespace
         args = Namespace(
-            pilot=True, max_steps=-1, allow_below_token_target=False, upload=False,
+            pilot=True, max_steps=-1, max_seq_length=None, allow_below_token_target=False, upload=False,
             skip_upload=False, skip_compact_export=False,
             evaluation_max_records=0,
         )
         configured = apply_pilot_profile(args)
         self.assertEqual(configured.max_steps, 200)
+        self.assertEqual(configured.max_seq_length, 2048)
         self.assertTrue(configured.allow_below_token_target)
         self.assertTrue(configured.skip_upload)
         self.assertTrue(configured.skip_compact_export)
@@ -583,12 +584,13 @@ class LargeScaleTrainingTests(unittest.TestCase):
     def test_bounded_pilot_profile_preserves_explicit_step_and_eval_limits(self):
         from argparse import Namespace
         args = Namespace(
-            pilot=True, max_steps=75, allow_below_token_target=False, upload=True,
+            pilot=True, max_steps=75, max_seq_length=3072, allow_below_token_target=False, upload=True,
             skip_upload=False, skip_compact_export=False,
             evaluation_max_records=64,
         )
         configured = apply_pilot_profile(args)
         self.assertEqual(configured.max_steps, 75)
+        self.assertEqual(configured.max_seq_length, 3072)
         self.assertEqual(configured.evaluation_max_records, 64)
         self.assertFalse(configured.skip_upload)
         self.assertTrue(configured.skip_compact_export)
