@@ -133,3 +133,33 @@ jobs:
           path: artifacts/nextai-analytic-curriculum/
           if-no-files-found: error
           retention-days: 30
+ 
+      - name: Publish audited analytic corpus to the private Hugging Face dataset
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        if: ${{ env.HF_TOKEN != '' }}
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          token = os.environ.get("HF_TOKEN", "").strip()
+          if not token:
+              raise SystemExit("HF_TOKEN unexpectedly empty; refusing Hub upload.")
+
+          repo_id = "Justin75685/nextai-engineering-corpus"
+          api = HfApi(token=token)
+          api.create_repo(repo_id=repo_id, repo_type="dataset", private=True, exist_ok=True)
+          api.upload_folder(
+              folder_path="artifacts/nextai-analytic-curriculum",
+              repo_id=repo_id,
+              repo_type="dataset",
+              path_in_repo="analytic_l0_v1",
+              commit_message="Publish Qwen-tokenizer-audited 250k analytic engineering curriculum",
+          )
+          print(f"Published audited analytic corpus to private dataset {repo_id}/analytic_l0_v1")
+          PY
+
+      - name: Report skipped Hub upload when no write token is configured
+        if: ${{ env.HF_TOKEN == '' }}
+        run: echo "HF_TOKEN is not configured; verified curriculum remains available as the GitHub Actions artifact."
