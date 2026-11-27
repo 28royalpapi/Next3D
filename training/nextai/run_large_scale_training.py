@@ -177,20 +177,35 @@ def validate_training_step_budget(max_steps: int, epochs: float) -> None:
         raise ValueError("epochs must be positive.")
 
 
-def training_run_scope(max_steps: int, token_target_met: bool) -> str:
-    """Never label a step-limited or below-target run as the full training programme."""
-    return "bounded_pilot" if max_steps > 0 or not token_target_met else "full_programme"
+def training_run_scope(max_steps: int, token_target_met: bool | None) -> str:
+    """Describe execution scope without inventing a project-wide token benchmark."""
+    if max_steps > 0 or token_target_met is False:
+        return "bounded_pilot"
+    if token_target_met is True:
+        return "full_programme"
+    return "full_epoch_run"
 
 
 def require_token_target(
     train_tokens: int,
-    target_tokens: int,
+    target_tokens: int | None = None,
     *,
     allow_below_target: bool = False,
 ) -> dict[str, Any]:
-    """Fail closed before GPU use when the measured corpus misses its target."""
-    if train_tokens < 0 or target_tokens < 1:
-        raise ValueError("Measured train tokens must be non-negative and target tokens must be positive.")
+    """Apply a token-volume gate only when the caller explicitly configures one."""
+    if train_tokens < 0:
+        raise ValueError("Measured train tokens must be non-negative.")
+    if target_tokens is None:
+        return {
+            "measured_train_text_tokens": train_tokens,
+            "target_train_text_tokens": None,
+            "shortfall_tokens": None,
+            "target_met": None,
+            "pilot_override_used": False,
+            "decision": "NO_TARGET_CONFIGURED",
+        }
+    if target_tokens < 1:
+        raise ValueError("An explicitly configured token target must be positive.")
     shortfall = max(0, target_tokens - train_tokens)
     result = {
         "measured_train_text_tokens": train_tokens,
@@ -208,13 +223,26 @@ def require_token_target(
     }
     if shortfall and not allow_below_target:
         raise RuntimeError(
-            "Refusing GPU fine-tuning: the measured corpus contains "
-            f"{train_tokens:,} train text tokens, below the required "
-            f"{target_tokens:,} by {shortfall:,}. Add licence-cleared, non-duplicated "
-            "material and rerun the exact tokenizer audit. For a deliberately bounded "
-            "pilot only, pass --allow-below-token-target and label the run as a pilot."
+            "Refusing training: the measured corpus contains "
+            f"{train_tokens:,} train text tokens, below the explicitly configured "
+            f"target {target_tokens:,} by {shortfall:,}. Add licence-cleared, "
+            "non-duplicated material or use a bounded pilot override."
         )
     return result
+
+
+def apply_pilot_profile(args: argparse.Namespace) -> argparse.Namespace:
+    """Apply a reproducible, low-overhead first-training profile to parsed arguments."""
+    if not args.pilot:
+        return args
+    if args.max_steps == -1:
+        args.max_steps = 200
+    args.allow_below_token_target = True
+    args.skip_upload = True
+    args.skip_compact_export = True
+    if args.evaluation_max_records == 0:
+        args.evaluation_max_records = 128
+    return args
 
 
 def validate_native_trace_coverage(
@@ -469,7 +497,14 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=3407)
     parser.add_argument("--curriculum-replay-fraction", type=float, default=0.10)
     parser.add_argument("--curriculum-replay-chunk-size", type=int, default=32)
-    parser.add_argument("--target-text-tokens", type=int, default=400_000_000)
+    parser.add_argument(
+        "--target-text-tokens", type=int, default=None,
+        help="Optional minimum Qwen-tokenizer train-token count. No project-wide minimum is imposed by default.",
+    )
+    parser.add_argument(
+        "--pilot", action="store_true",
+        help="Run a bounded 200-step first-training pilot by default; keeps output local, skips compact export, and evaluates up to 128 validation/test records.",
+    )
     parser.add_argument(
         "--require-native-traces", action="store_true",
         help="Require non-empty validated NextCAD and Next BIM native traces in all six app/split combinations before any model download or GPU use.",
@@ -477,7 +512,7 @@ def main() -> int:
     parser.add_argument(
         "--allow-below-token-target",
         action="store_true",
-        help="Explicitly allow a bounded pilot below the measured corpus target; never represents the 400M programme.",
+        help="Allow a bounded pilot below an explicitly configured --target-text-tokens value.",
     )
     parser.add_argument("--resume-from-checkpoint", type=Path)
     parser.add_argument("--llama-cpp-dir", type=Path)
@@ -490,7 +525,7 @@ def main() -> int:
     parser.add_argument("--evaluation-max-records", type=int, default=0)
     parser.add_argument("--engineering-max-cases", type=int, default=0)
     parser.add_argument("--model-budget-bytes", type=int, default=1_200_000_000)
-    args = parser.parse_args()
+    args = apply_pilot_profile(parser.parse_args())
 
     try:
         validate_training_step_budget(args.max_steps, args.epochs)
@@ -498,7 +533,7 @@ def main() -> int:
         parser.error(str(exc))
     if args.max_seq_length < 256 or args.batch_size < 1:
         parser.error("sequence length and batch size are outside supported ranges.")
-    if args.gradient_accumulation < 1 or args.lora_rank < 1 or args.target_text_tokens < 1:
+    if args.gradient_accumulation < 1 or args.lora_rank < 1 or (args.target_text_tokens is not None and args.target_text_tokens < 1):
         parser.error("gradient accumulation, LoRA rank and token target must be positive.")
     if args.model_budget_bytes < 1 or args.evaluation_max_records < 0 or args.engineering_max_cases < 0:
         parser.error("Model budget must be positive and evaluation limits cannot be negative.")
@@ -568,18 +603,25 @@ def main() -> int:
     if train_tokens <= 0:
         raise ValueError("The measured training text-token count is zero.")
     planned_exposures = train_tokens * args.epochs
-    token_target_met = train_tokens >= args.target_text_tokens
     token_gate = require_token_target(
         train_tokens,
         args.target_text_tokens,
         allow_below_target=args.allow_below_token_target,
     )
+    token_target_met = token_gate["target_met"]
     print("NEXTAI TOKEN-TARGET GATE: " + json.dumps(token_gate, ensure_ascii=False), flush=True)
-    print(
-        f"Measured unique train text tokens: {train_tokens:,} / target {args.target_text_tokens:,}. "
-        f"Target met: {token_target_met}.",
-        flush=True,
-    )
+    if args.target_text_tokens is None:
+        print(
+            f"Measured unique train text tokens: {train_tokens:,}. "
+            "No project-wide minimum token-volume target is configured.",
+            flush=True,
+        )
+    else:
+        print(
+            f"Measured unique train text tokens: {train_tokens:,} / explicitly configured target "
+            f"{args.target_text_tokens:,}. Target met: {token_target_met}.",
+            flush=True,
+        )
     print(
         f"Estimated text-token exposures for {args.epochs:g} epoch(s): {planned_exposures:,}. "
         "This estimate excludes runtime template overhead and image patch tokens.",
@@ -796,6 +838,12 @@ def main() -> int:
         "run_scope": run_scope,
         "max_sequence_length": args.max_seq_length,
         "target_unique_train_text_tokens": args.target_text_tokens,
+        "pilot_profile_enabled": args.pilot,
+        "pilot_scope_note": (
+            "Bounded analytic-curriculum pilot only; does not establish native CAD/BIM execution capability."
+            if args.pilot and native_coverage["total_native_execution_trace_records"] == 0
+            else None
+        ),
         "measured_unique_train_text_tokens": train_tokens,
         "estimated_text_token_exposures": planned_exposures,
         "token_target_met": token_target_met,
