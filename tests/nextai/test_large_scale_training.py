@@ -762,11 +762,11 @@ class AnalyticEngineeringCurriculumTests(unittest.TestCase):
         })
         self.assertEqual(earthwork["values"]["earthwork_volume_m3"], 120.0)
 
-    def test_generator_has_22_formula_families_and_keeps_all_splits(self):
-        self.assertEqual(len(FAMILY_BUILDERS), 22)
+    def test_generator_has_25_formula_families_and_keeps_all_splits(self):
+        self.assertEqual(len(FAMILY_BUILDERS), 25)
         first, manifest = generate_cases(cases_per_domain=3, seed=3407)
         second, _ = generate_cases(cases_per_domain=3, seed=3407)
-        self.assertEqual(manifest["total_records"], 22 * 3)
+        self.assertEqual(manifest["total_records"], 25 * 3)
         self.assertEqual(manifest["families"], {key: 3 for key in sorted(FAMILY_BUILDERS)})
         for split in ("train", "validation", "test"):
             self.assertEqual(
@@ -774,7 +774,7 @@ class AnalyticEngineeringCurriculumTests(unittest.TestCase):
                 [row["record_id"] for row in second[split]],
             )
         all_rows = [row for split in first.values() for row in split]
-        self.assertEqual(len({row["record_id"] for row in all_rows}), 66)
+        self.assertEqual(len({row["record_id"] for row in all_rows}), 75)
         for row in all_rows:
             expected = row["expected"]
             self.assertEqual(row["evidence_level"], "L0")
