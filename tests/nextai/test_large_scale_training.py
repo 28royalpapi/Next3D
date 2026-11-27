@@ -663,6 +663,25 @@ class ProgressiveCurriculumScheduleTests(unittest.TestCase):
             "integrated_projects",
         )
 
+
+
+    def test_trainer_uses_sequential_sampler_for_curriculum_order(self):
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "training/nextai/train_nextai.py").read_text(encoding="utf-8")
+        self.assertIn('train_sampling_strategy="sequential"', source)
+        self.assertIn("shuffle_dataset=False", source)
+        self.assertIn(
+            "train_dataset=ConversationDataset(train_rows, indices=training_indices)",
+            source,
+        )
+
+    def test_gpu_runner_forwards_and_publishes_curriculum_manifest(self):
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "training/nextai/run_large_scale_training.py").read_text(encoding="utf-8")
+        self.assertIn('"--curriculum-replay-fraction"', source)
+        self.assertIn('"--curriculum-replay-chunk-size"', source)
+        self.assertIn('"curriculum_schedule.json"', source)
+
     def test_curriculum_rejects_invalid_replay_configuration(self):
         with self.assertRaises(ValueError):
             build_progressive_curriculum_order([], replay_fraction=0.8)
