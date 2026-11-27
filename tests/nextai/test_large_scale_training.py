@@ -367,9 +367,10 @@ class HeldOutEvaluationDisciplineTests(unittest.TestCase):
     def test_trainer_does_not_evaluate_test_split_during_training(self):
         root = Path(__file__).resolve().parents[2]
         source = (root / "training/nextai/train_nextai.py").read_text(encoding="utf-8")
-        self.assertIn("validation_by_domain = evaluate_by_domain(validation_rows", source)
+        self.assertIn("validation_by_domain = {", source)
         self.assertNotIn("evaluate_by_domain(test_rows", source)
         self.assertIn('"status": "PENDING_POST_TRAINING"', source)
+        self.assertIn('"status": "PENDING_POST_TRAINING_EVALUATION"', source)
         self.assertIn("eval_dataset=ConversationDataset(validation_rows)", source)
 
     def test_runner_uses_validation_before_training_and_test_only_after(self):
