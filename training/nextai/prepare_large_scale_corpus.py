@@ -175,6 +175,20 @@ def verify_native_collection_manifest(manifest_path: Path, application: str) -> 
         lineage_report = split_reports[split]
         if not isinstance(lineage_report, dict):
             raise ValueError(f"Native {application} {split} lineage report is malformed")
+        expected_scenarios = {
+            "train": ("train-compact", 0.8),
+            "validation": ("validation-standard", 1.0),
+            "test": ("test-expanded", 1.25),
+        }
+        expected_scenario, expected_scale = expected_scenarios[split]
+        if lineage_report.get("scenario_id") != expected_scenario:
+            raise ValueError(f"Native {application} {split} lineage report has the wrong scenario ID")
+        try:
+            actual_scale = float(lineage_report.get("scenario_scale"))
+        except (TypeError, ValueError):
+            raise ValueError(f"Native {application} {split} lineage report has no valid scenario scale")
+        if abs(actual_scale - expected_scale) > 1e-9:
+            raise ValueError(f"Native {application} {split} lineage report has the wrong scenario scale")
         if lineage_report.get("records") != expected_count:
             raise ValueError(f"Native {application} {split} lineage report record count is inconsistent")
         if set(lineage_report.get("record_ids") or []) != raw_ids_by_split[split]:
