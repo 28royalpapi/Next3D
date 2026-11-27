@@ -16,6 +16,25 @@ def sha256_file(path: Path) -> str:
         for block in iter(lambda:handle.read(1024*1024),b""): digest.update(block)
     return digest.hexdigest()
 
+def describe_artifact(path: Path, output_dir: Path, *, records: int | None = None) -> dict[str, Any]:
+    """Return a portable path, byte count and SHA-256 for a collected artifact."""
+    resolved = path.resolve()
+    root = output_dir.resolve()
+    if not resolved.is_file():
+        raise FileNotFoundError(f"Expected native trace artifact is missing: {resolved}")
+    try:
+        relative = resolved.relative_to(root).as_posix()
+    except ValueError as exc:
+        raise ValueError(f"Native trace artifact escapes the output directory: {resolved}") from exc
+    result = {
+        "path": relative,
+        "bytes": resolved.stat().st_size,
+        "sha256": sha256_file(resolved),
+    }
+    if records is not None:
+        result["records"] = records
+    return result
+
 
 def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
     if split not in SCENARIOS:
@@ -131,7 +150,25 @@ def collect_trace_files(trace_files: dict[str, Path], output_dir: Path) -> dict[
     expected={"train":2,"validation":2,"test":2}
     actual={split:summary.get(split,0) for split in expected}
     if actual!=expected: raise RuntimeError(f"Next BIM SFT did not preserve six records: {actual}")
-    manifest={"schema_version":"nextbim.native-trace-corpus.v1","application":"nextbim","source_revision":"a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b","evidence_level":"L3 native CLI execution + L4 project save/reopen","independent_engineering_validation":"not_claimed","synthetic_acceptance_fixtures":True,"split_record_counts":actual,"splits":reports,"raw_trace_file":raw.name,"raw_trace_sha256":sha256_file(raw),"sft_output_dir":"sft","sft_summary":summary,"source_lineages_disjoint":True,"note":"Native BIMCraft wall-command acceptance examples. They test command execution and project persistence; independent geometric and engineering validation is not claimed."}
+    if summary.get("quarantine", 0) != 0 or summary.get("source_groups_with_split_leakage", 0) != 0:
+        raise RuntimeError(f"Next BIM SFT conversion quarantined records or detected split leakage: {summary}")
+    artifact_inventory = {
+        "raw_trace": describe_artifact(raw, output_dir, records=len(rows_all)),
+        "raw_splits": {
+            split: describe_artifact(output_dir / f"nextbim-native-{split}.jsonl", output_dir, records=actual[split])
+            for split in ("train", "validation", "test")
+        },
+        "sft_splits": {
+            split: describe_artifact(output_dir / "sft" / f"{split}.jsonl", output_dir, records=actual[split])
+            for split in ("train", "validation", "test")
+        },
+        "sft_quarantine": describe_artifact(
+            output_dir / "sft" / "quarantine.jsonl", output_dir,
+            records=summary.get("quarantine", 0),
+        ),
+        "sft_summary": describe_artifact(output_dir / "sft" / "summary.json", output_dir),
+    }
+    manifest={"schema_version":"nextbim.native-trace-corpus.v1","application":"nextbim","source_revision":"a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b","evidence_level":"L3 native CLI execution + L4 project save/reopen","independent_engineering_validation":"not_claimed","synthetic_acceptance_fixtures":True,"split_record_counts":actual,"splits":reports,"raw_trace_file":raw.name,"raw_trace_sha256":sha256_file(raw),"sft_output_dir":"sft","sft_summary":summary,"artifact_inventory":artifact_inventory,"source_lineages_disjoint":True,"note":"Native BIMCraft wall-command acceptance examples. They test command execution and project persistence; independent geometric and engineering validation is not claimed."}
     (output_dir/"manifest.json").write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
     return manifest
 
