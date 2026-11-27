@@ -155,6 +155,9 @@ def verify_native_collection_manifest(manifest_path: Path, application: str) -> 
             raise ValueError(f"Native {application} raw trace row {index} has no source lineage")
         lineages_by_split[split].add(source_id)
 
+    split_reports = manifest.get("splits") or {}
+    if not isinstance(split_reports, dict) or set(split_reports) != {"train", "validation", "test"}:
+        raise ValueError("Native collection manifest must include train/validation/test lineage reports")
     all_lineages: set[str] = set()
     for split in ("train", "validation", "test"):
         expected_count = declared_counts.get(split)
@@ -169,6 +172,15 @@ def verify_native_collection_manifest(manifest_path: Path, application: str) -> 
             raise ValueError(f"Native {application} raw split artifact {split} contains a wrong app or split row")
         if {str(row.get("record_id") or "") for row in raw_split_rows} != raw_ids_by_split[split]:
             raise ValueError(f"Native {application} raw split artifact {split} does not match raw_trace")
+        lineage_report = split_reports[split]
+        if not isinstance(lineage_report, dict):
+            raise ValueError(f"Native {application} {split} lineage report is malformed")
+        if lineage_report.get("records") != expected_count:
+            raise ValueError(f"Native {application} {split} lineage report record count is inconsistent")
+        if set(lineage_report.get("record_ids") or []) != raw_ids_by_split[split]:
+            raise ValueError(f"Native {application} {split} lineage report record IDs do not match raw_trace")
+        if lineages_by_split[split] != {lineage_report.get("source_id")}:
+            raise ValueError(f"Native {application} {split} lineage report does not match raw project provenance")
         if int(sft_item.get("records", 0)) != expected_count:
             raise ValueError(f"Native {application} {split} SFT count does not match its collection manifest")
         if not lineages_by_split[split].isdisjoint(all_lineages):
