@@ -210,3 +210,13 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - No live NextCAD runtime census was captured.
 - The 400M measured Qwen text-token target has not been achieved or audited, and no model fine-tune/checkpoint/weights have been produced.
 - No paid GPU or other paid compute was started.
+
+## Manifest/raw/SFT lineage cross-check — verified 27 November 2026, 10:17 WAT
+
+- The full-scale corpus builder now cross-checks each collector manifest's train/validation/test report against the actual raw trace rows: declared record counts, exact record-ID sets and source project lineage must agree.
+- It also verifies that the raw split sidecars match their corresponding raw-trace subsets, that train/validation/test project lineages do not overlap, and that SFT conversion preserves the exact accepted raw record IDs.
+- Manifest semantics are fail-closed: the pinned app/schema revision, collector evidence level, controlled synthetic acceptance-fixture label, split-disjoint lineage declaration and explicit 'independent engineering validation not claimed' statement are all checked.
+- Latest validated code commit: cc101cb57faef4922eb8885034a941cf70bd4688.
+- Deep-training CI run 45972391784 passed: 64 corpus/training tests, 9 native SFT tests, 13 Next BIM split/evidence tests and 8 NextCAD split/artifact tests (94 total), plus script compilation and CLI-help checks.
+- Run: https://github.com/28royalpapi/Next3D/actions/runs/45972391784
+- No native build/collection job was dispatched. The native execution examples remain planned collector fixtures; no actual native trace dataset, 400M-token corpus or trained model weights were created in this milestone.
