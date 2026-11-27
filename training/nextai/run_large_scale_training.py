@@ -412,6 +412,28 @@ def main() -> int:
         )
     if not args.model_repo.strip():
         parser.error("Model repository cannot be empty.")
+    if not args.skip_upload:
+        # A present token is not necessarily a write token. Exercise the Hub's
+        # create-or-verify endpoint before downloading the base model or using
+        # GPU time. The target repository is private and already exists.
+        from huggingface_hub import HfApi
+        try:
+            HfApi(token=os.environ["HF_TOKEN"]).create_repo(
+                repo_id=args.model_repo,
+                repo_type="model",
+                private=True,
+                exist_ok=True,
+            )
+        except Exception as exc:
+            parser.error(
+                "HF_TOKEN cannot create/verify the private model repository with write access. "
+                "Use a Hugging Face write token in the HF_TOKEN secret before launching GPU training. "
+                f"Hub preflight error: {type(exc).__name__}: {exc}"
+            )
+        print(
+            f"NEXTAI HUB WRITE PREFLIGHT PASS: {args.model_repo}",
+            flush=True,
+        )
     if not 0.0 <= args.curriculum_replay_fraction <= 0.5 or args.curriculum_replay_chunk_size < 1:
         parser.error("Curriculum replay fraction must be in [0, 0.5] and chunk size must be positive.")
 
