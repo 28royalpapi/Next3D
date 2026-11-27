@@ -4,13 +4,45 @@ from scripts.collect_nextbim_native_splits import validate_split_trace_rows, val
 
 class NextBIMNativeSplitValidationTests(unittest.TestCase):
     def rows(self, split, scenario):
-        return [{
-            "schema_version": "1.0.0", "record_id": f"{scenario}-{stage}", "application": "nextbim",
-            "split": split, "source": {"source_id": f"native-bim:{scenario}:{split}:a0c57b738e308d433ab4b8c0c93d7fff9e53bc1"},
-            "native_states": {"after": {"sha256": "a" * 64}},
-            "validation": {"overall": "passed", "round_trip_passed": True, "recompute_passed": True},
-            "operations": [{"tool": "wall", "status": "applied"}],
-        } for stage in ("a", "b")]
+        result = []
+        for index, stage in enumerate(("a", "b")):
+            count_before = 5 + index
+            count_after = count_before + 1
+            result.append({
+                "schema_version": "1.0.0",
+                "record_id": f"{scenario}-{stage}",
+                "application": "nextbim",
+                "split": split,
+                "source": {"source_id": f"native-bim:{scenario}:{split}:a0c57b738e308d433ab4b8c0c93d7fff9e53bc1"},
+                "task": {"prompt": f"Add wall stage {stage} for {scenario}."},
+                "native_states": {
+                    "before": {"sha256": "b" * 64},
+                    "after": {"sha256": "a" * 64},
+                },
+                "validation": {
+                    "overall": "passed",
+                    "round_trip_passed": True,
+                    "recompute_passed": True,
+                    "checks": [{
+                        "check_id": "wall_count_increment",
+                        "status": "pass",
+                        "expected": count_after,
+                        "actual": count_after,
+                    }],
+                },
+                "operations": [{
+                    "tool": "wall",
+                    "status": "applied",
+                    "before_state_hash": "b" * 64,
+                    "after_state_hash": "a" * 64,
+                    "result": {
+                        "wall_count_before": count_before,
+                        "wall_count_after_reopen": count_after,
+                        "count_delta": 1,
+                    },
+                }],
+            })
+        return result
 
     def test_three_splits_validate_with_distinct_project_lineages(self):
         reports = {
@@ -45,6 +77,30 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
         rows[0]["operations"][0]["tool"] = "beam"
         with self.assertRaisesRegex(ValueError, "only native wall commands"):
             validate_split_trace_rows("test", rows)
+
+    def test_operation_hashes_must_match_native_before_and_after_states(self):
+        rows = self.rows("test", "test-expanded")
+        rows[0]["operations"][0]["after_state_hash"] = "c" * 64
+        with self.assertRaisesRegex(ValueError, "operation hashes do not match"):
+            validate_split_trace_rows("test", rows)
+
+    def test_native_wall_count_must_increase_exactly_once(self):
+        rows = self.rows("test", "test-expanded")
+        rows[0]["operations"][0]["result"]["count_delta"] = 2
+        with self.assertRaisesRegex(ValueError, "does not prove exactly one persisted wall"):
+            validate_split_trace_rows("test", rows)
+
+    def test_validation_count_must_match_reopened_cli_result(self):
+        rows = self.rows("validation", "validation-standard")
+        rows[1]["validation"]["checks"][0]["actual"] = 999
+        with self.assertRaisesRegex(ValueError, "validation count does not match"):
+            validate_split_trace_rows("validation", rows)
+
+    def test_stage_prompts_must_be_distinct(self):
+        rows = self.rows("train", "train-compact")
+        rows[1]["task"]["prompt"] = rows[0]["task"]["prompt"]
+        with self.assertRaisesRegex(ValueError, "stage prompts must be present and distinct"):
+            validate_split_trace_rows("train", rows)
 
     def test_wrong_application_or_split_is_rejected(self):
         rows = self.rows("validation", "standard")
