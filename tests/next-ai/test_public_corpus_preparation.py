@@ -797,6 +797,16 @@ class PublicCorpusPreparationTests(unittest.TestCase):
                     "adapter_schema_version": "1.0",
                     "split": split,
                     "messages": message_set,
+                    "native_trace_evidence": {
+                        "validation_overall": "passed",
+                        "round_trip_passed": True,
+                        "recompute_passed": True,
+                        "after_state_sha256": "b" * 64,
+                        "operation_count": 1,
+                        "applied_operation_count": 1,
+                        "read_only_operation_count": 0,
+                        "operation_trace_sha256": "c" * 64,
+                    },
                     "source": source,
                     "privacy": privacy,
                 }
