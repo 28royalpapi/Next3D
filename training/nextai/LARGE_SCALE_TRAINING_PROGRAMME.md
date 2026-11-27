@@ -6,11 +6,11 @@ Status: implementation programme and corpus builder. This document does not clai
 
 The earlier notebook defaults selected 2,500 of the 81,000 available Zero-to-CAD training rows, 30,000 of the 112,476 IFC/BIM Alpaca training rows, and 5,000 IFC/BIM QA rows. It then capped the mixed/public sample at 24,000 records. Most of the licensed upstream material was therefore excluded before training.
 
-The new full-source builder includes all available licensed rows from the published CAD and BIM splits plus the 145,117-record BuildEng source. It adds a 170,000-case original analytic curriculum (10,000 cases in each of 22 engineering families), raises the mixed sampler to 700,000 records, and creates deterministic internal validation/test partitions for BuildEng, which publishes only one train split. It keeps the other source splits separate and untouched, while also retaining every first-party skill and native-capability knowledge lesson.
+The new full-source builder includes all available licensed rows from the published CAD and BIM splits plus the 145,117-record BuildEng source. It adds a 220,000-case original analytic curriculum (10,000 cases in each of 22 engineering families), raises the mixed sampler to 700,000 records, and creates deterministic internal validation/test partitions for BuildEng, which publishes only one train split. It keeps the other source splits separate and untouched, while also retaining every first-party skill and native-capability knowledge lesson.
 
 ## Target scale
 
-The programme uses 400 million **measured student-token** updates as an ambitious planning benchmark, inspired by N-ATLaS. That is a target, not a number to reach by duplicating short prompts, repeating records or counting image files as tokens.
+The programme uses 400 million **Qwen-tokenizer-measured text tokens in the training split** (a corpus-size target, not optimizer updates or epochs) as an ambitious planning benchmark, inspired by N-ATLaS. That is a target, not a number to reach by duplicating short prompts, repeating records or counting image files as tokens.
 
 The actual corpus size is determined by the tokenizer loaded from Qwen/Qwen3.5-0.8B. \`audit_nextai_corpus.py\` reports text-token counts for train, validation and test separately, plus tool schemas, source/domain balance, image files and image bytes. Vision patch tokens and the runtime chat-template overhead are explicitly reported as outside that text-token count.
 
@@ -80,7 +80,7 @@ If the complete licensed source corpus does not reach 400M unique text tokens, t
 
 The generator `generate_verified_engineering_cases.py` currently implements 22 formula families: simply supported beams under UDL and central point loads, cantilevers, axial bars, shaft torsion, pipe continuity, Darcy-Weisbach losses, Manning open-channel flow, effective stress, one-dimensional consolidation, concrete slab quantities, reinforcement mass, gear ratios, three-phase power, differential levelling, rectangular section properties and average-end-area earthworks.
 
-The full-scale builder creates 10,000 distinct parameterised cases per family (170,000 total target records). Each answer includes its governing equations, exact inputs, calculated outputs, units, assumptions and limitations. The generator is checked against independent reference calculations in unit tests. These are L0 educational examples from closed-form solvers; they are not FEM results, code checks, native CAD/BIM executions or engineering approvals. The corpus audit measures their actual Qwen token contribution after generation.
+The full-scale builder creates 10,000 distinct parameterised cases per family (220,000 total target records). Each answer includes its governing equations, exact inputs, calculated outputs, units, assumptions and limitations. The generator is checked against independent reference calculations in unit tests. These are L0 educational examples from closed-form solvers; they are not FEM results, code checks, native CAD/BIM executions or engineering approvals. The corpus audit measures their actual Qwen token contribution after generation.
 
 ## External examination candidates
 
