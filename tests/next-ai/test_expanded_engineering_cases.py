@@ -207,8 +207,8 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
         rows = [row for split_rows in splits.values() for row in split_rows]
         normalized_conversations = {
             " ".join(
-                "\\n".join(
-                    f"<{message['role']}>\\n{message['content']}" for message in row["messages"]
+                "\n".join(
+                    f"<{message['role']}>\n{message['content']}" for message in row["messages"]
                 ).split()
             )
             for row in rows
