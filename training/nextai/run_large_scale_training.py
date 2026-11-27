@@ -237,6 +237,8 @@ def apply_pilot_profile(args: argparse.Namespace) -> argparse.Namespace:
         return args
     if args.max_steps == -1:
         args.max_steps = 200
+    if args.max_seq_length is None:
+        args.max_seq_length = 2048
     args.allow_below_token_target = True
     args.skip_upload = not args.upload
     args.skip_compact_export = True
@@ -489,7 +491,7 @@ def main() -> int:
         "--max-steps", type=int, default=-1,
         help="Pass a positive step limit to train_nextai.py for a bounded pilot; -1 runs full epochs.",
     )
-    parser.add_argument("--max-seq-length", type=int, default=4096)
+    parser.add_argument("--max-seq-length", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--gradient-accumulation", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=1.0e-4)
@@ -527,6 +529,8 @@ def main() -> int:
     parser.add_argument("--engineering-max-cases", type=int, default=0)
     parser.add_argument("--model-budget-bytes", type=int, default=1_200_000_000)
     args = apply_pilot_profile(parser.parse_args())
+    if args.max_seq_length is None:
+        args.max_seq_length = 4096
 
     try:
         validate_training_step_budget(args.max_steps, args.epochs)
