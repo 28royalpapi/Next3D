@@ -24,6 +24,8 @@ from training.nextai.train_nextai import (
     IndexedJSONL,
     validate_training_splits,
     conversation_row_for_collator,
+    build_progressive_curriculum_order,
+    curriculum_stage_for_record,
 )
 
 
@@ -587,6 +589,85 @@ class MultimodalConversationCollatorTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "more image placeholders"):
             conversation_row_for_collator(row, image_loader=lambda path: path)
+
+
+class ProgressiveCurriculumScheduleTests(unittest.TestCase):
+    def test_curriculum_orders_five_stages_with_spaced_rehearsal(self):
+        rows = (
+            [{"domain": "engineering_statics_beam_udl"} for _ in range(2)]
+            + [{"domain": "cad_parametric_part"} for _ in range(2)]
+            + [{"domain": "engineering_buildeng_reasoning"} for _ in range(2)]
+            + [{"domain": "design_intake_residential"} for _ in range(2)]
+            + [{"domain": "design_execution_residential"} for _ in range(2)]
+        )
+        order, manifest = build_progressive_curriculum_order(
+            rows,
+            seed=42,
+            replay_fraction=0.5,
+            replay_chunk_size=2,
+        )
+        self.assertEqual(manifest["stage_order"], [
+            "foundations",
+            "cad_bim_fluency",
+            "engineering_disciplines",
+            "operator_methods",
+            "integrated_projects",
+        ])
+        self.assertEqual(manifest["unique_training_records"], 10)
+        self.assertEqual(manifest["ordered_training_exposures"], 14)
+        self.assertEqual(manifest["spaced_replay_exposures"], 4)
+        self.assertEqual(len(set(order)), 10)
+        self.assertEqual([manifest["stages"][stage]["unique_records"] for stage in manifest["stage_order"]], [2, 2, 2, 2, 2])
+        # After each later stage's two new records, one sample from earlier
+        # course material is interleaved before the next stage starts.
+        self.assertTrue(all(index in {0, 1} for index in order[4:5]))
+        self.assertTrue(any(index in {0, 1, 2, 3} for index in order[7:8]))
+        self.assertTrue(any(index in set(range(6)) for index in order[10:11]))
+        self.assertTrue(any(index in set(range(8)) for index in order[13:14]))
+
+    def test_curriculum_order_is_deterministic_for_resume(self):
+        rows = [
+            {"domain": "engineering_statics_beam_udl"},
+            {"domain": "cad_parametric_part"},
+            {"domain": "engineering_buildeng_reasoning"},
+            {"domain": "design_intake_residential"},
+            {"domain": "design_execution_residential"},
+        ]
+        first, first_manifest = build_progressive_curriculum_order(rows, seed=17)
+        second, second_manifest = build_progressive_curriculum_order(rows, seed=17)
+        self.assertEqual(first, second)
+        self.assertEqual(
+            first_manifest["ordered_index_sha256"],
+            second_manifest["ordered_index_sha256"],
+        )
+
+    def test_domain_to_stage_mapping_is_explicit(self):
+        self.assertEqual(
+            curriculum_stage_for_record({"domain": "engineering_hydraulics_darcy_weisbach"}),
+            "foundations",
+        )
+        self.assertEqual(
+            curriculum_stage_for_record({"domain": "bim_native_command_workflow"}),
+            "cad_bim_fluency",
+        )
+        self.assertEqual(
+            curriculum_stage_for_record({"domain": "engineering_buildeng_reasoning"}),
+            "engineering_disciplines",
+        )
+        self.assertEqual(
+            curriculum_stage_for_record({"domain": "engineering_skill_knowledge"}),
+            "operator_methods",
+        )
+        self.assertEqual(
+            curriculum_stage_for_record({"domain": "nextcad_native"}),
+            "integrated_projects",
+        )
+
+    def test_curriculum_rejects_invalid_replay_configuration(self):
+        with self.assertRaises(ValueError):
+            build_progressive_curriculum_order([], replay_fraction=0.8)
+        with self.assertRaises(ValueError):
+            build_progressive_curriculum_order([], replay_chunk_size=0)
 
 
 if __name__ == "__main__":
