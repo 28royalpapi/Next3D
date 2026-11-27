@@ -220,3 +220,13 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - Deep-training CI run 45972391784 passed: 64 corpus/training tests, 9 native SFT tests, 13 Next BIM split/evidence tests and 8 NextCAD split/artifact tests (94 total), plus script compilation and CLI-help checks.
 - Run: https://github.com/28royalpapi/Next3D/actions/runs/45972391784
 - No native build/collection job was dispatched. The native execution examples remain planned collector fixtures; no actual native trace dataset, 400M-token corpus or trained model weights were created in this milestone.
+
+## Native split scenario identity enforcement — verified 27 November 2026, 10:19 WAT
+
+- The full-corpus builder additionally enforces the declared controlled scenarios: train = train-compact (0.8x), validation = validation-standard (1.0x), and held-out test = test-expanded (1.25x), for both applications.
+- Scenario IDs and scales are compared with the collector's split report before the records can be accepted.
+- Validated code commit: fb f515228ee7c54193ed6b90cabd5453321c7c18 (full SHA: fbf515228ee7c54193ed6b90cabd5453321c7c18).
+- Deep-training CI run 45972631867 passed: 65 corpus/training tests, 9 native SFT tests, 13 Next BIM split/evidence tests and 8 NextCAD split/artifact tests (95 total); compilation and CLI-help checks passed.
+- Run: https://github.com/28royalpapi/Next3D/actions/runs/45972631867
+- Selector smoke run 45972631858 was still completing its cross-platform jobs at this checkpoint.
+- Hugging Face recheck: zero active jobs; the model and dataset repositories still contain only .gitattributes. No weights or corpus artifacts have been published, and no paid compute has been started.
