@@ -105,7 +105,7 @@ class NativeTraceBuildIntegrationTests(unittest.TestCase):
                 {"role": "assistant", "content": "validated native plan"},
             ],
         }
-        path.write_text(json.dumps(row) + "\\n", encoding="utf-8")
+        path.write_text(json.dumps(row) + "\n", encoding="utf-8")
 
     def test_all_six_native_trace_inputs_are_fingerprinted_and_forwarded(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -145,7 +145,7 @@ class NativeTraceBuildIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             malformed = root / "malformed.jsonl"
-            malformed.write_text("not-json\\n", encoding="utf-8")
+            malformed.write_text("not-json\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "Invalid native trace JSON"):
                 inspect_native_trace_inputs({"nextcad_native_train": malformed})
             duplicate = root / "duplicate.jsonl"
@@ -153,7 +153,7 @@ class NativeTraceBuildIntegrationTests(unittest.TestCase):
             with duplicate.open("a", encoding="utf-8") as handle:
                 row = {"application": "nextcad", "split": "train", "record_id": "same",
                        "messages": [{"role": "system"}, {"role": "user"}, {"role": "assistant"}]}
-                handle.write(json.dumps(row) + "\\n")
+                handle.write(json.dumps(row) + "\n")
             with self.assertRaisesRegex(ValueError, "Duplicate native trace record_id"):
                 inspect_native_trace_inputs({"nextcad_native_train": duplicate})
 
