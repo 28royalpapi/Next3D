@@ -609,7 +609,7 @@ def _slab_inputs(rng: random.Random) -> dict[str, float]:
 def _rebar_inputs(rng: random.Random) -> dict[str, float]:
     return {
         "bar_diameter_mm": float(rng.choice([8, 10, 12, 16, 20, 25, 32])),
-        "total_bar_length_m": _round(rng.uniform(10.0, 12000.0), 2),
+        "total_bar_length_m": _round(rng.uniform(10.0, 12000.0), 3),
     }
 
 
