@@ -67,3 +67,13 @@ No GPU job has been started. Hugging Face GPU Jobs are billable. A first run mus
 ## Release rule
 
 Do not report “trained”, “400M tokens”, “mastered”, “native validated” or “offline packaged” until the corresponding corpus audit, training logs/checkpoints, held-out evaluation, native acceptance evidence and package measurements exist.
+
+
+## Latest portable-multimodal-corpus improvement — 27 November 2026
+
+- Newly prepared CAD image references are stored relative to the corpus root, not as machine-specific absolute filesystem paths. A complete corpus can be moved to another machine/runtime without rewriting JSONL records.
+- The exact Qwen-tokenizer audit resolves relative images from the corpus directory and refuses to report PASS when any referenced asset is missing. A diagnostic-only `--allow-missing-images` override emits `OVERRIDE_MISSING_IMAGES`, never PASS.
+- The trainer's split-integrity preflight and image loader now resolve relative references against the JSONL corpus root, aligning audit and training path semantics.
+- Regression tests cover relative asset references, trainer-side resolution, and fail-closed missing-image handling.
+
+This improves corpus portability and catches multimodal asset failures before baseline evaluation or GPU preparation. It does not establish that the full corpus exists, that 400 million tokens have been measured, or that model training has occurred.

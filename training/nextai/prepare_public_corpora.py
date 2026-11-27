@@ -202,7 +202,7 @@ def make_cad_records(row: dict[str, Any], asset_root: Path, split: str, index: i
     for view_index in range(8):
         destination = folder / f"view_{view_index}.jpg"
         _save_image(row.get(f"image_{view_index}"), destination)
-        paths.append(str(destination))
+        paths.append(destination.relative_to(asset_root.parent).as_posix())
 
     feature_families = []
     for operation in plan["ordered_features"]:

@@ -123,6 +123,8 @@ def validate_training_splits(
             )
 
             for split_name, rows in splits.items():
+                source_path = getattr(rows, "path", None)
+                corpus_root = Path(source_path).parent if source_path is not None else Path.cwd()
                 record_count = 0
                 image_count = 0
                 domains: set[str] = set()
@@ -212,8 +214,16 @@ def validate_training_splits(
                                 f"{split_name} record {record_id or index!r} needs non-empty prompt and completion."
                             )
 
-                    for image_path in row.get("images") or []:
-                        if not Path(image_path).is_file():
+                    images = row.get("images") or []
+                    if not isinstance(images, list):
+                        raise ValueError(
+                            f"{split_name} record {record_id or index!r} images must be a JSON array."
+                        )
+                    for image_path in images:
+                        candidate = Path(str(image_path))
+                        if not candidate.is_absolute():
+                            candidate = corpus_root / candidate
+                        if not candidate.is_file():
                             raise FileNotFoundError(
                                 f"{split_name} record {record_id or index!r} references missing image: {image_path}"
                             )
@@ -606,6 +616,10 @@ def main() -> int:
     from trl import SFTConfig, SFTTrainer
     from torch.utils.data import Dataset
 
+    def resolve_image_path(path: str | Path) -> Path:
+        candidate = Path(path)
+        return candidate if candidate.is_absolute() else args.data_dir / candidate
+
     class ConversationDataset(Dataset):
         def __init__(self, rows, indices=None):
             self.rows = rows
@@ -619,7 +633,7 @@ def main() -> int:
             row = self.rows[row_index]
             if isinstance(row.get("messages"), list):
                 def load_image(path):
-                    with Image.open(path) as image:
+                    with Image.open(resolve_image_path(path)) as image:
                         return image.convert("RGB").copy()
                 return conversation_row_for_collator(
                     row,
@@ -627,7 +641,7 @@ def main() -> int:
                 )
             content = []
             for image_path in row.get("images") or []:
-                with Image.open(image_path) as image:
+                with Image.open(resolve_image_path(image_path)) as image:
                     content.append({"type": "image", "image": image.convert("RGB").copy()})
             prompt = str(row.get("prompt") or "")
             completion = str(row.get("completion") or "")

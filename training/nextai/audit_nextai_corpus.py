@@ -93,6 +93,7 @@ def audit_corpus(
     *,
     max_records: int = 0,
     require_test: bool = True,
+    allow_missing_images: bool = False,
 ) -> dict[str, Any]:
     if not data_dir.is_dir():
         raise FileNotFoundError(f"Corpus directory does not exist: {data_dir}")
@@ -193,10 +194,17 @@ def audit_corpus(
                 license_counts[license_name] += 1
                 evidence_counts[evidence] += 1
 
-                for image_path in row.get("images") or []:
+                images = row.get("images") or []
+                if not isinstance(images, list):
+                    raise ValueError(f"{path}:{line_number} images must be a JSON array")
+                for image_path in images:
+                    if not isinstance(image_path, str) or not image_path.strip():
+                        raise ValueError(f"{path}:{line_number} contains an empty or non-string image path")
                     split_image_count += 1
                     image_total += 1
-                    candidate = Path(str(image_path))
+                    candidate = Path(image_path)
+                    if not candidate.is_absolute():
+                        candidate = data_dir / candidate
                     if not candidate.is_file():
                         missing_images.append({
                             "split": split,
@@ -253,10 +261,18 @@ def audit_corpus(
         )
     if duplicate_ids:
         raise ValueError("Duplicate record IDs found: " + json.dumps(duplicate_ids[:12]))
+    if missing_images and not allow_missing_images:
+        raise ValueError(
+            "Missing image assets: refusing to mark the corpus audit PASS or begin GPU preparation. "
+            "Repair the referenced files or run an explicit diagnostic audit with "
+            "--allow-missing-images. Examples: "
+            + json.dumps(missing_images[:12], ensure_ascii=False)
+        )
 
     return {
         "schema_version": 1,
-        "status": "PASS",
+        "status": "OVERRIDE_MISSING_IMAGES" if missing_images else "PASS",
+        "missing_image_file_count": len(missing_images),
         "tokenizer": getattr(tokenizer, "name_or_path", "provided-tokenizer"),
         "token_scope": "Text tokens only; image patch/vision tokens and runtime chat-template overhead are not included.",
         "train_text_tokens": split_summaries["train"]["text_tokens"],
@@ -291,6 +307,10 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--max-records", type=int, default=0)
     parser.add_argument("--allow-empty-test", action="store_true")
+    parser.add_argument(
+        "--allow-missing-images", action="store_true",
+        help="Diagnostic-only override. The report is marked OVERRIDE_MISSING_IMAGES, never PASS.",
+    )
     args = parser.parse_args()
     if args.max_records < 0:
         parser.error("--max-records cannot be negative")
@@ -302,6 +322,7 @@ def main() -> int:
     report = audit_corpus(
         args.data_dir, tokenizer, max_records=args.max_records,
         require_test=not args.allow_empty_test,
+        allow_missing_images=args.allow_missing_images,
     )
     output = args.output or (args.data_dir / "corpus_audit.json")
     output.parent.mkdir(parents=True, exist_ok=True)

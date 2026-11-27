@@ -77,13 +77,14 @@ class LargeScaleTrainingTests(unittest.TestCase):
     def test_token_audit_counts_splits_and_images(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            image = root / "small.jpg"
+            image = root / "assets" / "small.jpg"
+            image.parent.mkdir(parents=True)
             image.write_bytes(b"fake-image-bytes")
             rows = {
                 "train": [
                     {"record_id": "train-1", "domain": "structural", "source": "authored",
                      "license": "project-authored", "prompt": "Calculate beam reaction",
-                     "completion": "Reaction is 12 kN", "images": [str(image)]}
+                     "completion": "Reaction is 12 kN", "images": ["assets/small.jpg"]}
                 ],
                 "validation": [
                     {"record_id": "validation-1", "domain": "bim", "source": "public",
@@ -101,6 +102,7 @@ class LargeScaleTrainingTests(unittest.TestCase):
                 )
             report = audit_corpus(root, FakeTokenizer())
             self.assertEqual(report["status"], "PASS")
+            self.assertEqual(report["missing_image_file_count"], 0)
             self.assertGreater(report["train_text_tokens"], 0)
             self.assertEqual(report["image_files_total"], 1)
             self.assertEqual(report["missing_image_files"], [])
@@ -142,6 +144,33 @@ class LargeScaleTrainingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Cross-split source identity leakage"):
                 audit_corpus(root, FakeTokenizer())
 
+    def test_training_split_validation_resolves_relative_images_from_corpus_root(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            asset = root / "assets" / "small.jpg"
+            asset.parent.mkdir(parents=True)
+            asset.write_bytes(b"placeholder-asset-bytes")
+            records = {
+                "train": [{"record_id": "train-1", "prompt": "A", "completion": "B",
+                           "images": ["assets/small.jpg"]}],
+                "validation": [{"record_id": "validation-1", "prompt": "C", "completion": "D"}],
+                "test": [{"record_id": "test-1", "prompt": "E", "completion": "F"}],
+            }
+            indices = {}
+            for split, rows in records.items():
+                path = root / f"{split}.jsonl"
+                path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+                indices[split] = IndexedJSONL(path)
+            try:
+                report = validate_training_splits(
+                    indices["train"], indices["validation"], indices["test"]
+                )
+                self.assertEqual(report["status"], "PASS")
+                self.assertEqual(report["splits"]["train"]["image_files"], 1)
+            finally:
+                for indexed in indices.values():
+                    indexed.close()
+
     def test_missing_image_is_reported_not_silently_dropped(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -155,7 +184,11 @@ class LargeScaleTrainingTests(unittest.TestCase):
                     "".join(json.dumps(row) + "\n" for row in rows),
                     encoding="utf-8",
                 )
-            report = audit_corpus(root, FakeTokenizer())
+            with self.assertRaisesRegex(ValueError, "Missing image assets"):
+                audit_corpus(root, FakeTokenizer())
+            report = audit_corpus(root, FakeTokenizer(), allow_missing_images=True)
+            self.assertEqual(report["status"], "OVERRIDE_MISSING_IMAGES")
+            self.assertEqual(report["missing_image_file_count"], 1)
             self.assertEqual(len(report["missing_image_files"]), 1)
 
 
