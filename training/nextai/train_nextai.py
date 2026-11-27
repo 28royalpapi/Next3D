@@ -349,7 +349,14 @@ def main() -> int:
         return grouped
 
     validation_by_domain = evaluate_by_domain(validation_rows, "validation")
-    test_by_domain = evaluate_by_domain(test_rows, "test") if test_rows else {}
+    # Do not inspect held-out test outputs during fine-tuning. The independent
+    # base-versus-candidate test comparison is run only after the candidate is
+    # fully trained, using the separate post-training evaluation orchestrator.
+    test_by_domain = {
+        "status": "PENDING_POST_TRAINING",
+        "records": len(test_rows),
+        "evaluated_during_training": False,
+    }
 
     adapter_dir = output / "adapter"
     model.save_pretrained(str(adapter_dir))
