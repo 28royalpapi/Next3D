@@ -37,6 +37,9 @@ def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[st
         source_id = str((row.get("source") or {}).get("source_id") or "")
         if not source_id:
             raise ValueError(f"Next BIM {split} record has no source lineage")
+        expected_scenario = SCENARIOS[split][0]
+        if expected_scenario not in source_id or split not in source_id:
+            raise ValueError(f"Next BIM {split} record has a source lineage that does not match its scenario")
         lineages.add(source_id)
         validation = row.get("validation") or {}
         if validation.get("overall") not in {"passed", "passed_with_warnings"}:
@@ -51,6 +54,8 @@ def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[st
             raise ValueError(f"Next BIM {split} record contains no native commands")
         if any(operation.get("status") != "applied" for operation in operations):
             raise ValueError(f"Next BIM {split} record contains a failed command")
+        if any(operation.get("tool") != "wall" for operation in operations):
+            raise ValueError(f"Next BIM {split} acceptance trace may contain only native wall commands")
         operation_count += len(operations)
     if len(lineages) != 1:
         raise ValueError(f"Next BIM {split} stage records must share one source lineage")
