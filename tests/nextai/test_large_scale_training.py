@@ -213,7 +213,12 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
         sft_splits = {}
         split_counts = {}
         for split in ("train", "validation", "test"):
-            row = {"application": application, "split": split, "record_id": f"{application}-{split}"}
+            row = {
+                "application": application,
+                "split": split,
+                "record_id": f"{application}-{split}",
+                "source": {"source_id": f"{application}-{split}-project"},
+            }
             line = json.dumps(row) + "\\n"
             raw_rows.append(line)
             raw_splits[split] = add_artifact(
@@ -291,6 +296,26 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
             manifest["source_revision"] = "0" * 40
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "pinned source revision"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
+
+
+    def test_manifest_rejects_raw_to_sft_record_identity_loss(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest_path, manifest = self._build_manifest(root)
+            path = root / "sft" / "validation.jsonl"
+            payload = (json.dumps({
+                "application": "nextcad", "split": "validation", "record_id": "substituted-id",
+                "source": {"source_id": "nextcad-validation-project"},
+            }) + "\\n").encode()
+            path.write_bytes(payload)
+            manifest["artifact_inventory"]["sft_splits"]["validation"].update({
+                "bytes": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            })
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "SFT IDs do not exactly match accepted raw trace IDs"):
                 verify_native_collection_manifest(manifest_path, "nextcad")
 
     def test_manifest_rejects_sft_rows_with_wrong_application_or_split(self):
