@@ -1293,5 +1293,189 @@ _register(
 )
 
 
+
+def solve_rational_method_runoff(inputs: dict[str, float]) -> dict[str, Any]:
+    coefficient = float(inputs["runoff_coefficient"])
+    intensity_mm_hr = float(inputs["rainfall_intensity_mm_hr"])
+    area_ha = float(inputs["catchment_area_ha"])
+    if not 0 < coefficient <= 1 or intensity_mm_hr <= 0 or area_ha <= 0:
+        raise ValueError("Require 0 < runoff coefficient <= 1 and positive rainfall intensity and catchment area.")
+    intensity_m_s = intensity_mm_hr / 1000.0 / 3600.0
+    area_m2 = area_ha * 10000.0
+    discharge_m3_s = coefficient * intensity_m_s * area_m2
+    return {
+        "values": {
+            "rainfall_intensity_m_per_s": _round(intensity_m_s, 10),
+            "catchment_area_m2": _round(area_m2, 6),
+            "peak_runoff_m3_per_s": _round(discharge_m3_s, 8),
+            "peak_runoff_L_per_s": _round(discharge_m3_s * 1000.0, 6),
+        },
+        "units": {
+            "rainfall_intensity_m_per_s": "m/s",
+            "catchment_area_m2": "m²",
+            "peak_runoff_m3_per_s": "m³/s",
+            "peak_runoff_L_per_s": "L/s",
+        },
+        "steps": [
+            "Check that the runoff coefficient is dimensionless and lies in (0, 1].",
+            "Convert rainfall intensity from mm/h to m/s by dividing by 1000 and 3600.",
+            "Convert catchment area from hectares to square metres by multiplying by 10,000.",
+            "Apply Q = C i A to obtain peak runoff in m³/s, then convert to L/s.",
+            "State that the result is a Rational Method peak estimate, not a runoff hydrograph or storage-routing result.",
+        ],
+    }
+
+
+def solve_water_pump_power(inputs: dict[str, float]) -> dict[str, Any]:
+    flow_l_s = float(inputs["flow_rate_L_per_s"])
+    head = float(inputs["total_dynamic_head_m"])
+    pump_efficiency = float(inputs["pump_efficiency"])
+    motor_efficiency = float(inputs["motor_efficiency"])
+    density = float(inputs.get("water_density_kg_m3", 1000.0))
+    if min(flow_l_s, head, density) <= 0:
+        raise ValueError("Flow, total dynamic head and fluid density must be positive.")
+    if not 0 < pump_efficiency <= 1 or not 0 < motor_efficiency <= 1:
+        raise ValueError("Pump and motor efficiencies must lie in (0, 1].")
+    flow_m3_s = flow_l_s / 1000.0
+    hydraulic_w = density * 9.80665 * flow_m3_s * head
+    shaft_w = hydraulic_w / pump_efficiency
+    electrical_w = shaft_w / motor_efficiency
+    return {
+        "values": {
+            "flow_rate_m3_per_s": _round(flow_m3_s, 8),
+            "hydraulic_power_kW": _round(hydraulic_w / 1000.0, 6),
+            "pump_shaft_power_kW": _round(shaft_w / 1000.0, 6),
+            "electrical_input_power_kW": _round(electrical_w / 1000.0, 6),
+            "combined_pump_motor_efficiency": _round(pump_efficiency * motor_efficiency, 6),
+        },
+        "units": {
+            "flow_rate_m3_per_s": "m³/s",
+            "hydraulic_power_kW": "kW",
+            "pump_shaft_power_kW": "kW",
+            "electrical_input_power_kW": "kW",
+            "combined_pump_motor_efficiency": "dimensionless",
+        },
+        "steps": [
+            "Convert flow from L/s to m³/s.",
+            "Calculate hydraulic output power Ph = rho g Q H.",
+            "Divide hydraulic power by pump efficiency to obtain required shaft power.",
+            "Divide shaft power by motor efficiency to estimate electrical input power.",
+            "Check that the input power is not below shaft power and shaft power is not below hydraulic output.",
+        ],
+    }
+
+
+def solve_elastic_shallow_foundation_settlement(inputs: dict[str, float]) -> dict[str, Any]:
+    pressure = float(inputs["net_contact_pressure_kPa"])
+    width = float(inputs["footing_width_m"])
+    poisson = float(inputs["poisson_ratio"])
+    modulus_mpa = float(inputs["soil_elastic_modulus_MPa"])
+    influence = float(inputs["settlement_influence_factor"])
+    if min(pressure, width, modulus_mpa, influence) <= 0:
+        raise ValueError("Net pressure, footing width, soil modulus and influence factor must be positive.")
+    if not 0 <= poisson < 0.5:
+        raise ValueError("Poisson ratio must lie in [0, 0.5).")
+    modulus_kpa = modulus_mpa * 1000.0
+    settlement_m = pressure * width * (1.0 - poisson**2) * influence / modulus_kpa
+    return {
+        "values": {
+            "soil_elastic_modulus_kPa": _round(modulus_kpa, 6),
+            "elastic_settlement_m": _round(settlement_m, 8),
+            "elastic_settlement_mm": _round(settlement_m * 1000.0, 6),
+        },
+        "units": {
+            "soil_elastic_modulus_kPa": "kPa",
+            "elastic_settlement_m": "m",
+            "elastic_settlement_mm": "mm",
+        },
+        "steps": [
+            "Convert soil elastic modulus from MPa to kPa.",
+            "Use the supplied net contact pressure and footing width with s = q B (1 - nu²) Is / Es.",
+            "Evaluate the dimensionless Poisson correction and supplied influence factor.",
+            "Calculate elastic settlement in metres and convert to millimetres.",
+            "Treat this as an immediate elastic estimate only; consolidation, creep, layering and time effects are excluded.",
+        ],
+    }
+
+
+GOVERNING_EQUATIONS.update({
+    "solve_rational_method_runoff": [
+        "i_m/s = i_mm/hr / (1000 * 3600)",
+        "A_m² = A_ha * 10000",
+        "Q = C i A",
+        "Q_L/s = 1000 Q_m³/s",
+    ],
+    "solve_water_pump_power": [
+        "Q_m³/s = Q_L/s / 1000",
+        "P_hydraulic = rho g Q H",
+        "P_shaft = P_hydraulic / eta_pump",
+        "P_electrical = P_shaft / eta_motor",
+        "g = 9.80665 m/s²",
+    ],
+    "solve_elastic_shallow_foundation_settlement": [
+        "Es_kPa = Es_MPa * 1000",
+        "s = q_net B (1 - nu²) Is / Es",
+        "Convert settlement from m to mm",
+    ],
+})
+
+
+def _rational_runoff_inputs(rng: random.Random) -> dict[str, float]:
+    return {
+        "runoff_coefficient": _round(rng.uniform(0.15, 0.95), 3),
+        "rainfall_intensity_mm_hr": _round(rng.uniform(15.0, 180.0), 2),
+        "catchment_area_ha": _round(rng.uniform(0.5, 80.0), 2),
+    }
+
+
+def _pump_power_inputs(rng: random.Random) -> dict[str, float]:
+    return {
+        "flow_rate_L_per_s": _round(rng.uniform(0.5, 300.0), 2),
+        "total_dynamic_head_m": _round(rng.uniform(5.0, 160.0), 2),
+        "pump_efficiency": _round(rng.uniform(0.45, 0.9), 3),
+        "motor_efficiency": _round(rng.uniform(0.8, 0.97), 3),
+        "water_density_kg_m3": 1000.0,
+    }
+
+
+def _elastic_settlement_inputs(rng: random.Random) -> dict[str, float]:
+    return {
+        "net_contact_pressure_kPa": _round(rng.uniform(25.0, 300.0), 2),
+        "footing_width_m": _round(rng.uniform(1.0, 6.0), 2),
+        "poisson_ratio": _round(rng.uniform(0.2, 0.45), 3),
+        "soil_elastic_modulus_MPa": _round(rng.uniform(5.0, 80.0), 2),
+        "settlement_influence_factor": _round(rng.uniform(0.5, 1.2), 3),
+    }
+
+
+_register(
+    "engineering_hydraulics_rational_method_runoff", solve_rational_method_runoff, _rational_runoff_inputs,
+    (
+        "A catchment of {catchment_area_ha} ha has runoff coefficient C={runoff_coefficient}. For rainfall intensity {rainfall_intensity_mm_hr} mm/h, estimate peak runoff using the Rational Method.",
+        "Estimate peak design runoff for area {catchment_area_ha} ha, runoff coefficient {runoff_coefficient} and rainfall intensity {rainfall_intensity_mm_hr} mm/h using Q=C i A.",
+    ),
+    "Rational Method peak runoff estimate",
+    ("Rainfall intensity is uniform over the catchment and duration is appropriate to the time of concentration", "Runoff coefficient represents the selected land-use and antecedent conditions", "Peak discharge only; no hydrograph, detention routing or climate allowance"),
+)
+_register(
+    "engineering_hydraulics_water_pump_power", solve_water_pump_power, _pump_power_inputs,
+    (
+        "A water pump delivers {flow_rate_L_per_s} L/s against total dynamic head {total_dynamic_head_m} m. Pump efficiency is {pump_efficiency} and motor efficiency is {motor_efficiency}. Calculate hydraulic, shaft and electrical input powers.",
+        "Size the ideal power requirement for a water duty Q={flow_rate_L_per_s} L/s and TDH={total_dynamic_head_m} m, with pump efficiency {pump_efficiency} and motor efficiency {motor_efficiency}.",
+    ),
+    "Steady incompressible pump power from total dynamic head and component efficiencies",
+    ("Water density is the stated value", "Flow and total dynamic head are operating-point values", "No starting current, service factor, power-factor or transient design calculation"),
+)
+_register(
+    "engineering_geotechnical_elastic_foundation_settlement", solve_elastic_shallow_foundation_settlement, _elastic_settlement_inputs,
+    (
+        "A shallow footing has net contact pressure {net_contact_pressure_kPa} kPa and width {footing_width_m} m. Soil Es={soil_elastic_modulus_MPa} MPa, Poisson ratio nu={poisson_ratio} and influence factor Is={settlement_influence_factor}. Estimate immediate elastic settlement.",
+        "Estimate immediate elastic settlement for qnet={net_contact_pressure_kPa} kPa, B={footing_width_m} m, Es={soil_elastic_modulus_MPa} MPa, nu={poisson_ratio} and supplied influence factor Is={settlement_influence_factor}.",
+    ),
+    "Simplified elastic-half-space estimate for shallow footing immediate settlement",
+    ("Uniform net contact pressure and homogeneous elastic soil idealisation", "The influence factor is supplied for the footing shape, rigidity and selected settlement convention", "No layer-by-layer modulus profile, consolidation, creep, excavation rebound or time-rate analysis"),
+)
+
+
 if __name__ == "__main__":
     raise SystemExit(main())
