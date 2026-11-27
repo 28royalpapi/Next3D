@@ -20,6 +20,7 @@ from training.nextai.generate_verified_engineering_cases import (
     FAMILY_BUILDERS,
 )
 from training.nextai.run_large_scale_training import compare_heldout_evaluations, require_token_target
+from training.nextai.prepare_public_corpora import merge_native_trace_splits
 from training.nextai.prepare_large_scale_corpus import (
     build_capability_census_command,
     capability_census_summary,
@@ -156,6 +157,31 @@ class NativeTraceBuildIntegrationTests(unittest.TestCase):
                 handle.write(json.dumps(row) + "\n")
             with self.assertRaisesRegex(ValueError, "Duplicate native trace record_id"):
                 inspect_native_trace_inputs({"nextcad_native_train": duplicate})
+
+
+class NativeTraceRetentionTests(unittest.TestCase):
+    def test_native_train_validation_and_test_traces_are_not_lost_by_public_caps(self):
+        base_train = [{"record_id": "public-train"}]
+        base_validation = [{"record_id": "public-validation"}]
+        base_test = [{"record_id": "public-test"}]
+        native = {
+            "train": [{"record_id": f"cad-train-{i}"} for i in range(100)],
+            "validation": [{"record_id": "cad-validation"}, {"record_id": "bim-validation"}],
+            "test": [{"record_id": "cad-test"}, {"record_id": "bim-test"}],
+        }
+        train, validation, test = merge_native_trace_splits(
+            base_train, base_validation, base_test, native
+        )
+        self.assertEqual(len(train), 101)
+        self.assertEqual(len(validation), 3)
+        self.assertEqual(len(test), 3)
+        self.assertEqual(sum(row["record_id"].startswith("cad-train-") for row in train), 100)
+        self.assertEqual({row["record_id"] for row in validation}, {
+            "public-validation", "cad-validation", "bim-validation"
+        })
+        self.assertEqual({row["record_id"] for row in test}, {
+            "public-test", "cad-test", "bim-test"
+        })
 
 
 class LargeScaleTrainingTests(unittest.TestCase):

@@ -3590,6 +3590,20 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
     return selected
 
 
+def merge_native_trace_splits(
+    base_train: list[dict[str, Any]],
+    base_validation: list[dict[str, Any]],
+    base_test: list[dict[str, Any]],
+    native_splits: dict[str, list[dict[str, Any]]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Append all native execution evidence after public-data sampling/capping."""
+    return (
+        base_train + list(native_splits.get("train", [])),
+        base_validation + list(native_splits.get("validation", [])),
+        base_test + list(native_splits.get("test", [])),
+    )
+
+
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -3852,6 +3866,12 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         counts["ifc_model_validation_records"] = len(ifc_records["validation"])
         counts["ifc_model_test_records"] = len(ifc_records["test"])
 
+    native_splits: dict[str, list[dict[str, Any]]] = {"train": [], "validation": [], "test": []}
+    native_application_splits: dict[tuple[str, str], list[dict[str, Any]]] = {
+        (application, split): []
+        for application in ("nextcad", "nextbim")
+        for split in ("train", "validation", "test")
+    }
     native_specs = (
         ("nextcad_native", "nextcad", "train", args.nextcad_native_train or args.nextcad_native),
         ("nextcad_native", "nextcad", "validation", args.nextcad_native_validation),
@@ -3862,14 +3882,9 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     )
     for domain, application, split, native_path in native_specs:
         rows = read_native(native_path, domain, application, split)
-        if split == "train":
-            groups[domain].extend(rows)
-        elif split == "validation":
-            validation.extend(rows)
-        else:
-            tests.extend(rows)
-        if rows:
-            counts[f"{domain}_{split}"] = len(rows)
+        native_splits[split].extend(rows)
+        native_application_splits[(application, split)].extend(rows)
+        counts[f"{domain}_{split}"] = len(rows)
     synthetic_splits = split_synthetic_curriculum(make_synthetic_curriculum())
     for lesson in synthetic_splits["train"]:
         groups.setdefault(lesson["domain"], []).append(lesson)
@@ -3899,11 +3914,14 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     counts["capability_knowledge_total"] = len(capability_lessons)
 
     base_train = sample_balanced(groups, args.max_mixed_train, args.seed)
-    train = base_train + skill_splits["train"] + capability_splits["train"]
     base_validation = validation[:args.max_validation]
     base_tests = tests[:args.max_test]
-    validation_rows = base_validation + skill_splits["validation"] + capability_splits["validation"]
-    test_rows = base_tests + skill_splits["test"] + capability_splits["test"]
+    train, validation_rows, test_rows = merge_native_trace_splits(
+        base_train, base_validation, base_tests, native_splits
+    )
+    train += skill_splits["train"] + capability_splits["train"]
+    validation_rows += skill_splits["validation"] + capability_splits["validation"]
+    test_rows += skill_splits["test"] + capability_splits["test"]
     random.Random(args.seed + 1).shuffle(validation_rows)
     random.Random(args.seed + 2).shuffle(test_rows)
     random.Random(args.seed + 3).shuffle(train)
@@ -3917,6 +3935,12 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     write_jsonl(out / "capability_train.jsonl", capability_splits["train"])
     write_jsonl(out / "capability_validation.jsonl", capability_splits["validation"])
     write_jsonl(out / "capability_test.jsonl", capability_splits["test"])
+    for application in ("nextcad", "nextbim"):
+        for split in ("train", "validation", "test"):
+            write_jsonl(
+                out / f"{application}_native_{split}.jsonl",
+                native_application_splits[(application, split)],
+            )
     write_jsonl(out / "quarantine.jsonl", quarantine)
 
     manifest = {
@@ -3947,6 +3971,14 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "test_records": len(test_rows),
         "quarantined_rows": len(quarantine),
         "training_domain_counts": dict(Counter(row["domain"] for row in train)),
+        "native_execution_trace_records": {
+            application: {
+                split: len(native_application_splits[(application, split)])
+                for split in ("train", "validation", "test")
+            }
+            for application in ("nextcad", "nextbim")
+        },
+        "native_execution_traces_retained_outside_public_sampling_caps": True,
         "test_not_used_for_training": True,
         "raw_data_and_images_not_shipped_in_installer": True,
         "notes": [
@@ -3955,7 +3987,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "IFC text examples are not proof of an IFC file or BIMCraft project passing validation.",
             "The IFC dedup set is excluded from positive lessons until its generated IFC is validated.",
             "Standards remain versioned retrieval references, not copied wholesale into model weights.",
-            "Every first-party local skill and every pinned capability metadata lesson is retained in dedicated sidecar splits and merged into the training/validation/test JSONL files without the capped mixed-corpus sampler.",
+            "Every first-party local skill, pinned capability metadata lesson and validated native execution trace is retained in dedicated sidecar splits and merged into its exact train/validation/test output without the capped public/mixed sampler.",
             "Swiss Dwellings images and vector labels are a training-only optional corpus; the 931.9 MB source archive is not part of the runtime package.",
             "Swiss Dwellings floors from the same building are kept in one data split to prevent train/test leakage.",
             "Optional IFC model records are split by source model or paired project team; free-text names and original GlobalIds are excluded.",

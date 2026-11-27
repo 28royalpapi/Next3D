@@ -92,3 +92,10 @@ This improves corpus portability and catches multimodal asset failures before ba
 - Before corpus construction it validates each JSONL file's application identity, declared split, conversation shape, stable record IDs and JSON integrity; it records per-file SHA-256 fingerprints and row counts in the large-scale plan.
 - `--require-native-traces` is a strict mode that refuses to build the execution-training corpus unless all six app/split files are present and non-empty. This prevents the project from confusing capability descriptions or synthetic plans with examples of successful native operations.
 - These are input gates and plumbing, not a claim that a set of L3/L4/L5 native traces has already been collected. The validated native trace preparation route remains `prepare_native_sft.py`; records must prove native validation, recompute and save/reopen, have reviewed provenance/privacy, and pass the training-record schema.
+
+
+## Preservation of validated native traces — 27 November 2026
+
+- Native NextCAD and Next BIM operation traces are now assembled separately from the capped public/synthetic sample. All accepted native training traces are appended after public-data sampling; all native validation and test traces are appended after the public validation/test caps.
+- Six application/split sidecar files are emitted (`nextcad_native_{train,validation,test}.jsonl` and `nextbim_native_{train,validation,test}.jsonl`) and their exact per-split counts are recorded in the manifest.
+- This prevents high-evidence native operation examples from being lost to random down-sampling and protects native held-out evidence from public-data limits. The test split remains held out and is not added to training.
