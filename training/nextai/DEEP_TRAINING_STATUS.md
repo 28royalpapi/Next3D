@@ -2,6 +2,19 @@
 
 This report describes the actual implementation state of branch `nextai-deep-training`. It is not a claim that a Qwen model has already been fine-tuned.
 
+## Latest verified checkpoint — 27 November 2026, 07:22 UTC
+
+The implementation received two additional fail-closed protections:
+
+- run_large_scale_training.py now refuses to start GPU fine-tuning when the exact Qwen-tokenizer audit is below the configured target (400,000,000 by default). A below-target run is possible only with the explicit --allow-below-token-target pilot flag, and its result is labelled PILOT_OVERRIDE rather than target-met.
+- When publishing is enabled, the runner checks for HF_TOKEN before it reaches GPU training. This avoids finishing an expensive run only to discover that the artifacts cannot be uploaded.
+- Four tests cover exact target success, under-target refusal, exact shortfall reporting and explicit pilot labelling.
+- GitHub Actions run [45957925863](https://github.com/28royalpapi/Next3D/actions/runs/45957925863) completed successfully on this branch. The test, Python compilation and CLI-help steps all passed.
+
+The latest connected Hugging Face inspection still shows zero active Jobs. The private model and dataset repositories currently contain only .gitattributes; no corpus, checkpoints, adapters or trained weights are present. The connected OAuth credential exposes jobs and read-repos, not repository-write scope. A separate Hugging Face write token must therefore be provided securely as HF_TOKEN for artifact publication. No GPU job has been submitted: the 400M corpus has not yet been built/audited, and a maximum compute spend has not been authorised.
+
+This checkpoint is evidence of stronger training controls and passing code checks, not evidence of corpus completion or model training.
+
 ## Implemented in the repository
 
 - Full-source corpus builder for the published Zero-to-CAD, IFC/BIM Alpaca and IFC/BIM QA splits.
