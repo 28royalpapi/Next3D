@@ -228,5 +228,5 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - Validated code commit: fbf515228ee7c54193ed6b90cabd5453321c7c18.
 - Deep-training CI run 45972631867 passed: 65 corpus/training tests, 9 native SFT tests, 13 Next BIM split/evidence tests and 8 NextCAD split/artifact tests (95 total); compilation and CLI-help checks passed.
 - Run: https://github.com/28royalpapi/Next3D/actions/runs/45972631867
-- Selector smoke run 45972631858 was still completing its cross-platform jobs at this checkpoint.
+- Selector smoke run 45972631858 passed on Windows, Linux and macOS Intel; all three jobs completed successfully.
 - Hugging Face recheck: zero active jobs; the model and dataset repositories still contain only .gitattributes. No weights or corpus artifacts have been published, and no paid compute has been started.
