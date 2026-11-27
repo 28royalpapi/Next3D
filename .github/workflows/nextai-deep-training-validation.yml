@@ -18,6 +18,7 @@ on:
       - "scripts/run_nextbim_ai_acceptance.py"
       - "scripts/collect_nextbim_native_splits.py"
       - "tests/nextai/test_large_scale_training.py"
+      - "tests/next-ai/test_nextbim_native_collection.py"
       - ".github/workflows/nextai-deep-training-validation.yml"
   workflow_dispatch:
 
@@ -34,6 +35,8 @@ jobs:
           python-version: "3.12"
       - name: Run large-scale corpus audit unit tests
         run: python -m unittest tests.nextai.test_large_scale_training -v
+      - name: Test native NextCAD/Next BIM SFT conversion and evidence records
+        run: python -m unittest discover -s tests/next-ai -p 'test_nextbim_native_collection.py' -v
       - name: Compile training pipeline scripts
         run: |
           python - <<'PY'
