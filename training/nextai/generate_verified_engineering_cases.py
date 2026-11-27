@@ -489,8 +489,11 @@ def _builder(
                 "Check the applicable project standards and independent engineering requirements before real use.",
             ],
         }
-        if solved.get("steps"):
-            expected["calculation_steps"] = solved["steps"]
+        expected["calculation_steps"] = solved.get("steps") or [
+            "Read the supplied inputs and keep their units explicit; convert quantities to a consistent unit system where required.",
+            "Apply the governing equations in the listed order and retain intermediate values with units.",
+            "Check dimensional consistency, sign convention and the physical reasonableness of the calculated outputs.",
+        ]
         return {"prompt": prompt, "expected": expected, "solver": solver.__name__}
     return make, solver.__name__
 
