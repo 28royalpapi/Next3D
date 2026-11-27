@@ -23,6 +23,7 @@ from training.nextai.run_large_scale_training import (
     compare_heldout_evaluations,
     require_token_target,
     validate_native_trace_coverage,
+    validate_training_step_budget,
 )
 from training.nextai.prepare_public_corpora import merge_native_trace_splits
 from training.nextai.prepare_large_scale_corpus import (
@@ -49,6 +50,25 @@ class FakeTokenizer:
 
     def encode(self, text, add_special_tokens=False):
         return text.split()
+
+
+
+class BoundedTrainingPilotTests(unittest.TestCase):
+    def test_positive_max_steps_are_accepted_for_a_bounded_pilot(self):
+        validate_training_step_budget(200, 1.0)
+
+    def test_full_epoch_mode_remains_the_default_contract(self):
+        validate_training_step_budget(-1, 1.0)
+
+    def test_zero_or_less_than_minus_one_steps_are_rejected(self):
+        for value in (0, -2, -100):
+            with self.subTest(max_steps=value), self.assertRaisesRegex(ValueError, "max_steps"):
+                validate_training_step_budget(value, 1.0)
+
+    def test_non_positive_epoch_count_is_rejected(self):
+        for value in (0.0, -0.5):
+            with self.subTest(epochs=value), self.assertRaisesRegex(ValueError, "epochs"):
+                validate_training_step_budget(-1, value)
 
 
 class CapabilityCensusIntegrationTests(unittest.TestCase):
