@@ -80,6 +80,39 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
         self.assertAlmostEqual(result["values"]["effective_normal_stress_kPa"], expected_normal - 5.0, places=6)
         self.assertAlmostEqual(result["values"]["factor_of_safety"], expected_strength / expected_driving, places=6)
 
+
+    def test_new_family_domains_are_included_in_progressive_training_stages(self):
+        trainer_path = Path(__file__).resolve().parents[2] / "training/nextai/train_nextai.py"
+        trainer_spec = importlib.util.spec_from_file_location("nextai_training_curriculum", trainer_path)
+        trainer = importlib.util.module_from_spec(trainer_spec)
+        trainer_spec.loader.exec_module(trainer)
+        expected_stages = {
+            "engineering_structural_euler_column_buckling": "foundations",
+            "engineering_geotechnical_rankine_active_pressure": "foundations",
+            "engineering_hydraulics_hydrostatic_gate": "foundations",
+            "engineering_geotechnical_terzaghi_strip_footing": "foundations",
+            "engineering_geotechnical_infinite_slope": "foundations",
+        }
+        for domain, expected_stage in expected_stages.items():
+            with self.subTest(domain=domain):
+                self.assertEqual(
+                    trainer.curriculum_stage_for_record({"domain": domain}),
+                    expected_stage,
+                )
+
+    def test_new_solvers_reject_invalid_physical_inputs(self):
+        invalid_cases = (
+            (MODULE.solve_euler_column_buckling, {"unsupported_length_m": 0, "effective_length_factor": 1, "elastic_modulus_GPa": 200, "second_moment_mm4": 8e7, "area_mm2": 5000}),
+            (MODULE.solve_rankine_active_pressure, {"soil_unit_weight_kN_m3": 18, "retained_height_m": 5, "uniform_surcharge_kPa": 0, "friction_angle_deg": 0}),
+            (MODULE.solve_hydrostatic_vertical_gate, {"gate_width_m": 2, "gate_height_m": 0, "gate_top_depth_below_free_surface_m": 1}),
+            (MODULE.solve_terzaghi_strip_footing, {"effective_cohesion_kPa": 0, "surcharge_at_foundation_level_kPa": 0, "effective_soil_unit_weight_kN_m3": 18, "footing_width_m": 2, "bearing_factor_Nc": 0, "bearing_factor_Nq": 20, "bearing_factor_Ngamma": 20, "factor_of_safety": 3}),
+            (MODULE.solve_infinite_slope_factor_of_safety, {"effective_cohesion_kPa": 0, "soil_unit_weight_kN_m3": 18, "normal_soil_thickness_m": 2, "pore_water_pressure_kPa": 999, "slope_angle_deg": 30, "effective_friction_angle_deg": 25}),
+        )
+        for solver, inputs in invalid_cases:
+            with self.subTest(solver=solver.__name__):
+                with self.assertRaises(ValueError):
+                    solver(inputs)
+
     def test_new_families_join_deterministic_l0_corpus_generation(self):
         splits, manifest = MODULE.generate_cases(cases_per_domain=3, seed=20261127)
         self.assertEqual(len(MODULE.FAMILY_BUILDERS), 22)
