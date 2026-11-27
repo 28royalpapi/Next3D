@@ -30,6 +30,7 @@ from training.nextai.prepare_large_scale_corpus import (
     capability_census_summary,
     inspect_native_trace_inputs,
     native_trace_command_args,
+    verify_native_collection_manifest,
 )
 from training.nextai.evaluate_nextai import fingerprint_records
 from scripts.collect_nextcad_native_splits import validate_split_trace_rows, validate_source_lineage_separation
@@ -180,7 +181,137 @@ class NativeTraceBuildIntegrationTests(unittest.TestCase):
                 inspect_native_trace_inputs({"nextcad_native_train": duplicate})
 
 
-class NativeTraceRetentionTests(unittest.TestCase):
+
+
+class NativeCollectionManifestVerificationTests(unittest.TestCase):
+    def _build_manifest(self, root: Path, application: str = "nextcad"):
+        import hashlib
+        from training.nextai.prepare_large_scale_corpus import NATIVE_COLLECTION_MANIFEST_SPECS
+
+        root.mkdir(parents=True, exist_ok=True)
+        sft_summary = {"quarantine": 0, "source_groups_with_split_leakage": 0}
+        (root / "sft").mkdir()
+        (root / "sft" / "summary.json").write_text(json.dumps(sft_summary) + "\\n", encoding="utf-8")
+        inventory = {}
+
+        def add_artifact(key, relative, payload, *, records=None):
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(payload)
+            item = {
+                "path": relative,
+                "bytes": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            }
+            if records is not None:
+                item["records"] = records
+            inventory[key] = item
+            return item
+
+        raw_rows = []
+        raw_splits = {}
+        sft_splits = {}
+        split_counts = {}
+        for split in ("train", "validation", "test"):
+            row = {"application": application, "split": split, "record_id": f"{application}-{split}"}
+            line = json.dumps(row) + "\\n"
+            raw_rows.append(line)
+            raw_splits[split] = add_artifact(
+                f"raw-{split}", f"{application}-native-{split}.jsonl", line.encode(), records=1
+            )
+            sft_splits[split] = add_artifact(
+                f"sft-{split}", f"sft/{split}.jsonl", line.encode(), records=1
+            )
+            split_counts[split] = 1
+
+        add_artifact("raw_trace", "native-records.jsonl", "".join(raw_rows).encode(), records=3)
+        add_artifact("sft_quarantine", "sft/quarantine.jsonl", b"", records=0)
+        add_artifact("sft_summary", "sft/summary.json", (json.dumps(sft_summary) + "\\n").encode())
+        manifest = {
+            "schema_version": NATIVE_COLLECTION_MANIFEST_SPECS[application][0],
+            "application": application,
+            "source_revision": NATIVE_COLLECTION_MANIFEST_SPECS[application][1],
+            "independent_engineering_validation": "not_claimed",
+            "sft_summary": sft_summary,
+            "split_record_counts": split_counts,
+            "artifact_inventory": {
+                "raw_trace": inventory["raw_trace"],
+                "raw_splits": raw_splits,
+                "sft_splits": sft_splits,
+                "sft_quarantine": inventory["sft_quarantine"],
+                "sft_summary": inventory["sft_summary"],
+            },
+        }
+        path = root / "manifest.json"
+        path.write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+        return path, manifest
+
+    def test_valid_nextcad_and_nextbim_manifests_return_verified_split_paths(self):
+        for application in ("nextcad", "nextbim"):
+            with self.subTest(application=application), tempfile.TemporaryDirectory() as temp:
+                manifest_path, _ = self._build_manifest(Path(temp), application)
+                result = verify_native_collection_manifest(manifest_path, application)
+                self.assertTrue(result["artifact_inventory_verified"])
+                self.assertEqual(result["application"], application)
+                self.assertEqual(result["split_record_counts"], {
+                    "train": 1, "validation": 1, "test": 1,
+                })
+                self.assertEqual(set(result["verified_sft_files"]), {"train", "validation", "test"})
+                self.assertEqual(len(result["manifest_sha256"]), 64)
+
+    def test_manifest_rejects_artifact_tampering(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manifest_path, _ = self._build_manifest(Path(temp))
+            (Path(temp) / "sft" / "train.jsonl").write_text('{"tampered":true}\\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
+
+    def test_manifest_rejects_paths_that_escape_collection_root(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest_path, manifest = self._build_manifest(root)
+            outside = root.parent / "outside-native-trace.jsonl"
+            outside.write_text("{}\\n", encoding="utf-8")
+            item = manifest["artifact_inventory"]["sft_splits"]["train"]
+            payload = outside.read_bytes()
+            item.update({
+                "path": "../" + outside.name,
+                "bytes": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "records": 1,
+            })
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "escapes its collection directory"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
+
+    def test_manifest_rejects_wrong_pinned_source_revision(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manifest_path, manifest = self._build_manifest(Path(temp))
+            manifest["source_revision"] = "0" * 40
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "pinned source revision"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
+
+    def test_manifest_rejects_sft_rows_with_wrong_application_or_split(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest_path, manifest = self._build_manifest(root)
+            path = root / "sft" / "train.jsonl"
+            payload = (json.dumps({
+                "application": "nextbim", "split": "validation", "record_id": "wrong-row"
+            }) + "\\n").encode()
+            path.write_bytes(payload)
+            manifest["artifact_inventory"]["sft_splits"]["train"].update({
+                "bytes": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            })
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "wrong application or split"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
+
+\nclass NativeTraceRetentionTests(unittest.TestCase):
     def test_native_train_validation_and_test_traces_are_not_lost_by_public_caps(self):
         base_train = [{"record_id": "public-train"}]
         base_validation = [{"record_id": "public-validation"}]
