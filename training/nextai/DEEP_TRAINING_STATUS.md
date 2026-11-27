@@ -288,3 +288,33 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - Added a dedicated GitHub Actions workflow to materialize 10,000 cases in each of the 25 families (250,000 L0 records), audit the train/validation/test files using the Qwen student tokenizer, verify family counts, unique record IDs, split labels and L0 evidence classification, then publish the dataset and audit as an artifact. Run [45978683242](https://github.com/28royalpapi/Next3D/actions/runs/45978683242) has successfully installed the tokenizer and generated the records; the Qwen token audit was still running at this checkpoint, so no measured token total or artifact is claimed yet.
 - The focused native app run [45974244091](https://github.com/28royalpapi/Next3D/actions/runs/45974244091) remains in progress; NextCAD is still building and Next BIM is still running its native Rust test suite. No successful app build/round-trip or real native trace artifacts are confirmed.
 - Hugging Face reports zero active jobs and both private NextAI repositories still contain only `.gitattributes`; fine-tuning has not started. No weights exist.
+
+
+
+## Verified 250,000-record analytic corpus and first native application round-trip — 27 November 2026, 15:30 WAT
+
+### Qwen-tokenizer-audited analytic data
+
+- Materialization workflow [45980144277](https://github.com/28royalpapi/Next3D/actions/runs/45980144277) completed successfully and published artifact [nextai-250k-analytic-curriculum](https://github.com/28royalpapi/Next3D/actions/runs/45980144277/artifacts/15189106683) (45,676,217-byte ZIP; SHA-256 `1bc73722f7b6b41525b8c19e0ab9648e6840c8481794c348030d68628c3c8139`).
+- The artifact contains 25 analytic engineering families × 10,000 records = 250,000 L0 educational calculation records.
+- Exact split counts: 225,091 train; 12,491 validation; 12,418 held-out test.
+- Qwen/Qwen3.5-0.8B tokenizer audit: 129,430,330 training text tokens; 7,191,201 validation text tokens; 7,128,301 held-out test text tokens. Training tokens are 32.36% of the 400,000,000-token training target, leaving a 270,569,670-token shortfall.
+- Audit status PASS: no duplicate IDs, duplicate normalized texts, cross-split identity leakage, or missing image assets. This is L0 analytical education material, not native CAD/BIM execution or independent professional engineering validation.
+- The original workflow emitted a malformed trailing literal `\\n` in its auxiliary `milestone-summary.json` despite the primary manifest and tokenizer audit passing. This serialization defect was found during direct artifact inspection and corrected in commit `853c775d4a57270e4c7294a8c0016c4e8a300abb`; the next materialization run parses the written summary back before upload.
+
+### Actual native application execution evidence
+
+- The earlier focused native run [45974244091](https://github.com/28royalpapi/Next3D/actions/runs/45974244091) successfully compiled both pinned Linux applications and passed their actual project round trips:
+  - NextCAD: native FCStd create/save/reopen/edit/save/reopen; solid volume 12,000.
+  - Next BIM: sample project create/save/reopen/edit/save/reopen; wall count increased from 8 to 9.
+- The same run's native trace collection did not complete: Next BIM's runner could not import the repository's `training` package from the BIMCraft working directory; NextCAD's shell collector invocation passed malformed arguments because of doubled line-continuation backslashes.
+- Fixes now committed: Next BIM runner makes the repository root importable; a regression test exercises `--help` from an unrelated working directory; the NextCAD workflow collector command uses valid shell line continuations. The regression suite passed in deep run [46016461503](https://github.com/28royalpapi/Next3D/actions/runs/46016461503).
+- Corrected focused native workflow [46016419877](https://github.com/28royalpapi/Next3D/actions/runs/46016419877) is running against both Linux targets. Until the collectors upload and their manifests are inspected, do not count native traces as collected.
+
+### Actual model-training status
+
+- The 250,000-record analytic data artifact and 129,430,330 measured Qwen training tokens are now materialized and verified, but this is not the complete multimodal CAD/BIM/engineering curriculum corpus.
+- The Qwen student has still not begun fine-tuning. Hugging Face reports zero active jobs; the private student and dataset repositories contain only `.gitattributes`. There are no adapters, checkpoints or updated weights.
+- A bounded pilot is technically supported by the runner's explicit `--allow-below-token-target` mode, but no GPU training may be submitted without an authorised compute environment and explicit maximum spend approval. The 400M target gate remains default-on for a full programme run.
+
+This checkpoint corrects the earlier misleading materialization status: the 250k L0 dataset did complete and pass the Qwen token audit. It separately preserves the distinction between audited data, native execution traces, and actual model fine-tuning.
