@@ -181,6 +181,44 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
         }
         self.assertEqual(len(input_pairs), 10_000)
 
+    def test_generator_resamples_duplicate_model_facing_conversations(self):
+        original_builders = MODULE.FAMILY_BUILDERS
+        calls = 0
+
+        def repeated_then_unique(_rng):
+            nonlocal calls
+            calls += 1
+            value = "same-input" if calls <= 2 else f"unique-input-{calls}"
+            return {
+                "prompt": f"Calculate the engineering result for {value}.",
+                "expected": {
+                    "inputs": {"case": value},
+                    "calculation_steps": ["Use the supplied case identifier as test data."],
+                },
+                "solver": "test_solver",
+            }
+
+        MODULE.FAMILY_BUILDERS = {"test_family": (repeated_then_unique, "test_solver")}
+        try:
+            splits, manifest = MODULE.generate_cases(cases_per_domain=2, seed=123)
+        finally:
+            MODULE.FAMILY_BUILDERS = original_builders
+
+        rows = [row for split_rows in splits.values() for row in split_rows]
+        normalized_conversations = {
+            " ".join(
+                "\\n".join(
+                    f"<{message['role']}>\\n{message['content']}" for message in row["messages"]
+                ).split()
+            )
+            for row in rows
+        }
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(len(normalized_conversations), 2)
+        self.assertEqual(calls, 3)
+        self.assertEqual(manifest["duplicate_conversation_retries"], 1)
+        self.assertEqual(manifest["duplicate_conversation_retries_by_family"], {"test_family": 1})
+
     def test_new_families_join_deterministic_l0_corpus_generation(self):
         splits, manifest = MODULE.generate_cases(cases_per_domain=3, seed=20261127)
         self.assertEqual(len(MODULE.FAMILY_BUILDERS), 25)
