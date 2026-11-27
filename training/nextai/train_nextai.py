@@ -189,8 +189,11 @@ def validate_training_splits(
     }
 
 
-def conversation_row_for_collator(row: dict[str, Any]) -> dict[str, Any]:
-    """Preserve Qwen tool-call messages and pass per-example tool schemas to its chat template."""
+def conversation_row_for_collator(
+    row: dict[str, Any],
+    image_loader=None,
+) -> dict[str, Any]:
+    """Preserve tool schemas and attach real image assets when a message record has them."""
     messages = row.get("messages")
     if not isinstance(messages, list):
         raise ValueError("A conversational training record must contain a messages list.")
@@ -202,6 +205,43 @@ def conversation_row_for_collator(row: dict[str, Any]) -> dict[str, Any]:
         if isinstance(item.get("content"), str):
             item["content"] = [{"type": "text", "text": item["content"]}]
         normalized.append(item)
+
+    image_paths = [str(path) for path in (row.get("images") or [])]
+    if image_paths and image_loader is not None:
+        user_index = next(
+            (index for index, message in enumerate(normalized) if message["role"] == "user"),
+            None,
+        )
+        if user_index is None:
+            raise ValueError("A multimodal conversational record must contain a user message.")
+        user_message = normalized[user_index]
+        content = user_message.get("content")
+        if isinstance(content, str):
+            content = [{"type": "text", "text": content}]
+        if not isinstance(content, list):
+            raise ValueError("A multimodal user message must have string or list content.")
+
+        loaded_images = [
+            {"type": "image", "image": image_loader(path)}
+            for path in image_paths
+        ]
+        rebuilt = []
+        image_index = 0
+        placeholder_count = 0
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "image":
+                placeholder_count += 1
+                if image_index >= len(loaded_images):
+                    raise ValueError("The message contains more image placeholders than image assets.")
+                rebuilt.append(loaded_images[image_index])
+                image_index += 1
+            else:
+                rebuilt.append(part)
+        if placeholder_count == 0:
+            rebuilt = loaded_images + rebuilt
+        elif image_index < len(loaded_images):
+            rebuilt = loaded_images[image_index:] + rebuilt
+        user_message["content"] = rebuilt
 
     result = {"messages": normalized}
     template_kwargs = dict(row.get("chat_template_kwargs") or {})
@@ -277,7 +317,13 @@ def main() -> int:
             row_index = self.indices[index] if self.indices is not None else index
             row = self.rows[row_index]
             if isinstance(row.get("messages"), list):
-                return conversation_row_for_collator(row)
+                def load_image(path):
+                    with Image.open(path) as image:
+                        return image.convert("RGB").copy()
+                return conversation_row_for_collator(
+                    row,
+                    image_loader=load_image if row.get("images") else None,
+                )
             content = []
             for image_path in row.get("images") or []:
                 with Image.open(image_path) as image:
@@ -392,23 +438,13 @@ def main() -> int:
     )
     eval_metrics = trainer.evaluate()
 
-    def evaluate_by_domain(rows, prefix):
-        grouped = {}
-        domain_indices: dict[str, list[int]] = {}
-        for index, row in enumerate(rows):
-            domain = str(row.get("domain") or "unknown")
-            domain_indices.setdefault(domain, []).append(index)
-        for domain, indices in sorted(domain_indices.items()):
-            if not indices:
-                continue
-            metrics = trainer.evaluate(
-                eval_dataset=ConversationDataset(rows, indices=indices),
-                metric_key_prefix=f"{prefix}_{domain}",
-            )
-            grouped[domain] = metrics
-        return grouped
-
-    validation_by_domain = evaluate_by_domain(validation_rows, "validation")
+    # Domain-level generative evaluation runs once after training, in the
+    # orchestration stage. Do not run a second full validation pass for every
+    # domain from inside the trainer.
+    validation_by_domain = {
+        "status": "PENDING_POST_TRAINING_EVALUATION",
+        "domains": integrity["splits"]["validation"]["domains"],
+    }
     # Do not inspect held-out test outputs during fine-tuning. The independent
     # base-versus-candidate test comparison is run only after the candidate is
     # fully trained, using the separate post-training evaluation orchestrator.
