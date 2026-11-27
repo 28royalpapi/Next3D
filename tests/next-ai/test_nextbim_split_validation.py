@@ -28,20 +28,20 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
             validate_source_lineage_separation(reports)
 
     def test_failed_save_reopen_or_recompute_evidence_is_rejected(self):
-        rows = self.rows("test", "expanded")
+        rows = self.rows("test", "test-expanded")
         rows[0]["validation"]["round_trip_passed"] = False
         with self.assertRaisesRegex(ValueError, "lacks save/reopen or recompute evidence"):
             validate_split_trace_rows("test", rows)
 
     def test_source_lineage_must_identify_the_expected_split_scenario(self):
-        rows = self.rows("train", "compact")
+        rows = self.rows("train", "train-compact")
         rows[0]["source"]["source_id"] = "native-bim:wrong-scenario:train:pinned"
         rows[1]["source"]["source_id"] = "native-bim:wrong-scenario:train:pinned"
         with self.assertRaisesRegex(ValueError, "does not match its scenario"):
             validate_split_trace_rows("train", rows)
 
     def test_collector_rejects_commands_outside_wall_acceptance_scope(self):
-        rows = self.rows("test", "expanded")
+        rows = self.rows("test", "test-expanded")
         rows[0]["operations"][0]["tool"] = "beam"
         with self.assertRaisesRegex(ValueError, "only native wall commands"):
             validate_split_trace_rows("test", rows)
