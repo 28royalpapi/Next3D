@@ -6,7 +6,7 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
     def rows(self, split, scenario):
         return [{
             "schema_version": "1.0.0", "record_id": f"{scenario}-{stage}", "application": "nextbim",
-            "split": split, "source": {"source_id": f"native-bim:{scenario}:pinned"},
+            "split": split, "source": {"source_id": f"native-bim:{scenario}:{split}:a0c57b738e308d433ab4b8c0c93d7fff9e53bc1"},
             "native_states": {"after": {"sha256": "a" * 64}},
             "validation": {"overall": "passed", "round_trip_passed": True, "recompute_passed": True},
             "operations": [{"tool": "wall", "status": "applied"}],
@@ -14,9 +14,9 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
 
     def test_three_splits_validate_with_distinct_project_lineages(self):
         reports = {
-            "train": validate_split_trace_rows("train", self.rows("train", "compact")),
-            "validation": validate_split_trace_rows("validation", self.rows("validation", "standard")),
-            "test": validate_split_trace_rows("test", self.rows("test", "expanded")),
+            "train": validate_split_trace_rows("train", self.rows("train", "train-compact")),
+            "validation": validate_split_trace_rows("validation", self.rows("validation", "validation-standard")),
+            "test": validate_split_trace_rows("test", self.rows("test", "test-expanded")),
         }
         validate_source_lineage_separation(reports)
         self.assertEqual([reports[k]["records"] for k in ("train", "validation", "test")], [2, 2, 2])
