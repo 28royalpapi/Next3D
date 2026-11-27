@@ -96,6 +96,20 @@ For the 0.8B student, training must use staged, domain-balanced batches and repl
 
 The application must also keep versioned retrieval, typed native execution and engineering validators. A compact student cannot safely store every version of every CAD/BIM manual or guarantee professional design approval from model weights alone.
 
+## Progressive five-stage course
+
+Each SFT epoch is now ordered as an actual progressive course rather than shuffled as one flat mixture:
+
+1. **Foundations:** mathematical relationships, units, measurements, statics and basic engineering calculations.
+2. **CAD/BIM fluency:** parametric CAD concepts, geometry/feature traces, IFC semantics and BIM model structure.
+3. **Engineering disciplines:** civil/structural/geotechnical/hydraulic/mechanical/electrical reasoning, including the BuildEng source.
+4. **Operator methods:** capability discovery, design interviews, command/schema selection, planning, revision and recovery.
+5. **Integrated projects:** native execution traces and complete multi-discipline workflows where the relevant evidence exists.
+
+Within every later stage, the trainer inserts a deterministic 10% rehearsal sample from all earlier stages after each 32 new examples. This is spaced replay: new material is introduced progressively, while the student repeatedly revisits earlier material. The trainer uses a sequential sampler so the order is preserved. The exact stage counts, replay counts, seed and SHA-256 of the ordered index are written to `curriculum_schedule.json` and `training_config.json`; resuming a run must use the same corpus and seed.
+
+These stages are a training schedule, not proof that the model has mastered a discipline. Promotion still depends on untouched tests, unseen engineering cases and native application acceptance.
+
 ## Large-corpus memory and examination controls
 
 The trainer uses an indexed JSONL dataset: it first builds a compact byte-offset index, then reads/decodes one record when a batch requests it. It validates each split without retaining the full record set in memory. The validation split is used for in-training evaluation. The held-out test split is not evaluated during fine-tuning; after the candidate checkpoint is frozen, both the untouched base model and candidate are evaluated on the same test split and compared by domain. This prevents repeated peeking at the final examination while training decisions are still being made.
