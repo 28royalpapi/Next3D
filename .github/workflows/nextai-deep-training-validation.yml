@@ -18,6 +18,7 @@ on:
       - "scripts/run_nextbim_ai_acceptance.py"
       - "scripts/collect_nextbim_native_splits.py"
       - "tests/nextai/test_large_scale_training.py"
+      - "tests/next-ai/test_expanded_engineering_cases.py"
       - "tests/next-ai/test_nextbim_native_collection.py"
       - "tests/next-ai/test_nextbim_split_validation.py"
       - "tests/next-ai/test_collect_nextcad_native_splits.py"
