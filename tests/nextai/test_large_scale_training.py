@@ -336,7 +336,8 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "wrong application or split"):
                 verify_native_collection_manifest(manifest_path, "nextcad")
 
-\nclass NativeTraceRetentionTests(unittest.TestCase):
+
+class NativeTraceRetentionTests(unittest.TestCase):
     def test_native_train_validation_and_test_traces_are_not_lost_by_public_caps(self):
         base_train = [{"record_id": "public-train"}]
         base_validation = [{"record_id": "public-validation"}]
