@@ -338,3 +338,36 @@ This checkpoint corrects the earlier misleading materialization status: the 250k
 - The currently connected Hugging Face OAuth credential is authenticated as `Justin75685` with scopes `jobs`, `openid`, `profile`, `read-mcp` and `read-repos`. It has no `write-repos` scope, so this connector credential cannot publish the dataset or model weights.
 - The 250k materialization workflow now optionally uploads the verified analytic corpus to the existing private dataset repository under `analytic_l0_v1` when a separate write-enabled GitHub Actions secret `HF_TOKEN` exists. Without that secret it explicitly skips Hub upload while retaining the GitHub Actions artifact. Run [46018139590](https://github.com/28royalpapi/Next3D/actions/runs/46018139590) verifies this updated workflow after execution.
 - No Hugging Face Jobs are running or recorded in the current Jobs listing. No fine-tuning job has been submitted; no spend is authorised in this checkpoint.
+
+## Training launch policy corrected and bounded pilot added — 27 November 2026, 16:05 WAT
+
+### Correction to corpus-size policy
+
+- The 400-million-token figure was introduced by the implementation assistant as an internal planning suggestion; the project owner never adopted it as a benchmark.
+- It is therefore not a project requirement, release criterion, or prerequisite for training. Historical status entries that describe it as a target are superseded by this correction.
+- `run_large_scale_training.py` now defaults `--target-text-tokens` to unset. The runner still audits and records exact Qwen-tokenizer train/validation/test counts. A hard token-volume gate is applied only when an explicit target is supplied to the CLI.
+- The analytic-corpus workflow's milestone summary now records `project_token_target: null` and `NOT_CONFIGURED_BY_PROJECT_OWNER`; it no longer reports a 400M fraction or shortfall.
+
+### Current verified analytic dataset
+
+- Fresh build/audit run [46020623432](https://github.com/28royalpapi/Next3D/actions/runs/46020623432) passed and uploaded artifact [nextai-250k-analytic-curriculum](https://github.com/28royalpapi/Next3D/actions/runs/46020623432/artifacts/15207124229), ZIP digest `sha256:c46fe4ba7ab37cae64741695442f0f807f5d8a99bfd3c14ea994c8e804ab7abe`.
+- Downloaded and inspected the ZIP. It contains 25 analytic families × 10,000 records = 250,000 L0 educational calculation examples; split counts: 225,091 train, 12,491 validation, 12,418 held-out test.
+- Qwen/Qwen3.5-0.8B tokenizer audit: 129,430,330 train text tokens; 7,191,201 validation; 7,128,301 held-out test. Audit status PASS; no duplicate IDs, duplicate normalized texts, cross-split leakage or missing images.
+- The corpus summary explicitly states that the project has no configured token target, that native execution is not verified by these records, and fine-tuning has not started.
+- The optional Hugging Face upload step did not produce a verified Hub dataset publication: listing `Justin75685/nextai-engineering-corpus` still returns only `.gitattributes`. The GitHub Actions artifact remains the verified data handoff.
+
+### First-training pilot now available in code
+
+- Added `--pilot` to the training orchestrator. It defaults to 200 optimizer steps, 2,048-token sequence length, at most 128 validation/test examples per evaluation, skips compact GGUF export, and keeps outputs local by default.
+- `--upload` is an explicit opt-in for publishing pilot weights/evidence and requires a write-enabled `HF_TOKEN`.
+- Explicit step, context-length and evaluation settings are preserved. A run is labelled `bounded_pilot`; it is not represented as a full training programme or native CAD/BIM capability.
+- The pilot requires a CUDA GPU and an already authorised compute environment. The runner never rents compute and never falls back to CPU.
+- The documentation now includes the exact pilot command and scope.
+
+### Validation and remaining blockers
+
+- Deep-training validation [46020943678](https://github.com/28royalpapi/Next3D/actions/runs/46020943678) passed: 77 corpus/training tests, 9 native SFT tests, 14 analytic-family tests, 9 independent benchmark tests, 13 Next BIM split-validation tests and 8 NextCAD split-validation tests — 130 tests total. Python compilation and all CLI-help checks passed.
+- Selector visual smoke matrix [46020933292](https://github.com/28royalpapi/Next3D/actions/runs/46020933292) passed.
+- Native build/collection run [46016419877](https://github.com/28royalpapi/Next3D/actions/runs/46016419877) remains in progress at last inspection: NextCAD is still compiling; Next BIM's native workspace tests are still running. The collector steps have not executed and no new native trace artifacts are verified.
+- Hugging Face OAuth is read-only for repositories (`read-repos`) plus job access; no `write-repos` scope. The private model and dataset repositories still list only `.gitattributes`. Jobs listing is empty.
+- No fine-tuning has started and no adapter/checkpoint/updated weights exist. The connected execution container has no CUDA GPU, and no GPU spending limit has been authorised. Therefore the bounded pilot is now unblocked in software policy but cannot be executed until a CUDA runtime is authorised and supplied. For persistent Hub publication, configure a write-enabled `HF_TOKEN` securely in GitHub Actions; alternatively use a local output directory on a persistent authorised GPU machine.
