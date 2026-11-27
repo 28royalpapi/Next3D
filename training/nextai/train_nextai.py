@@ -126,11 +126,17 @@ def validate_training_splits(
                 record_count = 0
                 image_count = 0
                 domains: set[str] = set()
+                split_fingerprint = hashlib.sha256()
 
                 for index, row in enumerate(rows):
                     if not isinstance(row, dict):
                         raise ValueError(f"{split_name}[{index}] is not a JSON object.")
                     record_count += 1
+                    canonical_record = json.dumps(
+                        row, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+                    )
+                    split_fingerprint.update(canonical_record.encode("utf-8"))
+                    split_fingerprint.update(b"\n")
                     record_id = str(row.get("record_id") or "").strip()
                     if record_id:
                         cursor = connection.execute(
@@ -228,6 +234,7 @@ def validate_training_splits(
                 ).fetchone()[0]
                 summaries[split_name] = {
                     "records": record_count,
+                    "records_sha256": split_fingerprint.hexdigest(),
                     "unique_record_ids": unique_record_ids,
                     "split_groups": split_group_count,
                     "source_groups": source_group_count,
