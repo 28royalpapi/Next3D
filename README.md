@@ -37,7 +37,9 @@ The first law is: **understand the native application before allowing AI to oper
 - [Integration architecture and implementation order](docs/next-ai/INTEGRATION_ARCHITECTURE.md)
 - [Native action-plan schema v1](schemas/next-ai-action-plan.v1.schema.json)
 
-Next AI is in the research and architecture phase. The reserved workspace is present in both applications, but the local model, provider, knowledge retrieval, native tool adapters and training/evaluation pipeline are not yet implemented. The capability inventory distinguishes source presence from verified runtime support and records known gaps. The first Next BIM local-provider source patch is now included: it extends BIMCraft's existing Assistant with a fixed loopback Ollama endpoint, keyless requests and no remote fallback. Its Rust formatting, compilation and live Ollama tests are still being verified by CI.
+NextAI has moved beyond a workspace-only concept. The repository now contains a NextCAD adapter with a local-only provider path, live workbench/document discovery, a starter typed tool registry, plan approval and transactional execution; a Next BIM local-provider patch built around a fixed loopback Ollama endpoint; a 215-registration BIMCraft command catalogue; engineering knowledge/skill curriculum; and data-preparation, native-trace validation, training and evaluation pipelines.
+
+These are source-level implementation milestones, not proof of a finished operator. The starter tool surface is still limited and does not expose every native CAD/BIM command. Native builds, GUI/CLI acceptance, live NextCAD runtime discovery, full-scale corpus/token audit, end-to-end local inference, fine-tuning, held-out model performance and the final offline package remain separate acceptance gates. See [BUILD_STATUS.md](BUILD_STATUS.md) for verified results and explicit blockers.
 
 ## Selector
 
@@ -48,6 +50,6 @@ Next AI is in the research and architecture phase. The reserved workspace is pre
 
 ## Build verification
 
-`.github/workflows/native-application-build.yml` builds NextCAD and Next BIM from the pinned sources on Linux, Windows and macOS. It also runs upstream tests and attempts genuine Linux GUI launches with screenshots as artifacts.
+`.github/workflows/native-application-build.yml` builds NextCAD and Next BIM from the pinned sources. Its Linux-focused evidence path builds both applications and attempts native trace collection plus real GUI launches; a full Linux/Windows/macOS matrix is available as a separate dispatch option.
 
-A source checkout or a passing selector test does not prove a native application is accepted. Native build, launch, model edit and save/reopen evidence is tracked in [BUILD_STATUS.md](BUILD_STATUS.md). The base applications must pass those checks before they are called complete; the native workflow runs on both `main` and `nextcad`.
+A source checkout, passing unit tests or a selector screenshot does not prove a native application is accepted. Native build, launch, model edit and save/reopen evidence is tracked in [BUILD_STATUS.md](BUILD_STATUS.md). The applications must pass those checks before they are called complete.
