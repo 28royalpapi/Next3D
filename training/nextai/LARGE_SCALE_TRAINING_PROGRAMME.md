@@ -8,13 +8,15 @@ The earlier notebook defaults selected 2,500 of the 81,000 available Zero-to-CAD
 
 The new full-source builder includes all available licensed rows from the published CAD and BIM splits plus the 145,117-record BuildEng source. It adds a 250,000-case original analytic curriculum (10,000 cases in each of 25 engineering families), raises the mixed sampler to 700,000 records, and creates deterministic internal validation/test partitions for BuildEng, which publishes only one train split. It keeps the other source splits separate and untouched, while also retaining every first-party skill and native-capability knowledge lesson.
 
-## Target scale
+## Data volume and training launch policy
 
-The programme uses 400 million **Qwen-tokenizer-measured text tokens in the training split** (a corpus-size target, not optimizer updates or epochs) as an ambitious planning benchmark, inspired by N-ATLaS. That is a target, not a number to reach by duplicating short prompts, repeating records or counting image files as tokens.
+No minimum token count has been specified by the project owner. The earlier internal 400-million-token planning figure was introduced during implementation and is **not a user-approved benchmark or a prerequisite for starting training**. It has been removed from the trainer default gate.
 
-The actual corpus size is determined by the tokenizer loaded from Qwen/Qwen3.5-0.8B. \`audit_nextai_corpus.py\` reports text-token counts for train, validation and test separately, plus tool schemas, source/domain balance, image files and image bytes. Vision patch tokens and the runtime chat-template overhead are explicitly reported as outside that text-token count.
+The current analytic dataset contains 250,000 L0 calculation records: 225,091 training, 12,491 validation and 12,418 held-out test records. Its Qwen/Qwen3.5-0.8B tokenizer audit measured 129,430,330 training text tokens, 7,191,201 validation text tokens and 7,128,301 held-out test text tokens. These are corpus measurements, not optimizer updates, model knowledge or proof of accuracy.
 
-If the complete licensed source corpus does not reach 400M unique text tokens, the report must show the measured shortfall. Expansion must come from additional licensed engineering material and native-verified traces, not from synthetic paraphrase inflation.
+Training should begin with a bounded, instrumented pilot on the audited dataset, then expand based on held-out learning results, domain coverage, native CAD/BIM trace availability and data quality. Token counts remain reported for planning; a token-volume gate is applied only when an explicit target is supplied by the project owner through --target-text-tokens. Never inflate counts by duplicating examples.
+
+The exact Qwen tokenizer audit reports train/validation/test text tokens separately, plus source/domain balance, tool schemas and image assets. Vision patch tokens and runtime chat-template overhead remain separate measurements.
 
 ## Five-stage learning programme
 
@@ -88,11 +90,11 @@ The full-scale builder creates 10,000 distinct parameterised cases per family (2
 
 Two other potentially useful datasets remain quarantined rather than being silently admitted. MechQA contains 202,068 material-property QA pairs derived from 125,967 research papers, and its paper is CC-BY-4.0, but the dataset repository does not declare a dataset licence and the underlying article-context rights need a record-level review. OpenPyStruct describes a two-million-case structural-response dataset, but the Zenodo dataset record does not state a dataset licence; its MIT software licence does not, by itself, establish the data licence. Neither is included in this corpus builder until those rights are resolved.
 
-## Why 400M tokens is not automatically the right first fine-tuning run
+## Why corpus size alone does not determine training readiness
 
 The published N-ATLaS model is based on Llama-3 8B. NextAI's packaged student is Qwen3.5-0.8B because the project requires a compact local model. These are very different capacity budgets.
 
-For the 0.8B student, training must use staged, domain-balanced batches and replay of earlier capabilities. Repeated exposure to the same examples is not a substitute for new verified knowledge. The 400M goal is a measured scale target; it must not override validation quality or the package-size constraint.
+For the 0.8B student, training must use staged, domain-balanced batches and replay of earlier capabilities. Repeated exposure to the same examples is not a substitute for new verified knowledge. Data volume must support the next learning objective, but the project should begin staged training as soon as the available licensed corpus is sufficiently validated. Scale-up must follow measured learning gaps, not an arbitrary token quota.
 
 The application must also keep versioned retrieval, typed native execution and engineering validators. A compact student cannot safely store every version of every CAD/BIM manual or guarantee professional design approval from model weights alone.
 
