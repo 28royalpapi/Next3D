@@ -12,7 +12,7 @@ import re
 from collections import defaultdict
 from typing import Any
 
-BENCHMARK_VERSION = "nextai-engineering-heldout-v1"
+BENCHMARK_VERSION = "nextai-engineering-heldout-v2"
 SYSTEM_PROMPT = (
     "You are completing an independent engineering assessment. Use only the stated "
     "inputs, show a concise method and unit-consistent working, and do not invent "
@@ -285,6 +285,111 @@ CASES: list[dict[str, Any]] = [
         "circular geometry. Do not convert to mass.",
         "hollow_cylinder_material_volume",
         {"material_volume_mm3": 918915.8512}, {"material_volume_mm3": "mm3"},
+    ),
+
+    _numeric(
+        "STR-05", "structural",
+        "An ideal elastic prismatic steel column has unsupported length 6.0 m, "
+        "effective-length factor K=1.0, E=200 GPa, I=20.0e6 mm4 and area 8000 mm2. "
+        "Calculate radius of gyration, slenderness ratio, ideal Euler critical load "
+        "and corresponding average critical stress. Ignore yielding and all "
+        "non-ideal imperfections; identify the idealisation in the limitations.",
+        "ideal_euler_column_buckling",
+        {"radius_of_gyration_mm": 50.0, "slenderness_ratio": 120.0,
+         "euler_critical_load_kN": 1096.62271, "euler_critical_stress_mpa": 137.07784},
+        {"radius_of_gyration_mm": "mm", "slenderness_ratio": "dimensionless",
+         "euler_critical_load_kN": "kN", "euler_critical_stress_mpa": "MPa"},
+    ),
+    _numeric(
+        "GEO-04", "geotechnical",
+        "A vertical smooth wall retains level cohesionless backfill with gamma=18 kN/m3, "
+        "height H=6 m and friction angle phi=30 degrees. A uniform surface surcharge "
+        "q=10 kPa acts over the backfill. Using Rankine active pressure, calculate Ka, "
+        "the soil and surcharge thrust per metre, total thrust, base pressure and "
+        "combined thrust lever arm above the base.",
+        "rankine_active_earth_pressure_with_surcharge",
+        {"active_pressure_coefficient_ka": 0.33333333,
+         "soil_resultant_kn_per_m": 108.0, "surcharge_resultant_kn_per_m": 20.0,
+         "total_active_resultant_kn_per_m": 128.0,
+         "base_lateral_pressure_kpa": 39.333333,
+         "resultant_height_above_base_m": 2.15625},
+        {"active_pressure_coefficient_ka": "dimensionless",
+         "soil_resultant_kn_per_m": "kN/m", "surcharge_resultant_kn_per_m": "kN/m",
+         "total_active_resultant_kn_per_m": "kN/m", "base_lateral_pressure_kpa": "kPa",
+         "resultant_height_above_base_m": "m"},
+    ),
+    _numeric(
+        "HYD-05", "hydraulics",
+        "A vertical rectangular gate is 2.0 m wide and 3.0 m high. Its top edge is "
+        "1.5 m below a static water free surface. Use water unit weight 9.81 kN/m3. "
+        "Calculate the hydrostatic resultant, centre-of-pressure depth below the "
+        "free surface and its distance below the gate top.",
+        "vertical_rectangular_gate_hydrostatic_force",
+        {"hydrostatic_resultant_kn": 176.58,
+         "centre_of_pressure_depth_m": 3.25,
+         "centre_of_pressure_below_gate_top_m": 1.75},
+        {"hydrostatic_resultant_kn": "kN",
+         "centre_of_pressure_depth_m": "m",
+         "centre_of_pressure_below_gate_top_m": "m"},
+    ),
+    _numeric(
+        "GEO-05", "geotechnical",
+        "For a continuous strip footing use the supplied Terzaghi factors Nc=37.2, "
+        "Nq=22.5 and Ngamma=19.7. Effective cohesion c'=10 kPa, foundation-level "
+        "surcharge q=20 kPa, effective unit weight gamma'=18 kN/m3, footing width "
+        "B=2.0 m and factor of safety 3.0. Calculate gross ultimate, net ultimate, "
+        "net allowable and gross allowable bearing pressures. Do not recalculate "
+        "the supplied bearing factors.",
+        "terzaghi_strip_footing_bearing_capacity_supplied_factors",
+        {"gross_ultimate_bearing_pressure_kpa": 1176.6,
+         "net_ultimate_bearing_pressure_kpa": 1156.6,
+         "net_allowable_bearing_pressure_kpa": 385.53333,
+         "gross_allowable_bearing_pressure_kpa": 405.53333},
+        {"gross_ultimate_bearing_pressure_kpa": "kPa",
+         "net_ultimate_bearing_pressure_kpa": "kPa",
+         "net_allowable_bearing_pressure_kpa": "kPa",
+         "gross_allowable_bearing_pressure_kpa": "kPa"},
+    ),
+    _numeric(
+        "GEO-06", "geotechnical",
+        "An ideal homogeneous infinite slope has normal soil thickness z=2.0 m, "
+        "unit weight 18 kN/m3, effective cohesion c'=5 kPa, pore pressure u=5 kPa, "
+        "slope angle beta=30 degrees and effective friction angle phi'=25 degrees. "
+        "Using the supplied simplified planar infinite-slope model, calculate "
+        "effective normal stress, available shear strength, driving shear stress "
+        "and factor of safety.",
+        "infinite_slope_effective_stress_factor_of_safety",
+        {"effective_normal_stress_kpa": 22.0,
+         "available_shear_strength_kpa": 15.25877,
+         "driving_shear_stress_kpa": 15.58846,
+         "factor_of_safety": 0.97885},
+        {"effective_normal_stress_kpa": "kPa",
+         "available_shear_strength_kpa": "kPa",
+         "driving_shear_stress_kpa": "kPa",
+         "factor_of_safety": "dimensionless"},
+    ),
+    _numeric(
+        "HYD-06", "hydraulics",
+        "A water pump delivers 10 L/s against a total dynamic head of 20 m. Pump "
+        "efficiency is 0.70 and motor efficiency is 0.90. Use water density "
+        "1000 kg/m3 and g=9.80665 m/s2. Calculate hydraulic output, required pump "
+        "shaft power and electrical input power separately.",
+        "pump_power_with_separate_pump_and_motor_efficiency",
+        {"hydraulic_power_kw": 1.96133,
+         "pump_shaft_power_kw": 2.80190,
+         "electrical_input_power_kw": 3.11322},
+        {"hydraulic_power_kw": "kW", "pump_shaft_power_kw": "kW",
+         "electrical_input_power_kw": "kW"},
+    ),
+    _numeric(
+        "GEO-07", "geotechnical",
+        "A shallow footing has uniform net contact pressure q=150 kPa and width "
+        "B=2.0 m. The homogeneous elastic soil has Es=20 MPa and Poisson ratio "
+        "nu=0.30. A shape/rigidity influence factor Is=1.0 is supplied. Estimate "
+        "immediate elastic settlement in millimetres using s=q B (1-nu^2) Is/Es.",
+        "simplified_immediate_elastic_shallow_foundation_settlement",
+        {"elastic_settlement_mm": 13.65},
+        {"elastic_settlement_mm": "mm"},
     ),
     _safety(
         "SAFE-01", "structural_design_intake",
