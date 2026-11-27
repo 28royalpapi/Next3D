@@ -22,6 +22,116 @@ NATIVE_TRACE_INPUTS = (
     ("nextbim_native_test", "--nextbim-native-test", "nextbim", "test"),
 )
 
+NATIVE_COLLECTION_MANIFEST_SPECS = {
+    "nextcad": ("nextcad.native-trace-corpus.v1", "00cb280454069966a2fb0a8e7dc184c46e7b38b3"),
+    "nextbim": ("nextbim.native-trace-corpus.v1", "a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b"),
+}
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def verify_native_collection_manifest(manifest_path: Path, application: str) -> dict[str, Any]:
+    """Verify a collector manifest and every artifact before using its SFT split files."""
+    if application not in NATIVE_COLLECTION_MANIFEST_SPECS:
+        raise ValueError(f"Unsupported native collection application: {application}")
+    path = Path(manifest_path).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"Native {application} collection manifest not found: {path}")
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid native {application} collection manifest JSON: {exc}") from exc
+    expected_schema, expected_revision = NATIVE_COLLECTION_MANIFEST_SPECS[application]
+    if manifest.get("schema_version") != expected_schema or manifest.get("application") != application:
+        raise ValueError(f"Native {application} collection manifest has the wrong schema or application")
+    if manifest.get("source_revision") != expected_revision:
+        raise ValueError(f"Native {application} collection manifest does not match the pinned source revision")
+    if manifest.get("independent_engineering_validation") != "not_claimed":
+        raise ValueError("Native collection manifest must state that independent engineering validation is not claimed")
+    sft_summary = manifest.get("sft_summary") or {}
+    if sft_summary.get("quarantine", 0) != 0 or sft_summary.get("source_groups_with_split_leakage", 0) != 0:
+        raise ValueError("Native collection manifest reports quarantined records or split leakage")
+
+    root = path.parent.resolve()
+    inventory = manifest.get("artifact_inventory") or {}
+    required_inventory = {"raw_trace", "raw_splits", "sft_splits", "sft_quarantine", "sft_summary"}
+    if not required_inventory.issubset(inventory):
+        raise ValueError("Native collection manifest has an incomplete artifact inventory")
+
+    def check_artifact(item: dict[str, Any], label: str) -> Path:
+        if not isinstance(item, dict):
+            raise ValueError(f"Native collection manifest artifact {label} is malformed")
+        relative = Path(str(item.get("path") or ""))
+        if not str(relative) or relative.is_absolute():
+            raise ValueError(f"Native collection manifest artifact {label} must use a relative path")
+        artifact = (root / relative).resolve()
+        if not artifact.is_relative_to(root):
+            raise ValueError(f"Native collection manifest artifact {label} escapes its collection directory")
+        if not artifact.is_file():
+            raise FileNotFoundError(f"Native collection manifest artifact is missing: {artifact}")
+        if artifact.stat().st_size != item.get("bytes"):
+            raise ValueError(f"Native collection manifest byte size mismatch for {label}")
+        if sha256_file(artifact) != item.get("sha256"):
+            raise ValueError(f"Native collection manifest SHA-256 mismatch for {label}")
+        if "records" in item:
+            with artifact.open("r", encoding="utf-8") as handle:
+                actual_records = sum(1 for line in handle if line.strip())
+            if actual_records != item["records"]:
+                raise ValueError(f"Native collection manifest record count mismatch for {label}")
+        return artifact
+
+    check_artifact(inventory["raw_trace"], "raw_trace")
+    for group_name in ("raw_splits", "sft_splits"):
+        group = inventory[group_name]
+        if not isinstance(group, dict) or set(group) != {"train", "validation", "test"}:
+            raise ValueError(f"Native collection manifest {group_name} must contain train/validation/test")
+        for split, item in group.items():
+            check_artifact(item, f"{group_name}.{split}")
+    check_artifact(inventory["sft_quarantine"], "sft_quarantine")
+    check_artifact(inventory["sft_summary"], "sft_summary")
+
+    declared_counts = manifest.get("split_record_counts") or {}
+    if set(declared_counts) != {"train", "validation", "test"}:
+        raise ValueError("Native collection manifest must declare all three split counts")
+    sft_files: dict[str, str] = {}
+    seen_ids: set[str] = set()
+    for split in ("train", "validation", "test"):
+        item = inventory["sft_splits"][split]
+        if int(item.get("records", 0)) < 1 or item.get("records") != declared_counts.get(split):
+            raise ValueError(f"Native {application} {split} SFT count does not match its collection manifest")
+        artifact = (root / str(item["path"])).resolve()
+        with artifact.open("r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"Invalid SFT JSON in {artifact}:{line_number}") from exc
+                if not isinstance(row, dict) or row.get("application") != application or row.get("split") != split:
+                    raise ValueError(f"Native SFT artifact {artifact}:{line_number} has the wrong application or split")
+                record_id = str(row.get("record_id") or "").strip()
+                if not record_id or record_id in seen_ids:
+                    raise ValueError(f"Native {application} collection has a missing or duplicate SFT record ID")
+                seen_ids.add(record_id)
+        sft_files[split] = str(artifact)
+
+    return {
+        "application": application,
+        "manifest_path": str(path),
+        "manifest_sha256": sha256_file(path),
+        "source_revision": expected_revision,
+        "split_record_counts": {split: int(declared_counts[split]) for split in ("train", "validation", "test")},
+        "verified_sft_files": sft_files,
+        "artifact_inventory_verified": True,
+    }
+
 
 def inspect_native_trace_inputs(
     inputs: dict[str, Path | None],
@@ -201,9 +311,15 @@ def main() -> int:
     parser.add_argument("--nextcad-native-train", type=Path)
     parser.add_argument("--nextcad-native-validation", type=Path)
     parser.add_argument("--nextcad-native-test", type=Path)
+    parser.add_argument("--nextcad-native-manifest", type=Path, help="Verify and ingest all NextCAD SFT splits from a collector manifest.")
     parser.add_argument("--nextbim-native-train", type=Path)
     parser.add_argument("--nextbim-native-validation", type=Path)
     parser.add_argument("--nextbim-native-test", type=Path)
+    parser.add_argument("--nextbim-native-manifest", type=Path, help="Verify and ingest all Next BIM SFT splits from a collector manifest.")
+    parser.add_argument(
+        "--require-native-manifests", action="store_true",
+        help="Require both pinned native collector manifests and verify every artifact before corpus construction.",
+    )
     parser.add_argument(
         "--require-native-traces", action="store_true",
         help="Require non-empty validated NextCAD and Next BIM native traces in all train/validation/test splits.",
@@ -236,14 +352,32 @@ def main() -> int:
     if args.skip_capability_census and args.nextcad_runtime_report:
         parser.error("--nextcad-runtime-report cannot be used with --skip-capability-census")
 
-    native_trace_summary = inspect_native_trace_inputs({
+    if args.require_native_manifests and not (args.nextcad_native_manifest and args.nextbim_native_manifest):
+        raise ValueError("--require-native-manifests requires both --nextcad-native-manifest and --nextbim-native-manifest")
+    native_inputs = {
         "nextcad_native_train": args.nextcad_native_train,
         "nextcad_native_validation": args.nextcad_native_validation,
         "nextcad_native_test": args.nextcad_native_test,
         "nextbim_native_train": args.nextbim_native_train,
         "nextbim_native_validation": args.nextbim_native_validation,
         "nextbim_native_test": args.nextbim_native_test,
-    }, require_all=args.require_native_traces)
+    }
+    native_collection_manifests: dict[str, dict[str, Any]] = {}
+    for application, manifest_arg in (("nextcad", args.nextcad_native_manifest), ("nextbim", args.nextbim_native_manifest)):
+        if manifest_arg is None:
+            continue
+        explicit = [f"{application}_native_{split}" for split in ("train", "validation", "test") if native_inputs.get(f"{application}_native_{split}") is not None]
+        if explicit:
+            raise ValueError(f"Use either --{application}-native-manifest or the three explicit {application} split files, not both")
+        verified = verify_native_collection_manifest(manifest_arg, application)
+        native_collection_manifests[application] = verified
+        for split, sft_path in verified["verified_sft_files"].items():
+            native_inputs[f"{application}_native_{split}"] = Path(sft_path)
+
+    native_trace_summary = inspect_native_trace_inputs(
+        native_inputs,
+        require_all=args.require_native_traces or args.require_native_manifests,
+    )
 
     out = args.output_dir.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -332,6 +466,8 @@ def main() -> int:
         "training_domain_counts": manifest.get("training_domain_counts", {}),
         "capability_census_summary": census_summary,
         "native_execution_evidence_inputs": native_trace_summary,
+        "native_collection_manifests": native_collection_manifests,
+        "native_collection_manifests_required": args.require_native_manifests,
         "native_execution_evidence_record_counts": {
             key: item.get("records", 0) for key, item in native_trace_summary.items()
         },
