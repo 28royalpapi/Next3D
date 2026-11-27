@@ -323,6 +323,20 @@ def inspect_native_trace_inputs(
     return summary
 
 
+def analytic_generation_target(cases_per_family: int, source_counts: dict[str, Any]) -> dict[str, int]:
+    """Use the generator's actual emitted family count instead of a stale hardcoded count."""
+    if cases_per_family < 0:
+        raise ValueError("cases_per_family must be non-negative")
+    family_count = int(source_counts.get("analytic_engineering_families", 0))
+    if family_count < 1 and cases_per_family > 0:
+        raise ValueError("The corpus manifest does not report any analytic engineering families.")
+    return {
+        "analytic_engineering_family_count": family_count,
+        "analytic_engineering_cases_per_family": cases_per_family,
+        "analytic_engineering_total_target": cases_per_family * family_count,
+    }
+
+
 def native_trace_command_args(summary: dict[str, dict[str, Any]]) -> list[str]:
     """Forward only verified native trace files into the public-corpus builder."""
     result: list[str] = []
@@ -535,6 +549,8 @@ def main() -> int:
 
     manifest_path = out / "corpus" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    source_counts = manifest.get("source_counts", {})
+    analytic_target = analytic_generation_target(args.analytic_cases_per_domain, source_counts)
     plan = {
         "schema_version": 1,
         "profile": "full-public-source",
@@ -551,7 +567,7 @@ def main() -> int:
             "ifcqa_test_source_rows": args.ifcqa_test,
             "buildeng_source_rows": args.buildeng_records,
             "analytic_cases_per_domain": args.analytic_cases_per_domain,
-            "analytic_engineering_total_target": args.analytic_cases_per_domain * 17,
+            **analytic_target,
             "mixed_train_cap": args.mixed_train_cap,
             "validation_cap": args.validation_cap,
             "test_cap": args.test_cap,
