@@ -11,11 +11,70 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
+import stat
+import zipfile
+from pathlib import Path, PurePosixPath
+from shutil import copyfileobj
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 TRAINING = Path(__file__).resolve().parent
+
+
+def extract_analytic_corpus_archive(archive_path: Path, destination: Path) -> Path:
+    """Safely extract a flat, audited NextAI corpus bundle for a GPU run."""
+    archive_path = archive_path.resolve()
+    if not archive_path.is_file():
+        raise FileNotFoundError(f"Training data archive not found: {archive_path}")
+    required = {"train.jsonl", "validation.jsonl", "test.jsonl", "manifest.json", "corpus_audit.json"}
+    allowed = required | {"milestone-summary.json"}
+    destination = destination.resolve()
+    destination.mkdir(parents=True, exist_ok=True)
+    if any(destination.iterdir()):
+        raise FileExistsError(
+            f"Training archive destination is not empty: {destination}. "
+            "Use a fresh output directory or supply an already-extracted --data-dir."
+        )
+
+    extracted: set[str] = set()
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            for item in archive.infolist():
+                if item.is_dir():
+                    continue
+                relative = PurePosixPath(item.filename)
+                mode = item.external_attr >> 16
+                if (
+                    relative.is_absolute()
+                    or len(relative.parts) != 1
+                    or ".." in relative.parts
+                    or relative.name not in allowed
+                    or stat.S_ISLNK(mode)
+                ):
+                    raise ValueError(f"Unsafe or unexpected training archive entry: {item.filename!r}")
+                if relative.name in extracted:
+                    raise ValueError(f"Duplicate training archive entry: {relative.name}")
+                if item.file_size < 0 or item.file_size > 3_000_000_000:
+                    raise ValueError(f"Training archive entry has an unsupported size: {relative.name}")
+                target = destination / relative.name
+                with archive.open(item, "r") as source, target.open("xb") as output:
+                    copyfileobj(source, output)
+                if target.stat().st_size != item.file_size:
+                    raise ValueError(f"Extracted training archive size mismatch: {relative.name}")
+                extracted.add(relative.name)
+    except zipfile.BadZipFile as exc:
+        raise ValueError(f"Training data archive is not a valid ZIP: {archive_path}") from exc
+
+    missing = sorted(required - extracted)
+    if missing:
+        raise ValueError("Training data archive is missing required files: " + ", ".join(missing))
+    audit = json.loads((destination / "corpus_audit.json").read_text(encoding="utf-8"))
+    if audit.get("status") != "PASS" or int(audit.get("train_text_tokens", 0)) <= 0:
+        raise ValueError("Training data archive must contain a passing Qwen-tokenizer audit.")
+    for split in ("train.jsonl", "validation.jsonl", "test.jsonl"):
+        if (destination / split).stat().st_size <= 0:
+            raise ValueError(f"Training data archive contains an empty split: {split}")
+    return destination
 
 
 def execute(command: list[str], log_path: Path, env: dict[str, str]) -> None:
@@ -494,7 +553,9 @@ def publish_artifacts(output_dir: Path, repo_id: str, token: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-dir", required=True, type=Path)
+    data_source = parser.add_mutually_exclusive_group(required=True)
+    data_source.add_argument("--data-dir", type=Path, help="Directory containing audited train/validation/test JSONL and manifest.")
+    data_source.add_argument("--data-archive", type=Path, help="ZIP artifact containing the audited flat analytic corpus bundle.")
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--base-model", default="Qwen/Qwen3.5-0.8B")
     parser.add_argument("--epochs", type=float, default=1.0)
@@ -585,8 +646,13 @@ def main() -> int:
     if not 0.0 <= args.curriculum_replay_fraction <= 0.5 or args.curriculum_replay_chunk_size < 1:
         parser.error("Curriculum replay fraction must be in [0, 0.5] and chunk size must be positive.")
 
-    data_dir = args.data_dir.resolve()
     output_dir = args.output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    data_dir = (
+        extract_analytic_corpus_archive(args.data_archive, output_dir / "input_corpus")
+        if args.data_archive is not None
+        else args.data_dir.resolve()
+    )
     if not (data_dir / "train.jsonl").is_file():
         raise FileNotFoundError(f"Training corpus not found at {data_dir / 'train.jsonl'}")
     if not (data_dir / "validation.jsonl").is_file() or not (data_dir / "test.jsonl").is_file():
