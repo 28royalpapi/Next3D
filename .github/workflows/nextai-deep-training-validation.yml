@@ -25,6 +25,7 @@ on:
       - "tests/next-ai/test_nextbim_native_collection.py"
       - "tests/next-ai/test_nextbim_split_validation.py"
       - "tests/next-ai/test_collect_nextcad_native_splits.py"
+      - "tests/next-ai/test_native_runner_import_context.py"
       - ".github/workflows/nextai-deep-training-validation.yml"
   workflow_dispatch:
 
@@ -51,6 +52,8 @@ jobs:
         run: python -m unittest discover -s tests/next-ai -p 'test_nextbim_split_validation.py' -v
       - name: Test NextCAD native split lineage and state fingerprints
         run: python -m unittest discover -s tests/next-ai -p 'test_collect_nextcad_native_splits.py' -v
+      - name: Test Next BIM native runner from submodule working directory
+        run: python -m unittest discover -s tests/next-ai -p 'test_native_runner_import_context.py' -v
       - name: Compile training pipeline scripts
         run: |
           python - <<'PY'
