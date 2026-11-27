@@ -267,7 +267,8 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
     def test_manifest_rejects_artifact_tampering(self):
         with tempfile.TemporaryDirectory() as temp:
             manifest_path, _ = self._build_manifest(Path(temp))
-            (Path(temp) / "sft" / "train.jsonl").write_text('{"tampered":true}' + chr(10), encoding="utf-8")
+            tampered = (Path(temp) / "sft" / "train.jsonl").read_bytes().replace(b"nextcad", b"nextbim", 1)
+            (Path(temp) / "sft" / "train.jsonl").write_bytes(tampered)
             with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
                 verify_native_collection_manifest(manifest_path, "nextcad")
 
