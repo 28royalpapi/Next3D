@@ -52,6 +52,22 @@ def verify_native_collection_manifest(manifest_path: Path, application: str) -> 
         raise ValueError(f"Native {application} collection manifest has the wrong schema or application")
     if manifest.get("source_revision") != expected_revision:
         raise ValueError(f"Native {application} collection manifest does not match the pinned source revision")
+    expected_evidence_level = (
+        "L3 native execution + L4 save/reopen"
+        if application == "nextcad"
+        else "L3 native CLI execution + L4 project save/reopen"
+    )
+    if manifest.get("evidence_level") != expected_evidence_level:
+        raise ValueError(f"Native {application} collection manifest has an unexpected evidence level")
+    if manifest.get("synthetic_acceptance_fixtures") is not True:
+        raise ValueError("Native acceptance collector manifest must identify its examples as controlled synthetic fixtures")
+    lineage_flag = (
+        manifest.get("train_validation_test_source_lineages_are_disjoint")
+        if application == "nextcad"
+        else manifest.get("source_lineages_disjoint")
+    )
+    if lineage_flag is not True:
+        raise ValueError("Native collection manifest does not certify split-disjoint project lineages")
     if manifest.get("independent_engineering_validation") != "not_claimed":
         raise ValueError("Native collection manifest must state that independent engineering validation is not claimed")
     sft_summary = manifest.get("sft_summary") or {}
