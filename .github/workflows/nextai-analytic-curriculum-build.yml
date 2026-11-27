@@ -1,0 +1,131 @@
+name: NextAI analytic curriculum materialization
+
+on:
+  push:
+    branches:
+      - nextai-deep-training
+    paths:
+      - "training/nextai/generate_verified_engineering_cases.py"
+      - "training/nextai/audit_nextai_corpus.py"
+      - ".github/workflows/nextai-analytic-curriculum-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nextai-analytic-curriculum-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-audit:
+    name: Generate and audit 250,000 engineering lessons
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Next3D
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Qwen-tokenizer audit dependency
+        run: python -m pip install --disable-pip-version-check --upgrade "transformers>=5,<6"
+
+      - name: Generate all 25 analytic engineering families
+        run: |
+          python training/nextai/generate_verified_engineering_cases.py \
+            --output-dir artifacts/nextai-analytic-curriculum \
+            --cases-per-domain 10000 \
+            --seed 3407
+
+      - name: Audit with the actual Qwen student tokenizer
+        run: |
+          python training/nextai/audit_nextai_corpus.py \
+            --data-dir artifacts/nextai-analytic-curriculum \
+            --tokenizer Qwen/Qwen3.5-0.8B \
+            --output artifacts/nextai-analytic-curriculum/corpus_audit.json
+
+      - name: Verify all records, family counts and measured token contribution
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/nextai-analytic-curriculum")
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          audit = json.loads((root / "corpus_audit.json").read_text(encoding="utf-8"))
+          expected_families = 25
+          cases_per_family = 10_000
+          expected_total = expected_families * cases_per_family
+
+          if len(manifest.get("families", {})) != expected_families:
+              raise SystemExit(f"Expected {expected_families} families; got {len(manifest.get('families', {}))}")
+          if any(int(count) != cases_per_family for count in manifest["families"].values()):
+              raise SystemExit("At least one analytic family does not contain exactly 10,000 cases")
+          if int(manifest.get("total_records", 0)) != expected_total:
+              raise SystemExit(f"Expected {expected_total} rows; manifest reports {manifest.get('total_records')}")
+
+          ids = set()
+          counts = {}
+          for split in ("train", "validation", "test"):
+              path = root / f"{split}.jsonl"
+              count = 0
+              with path.open("r", encoding="utf-8") as handle:
+                  for number, line in enumerate(handle, 1):
+                      if not line.strip():
+                          continue
+                      row = json.loads(line)
+                      record_id = row.get("record_id")
+                      if not record_id or record_id in ids:
+                          raise SystemExit(f"Missing or duplicate record_id at {path}:{number}")
+                      ids.add(record_id)
+                      count += 1
+                      if row.get("evidence_level") != "L0" or row.get("native_execution_verified") is not False:
+                          raise SystemExit(f"Incorrect evidence classification at {path}:{number}")
+                      if row.get("split") != split:
+                          raise SystemExit(f"Split label mismatch at {path}:{number}")
+                      if not row.get("expected", {}).get("calculation_steps"):
+                          raise SystemExit(f"Missing calculation steps at {path}:{number}")
+                  counts[split] = count
+
+          if len(ids) != expected_total:
+              raise SystemExit(f"Expected {expected_total} unique IDs; found {len(ids)}")
+          if audit.get("status") != "PASS":
+              raise SystemExit(f"Corpus audit did not PASS: {audit.get('status')}")
+          if audit.get("train_text_tokens", 0) <= 0:
+              raise SystemExit("Qwen tokenizer reported no train text tokens")
+
+          summary = {
+              "status": "PASS",
+              "evidence_classification": "L0_analytic_educational_cases_not_native_execution",
+              "families": len(manifest["families"]),
+              "cases_per_family": cases_per_family,
+              "total_records": len(ids),
+              "split_records": counts,
+              "qwen_tokenizer": audit.get("tokenizer"),
+              "qwen_train_text_tokens": audit["train_text_tokens"],
+              "target_train_text_tokens": 400_000_000,
+              "train_token_target_fraction": audit["train_text_tokens"] / 400_000_000,
+              "train_token_shortfall": max(0, 400_000_000 - audit["train_text_tokens"]),
+              "native_execution_verified": False,
+              "fine_tuning_started": False
+          }
+          (root / "milestone-summary.json").write_text(
+              json.dumps(summary, indent=2, ensure_ascii=False) + "\\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(summary, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Upload generated curriculum and tokenizer audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextai-250k-analytic-curriculum
+          path: artifacts/nextai-analytic-curriculum/
+          if-no-files-found: error
+          retention-days: 30
