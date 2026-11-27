@@ -236,8 +236,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libxkbcommon-x11-0 xvfb
           mkdir -p ../../artifacts
-          xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/collect_nextcad_native_splits.py \\
-            --executable build/relWithDebInfo/bin/FreeCAD \\
+          xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/collect_nextcad_native_splits.py \
+            --executable build/relWithDebInfo/bin/FreeCAD \
             --output-dir ../../artifacts/nextcad-native-corpus
       - name: Upload validated NextCAD native training corpus
         if: always() && runner.os == 'Linux'
