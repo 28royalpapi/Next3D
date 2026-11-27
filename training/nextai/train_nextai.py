@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import random
 import sqlite3
 import tempfile
 from array import array
@@ -258,6 +259,154 @@ def validate_training_splits(
         "test_used_for_gradient_updates": False,
     }
 
+
+
+CURRICULUM_STAGE_ORDER = (
+    "foundations",
+    "cad_bim_fluency",
+    "engineering_disciplines",
+    "operator_methods",
+    "integrated_projects",
+)
+
+
+def curriculum_stage_for_record(row: dict[str, Any]) -> str:
+    """Map a record to the progressive engineering learning stage."""
+    explicit = str(row.get("curriculum_stage") or "").strip()
+    if explicit in CURRICULUM_STAGE_ORDER:
+        return explicit
+
+    domain = str(row.get("domain") or "unknown").strip().lower()
+    foundation_prefixes = (
+        "engineering_statics_",
+        "engineering_structural_axial_",
+        "engineering_mechanical_torsion",
+        "engineering_hydraulics_",
+        "engineering_geotechnical_",
+        "engineering_mechanical_gear_ratio",
+        "engineering_electrical_",
+        "engineering_surveying_",
+        "engineering_structural_section_",
+        "engineering_beam_reactions_",
+        "engineering_fem_axial_",
+        "engineering_pipe_continuity_",
+        "civil_earthwork_",
+        "construction_concrete_quantity",
+        "construction_reinforcement_mass",
+    )
+    if domain.startswith(foundation_prefixes):
+        return "foundations"
+
+    if domain.startswith(("cad_", "bim_", "ifc_")) or domain in {
+        "swiss_dwellings_floorplan",
+        "ifc_model_summary",
+        "ifc_element_inventory",
+    }:
+        return "cad_bim_fluency"
+
+    if domain in {"nextcad_native", "nextbim_native"}:
+        return "integrated_projects"
+    if domain.startswith(("design_execution_", "bim_execution_")):
+        return "integrated_projects"
+
+    if domain in {"nextcad_capability_knowledge", "nextbim_capability_knowledge"}:
+        return "operator_methods"
+    if domain == "engineering_skill_knowledge" or domain.startswith("design_intake_"):
+        return "operator_methods"
+
+    if domain.startswith(("engineering_", "civil_", "construction_")):
+        return "engineering_disciplines"
+
+    return "engineering_disciplines"
+
+
+def build_progressive_curriculum_order(
+    rows: Iterable[dict[str, Any]],
+    *,
+    seed: int = 3407,
+    replay_fraction: float = 0.10,
+    replay_chunk_size: int = 32,
+) -> tuple[list[int], dict[str, Any]]:
+    """Order one epoch as a progressive course with spaced rehearsal.
+
+    Every unique record is used once in its assigned stage. At each later stage,
+    a small random sample of earlier stages is inserted after each new-data chunk.
+    This introduces spaced rehearsal without materializing record contents.
+    """
+    if not 0.0 <= replay_fraction <= 0.5:
+        raise ValueError("replay_fraction must be between 0 and 0.5.")
+    if replay_chunk_size < 1:
+        raise ValueError("replay_chunk_size must be positive.")
+
+    stage_indices: dict[str, list[int]] = {
+        stage: [] for stage in CURRICULUM_STAGE_ORDER
+    }
+    domain_counts: dict[str, dict[str, int]] = {
+        stage: {} for stage in CURRICULUM_STAGE_ORDER
+    }
+    for index, row in enumerate(rows):
+        stage = curriculum_stage_for_record(row)
+        stage_indices[stage].append(index)
+        domain = str(row.get("domain") or "unknown")
+        domain_counts[stage][domain] = domain_counts[stage].get(domain, 0) + 1
+
+    rng = random.Random(seed)
+    for stage_index, stage in enumerate(CURRICULUM_STAGE_ORDER):
+        random.Random(seed + 1009 * (stage_index + 1)).shuffle(stage_indices[stage])
+
+    ordered_indices: list[int] = []
+    prior_indices: list[int] = []
+    stage_reports: dict[str, Any] = {}
+    replay_total = 0
+
+    for stage in CURRICULUM_STAGE_ORDER:
+        current = stage_indices[stage]
+        stage_start = len(ordered_indices)
+        replay_count = 0
+
+        for offset in range(0, len(current), replay_chunk_size):
+            chunk = current[offset:offset + replay_chunk_size]
+            ordered_indices.extend(chunk)
+            if prior_indices and replay_fraction > 0 and chunk:
+                replay_size = max(1, int(round(len(chunk) * replay_fraction)))
+                replay = [rng.choice(prior_indices) for _ in range(replay_size)]
+                ordered_indices.extend(replay)
+                replay_count += len(replay)
+
+        replay_total += replay_count
+        stage_reports[stage] = {
+            "unique_records": len(current),
+            "replay_records_inserted_after_stage_chunks": replay_count,
+            "ordered_positions_added": len(ordered_indices) - stage_start,
+            "domain_counts": dict(sorted(domain_counts[stage].items())),
+        }
+        prior_indices.extend(current)
+
+    if len(ordered_indices) < len(rows):
+        raise RuntimeError("Progressive curriculum ordering dropped one or more training records.")
+    if len(set(range(len(rows))) - set(ordered_indices)) > 0:
+        raise RuntimeError("Progressive curriculum ordering omitted original training records.")
+
+    order_digest = hashlib.sha256()
+    for index in ordered_indices:
+        order_digest.update(str(index).encode("ascii"))
+        order_digest.update(b",")
+
+    manifest = {
+        "schedule_version": 1,
+        "stage_order": list(CURRICULUM_STAGE_ORDER),
+        "stages": stage_reports,
+        "unique_training_records": len(rows),
+        "ordered_training_exposures": len(ordered_indices),
+        "spaced_replay_exposures": replay_total,
+        "replay_fraction_per_chunk": replay_fraction,
+        "replay_chunk_size": replay_chunk_size,
+        "sampler": "sequential",
+        "seed": seed,
+        "ordered_index_sha256": order_digest.hexdigest(),
+        "method": "Progressive stage blocks with deterministic spaced rehearsal of prior stages",
+    }
+    return ordered_indices, manifest
 
 def conversation_row_for_collator(
     row: dict[str, Any],
