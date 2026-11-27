@@ -1,0 +1,87 @@
+name: NextAI Learning Studio checks and publish
+
+on:
+  push:
+    branches:
+      - nextai-learning-interface
+    paths:
+      - "training/nextai/learning_studio/**"
+      - "tests/nextai/test_learning_studio.py"
+      - ".github/workflows/publish-nextai-learning-studio.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run curriculum interface tests
+        run: python -m unittest tests.nextai.test_learning_studio -v
+
+      - name: Check embedded JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path("training/nextai/learning_studio/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", source, flags=re.S)
+          if len(scripts) != 1:
+              raise SystemExit(f"Expected one inline script; found {len(scripts)}")
+          Path("/tmp/nextai-learning-studio.js").write_text(scripts[0], encoding="utf-8")
+          PY
+          node --check /tmp/nextai-learning-studio.js
+
+  publish:
+    needs: test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Hugging Face Hub client
+        run: python -m pip install --upgrade huggingface_hub
+
+      - name: Upload the tested static Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          token = os.environ.get("HF_TOKEN", "").strip()
+          if not token:
+              raise SystemExit(
+                  "HF_TOKEN GitHub Actions secret is missing. Add a Hugging Face write token "
+                  "for Justin75685 in repository Settings > Secrets and variables > Actions, "
+                  "then rerun this workflow."
+              )
+          api = HfApi(token=token)
+          api.upload_folder(
+              folder_path="training/nextai/learning_studio",
+              repo_id="Justin75685/nextai-learning-studio",
+              repo_type="space",
+              commit_message="Deploy tested NextAI Learning Studio",
+          )
+          print("Published the tested learning interface to the Hugging Face Space.")
+          PY
