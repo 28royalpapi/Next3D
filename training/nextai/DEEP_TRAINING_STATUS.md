@@ -15,6 +15,15 @@ The latest connected Hugging Face inspection still shows zero active Jobs. The p
 
 This checkpoint is evidence of stronger training controls and passing code checks, not evidence of corpus completion or model training.
 
+## Latest corpus-integrity improvement — 27 November 2026, 07:30 UTC
+
+- The exact-token audit now rejects exact normalized prompt/conversation duplicates within the same split, not only duplicates crossing train/validation/test. This prevents repeated examples from silently inflating the corpus and its apparent training exposure.
+- Regression test added for two distinct record IDs carrying the same normalized training text.
+- Validation run [45958743631](https://github.com/28royalpapi/Next3D/actions/runs/45958743631) passed: 36 unit tests, Python compilation and CLI-help checks. The duplicate-content regression passed.
+- The broader selector/native acceptance workflow [45958743694](https://github.com/28royalpapi/Next3D/actions/runs/45958743694) was still running at this checkpoint; its platform jobs must be checked before claiming a full matrix pass.
+
+This is a corpus-integrity improvement only. It does not mean the full public corpus has been materialized, that 400 million tokens have been measured, or that the model has been trained. Hugging Face still reports no active Jobs and the private corpus/model repositories still contain only .gitattributes. No paid compute has been launched.
+
 ## Implemented in the repository
 
 - Full-source corpus builder for the published Zero-to-CAD, IFC/BIM Alpaca and IFC/BIM QA splits.
