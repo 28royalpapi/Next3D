@@ -383,3 +383,9 @@ This checkpoint corrects the earlier misleading materialization status: the 250k
 - Deep-training validation [46021563798](https://github.com/28royalpapi/Next3D/actions/runs/46021563798) passed: 79 corpus/training tests, 9 native SFT, 14 analytic family tests, 9 independent benchmark tests, 13 Next BIM split-validation and 8 NextCAD split-validation — **132 tests total**; compilation and CLI checks passed.
 - Selector/visual smoke matrix [46021563912](https://github.com/28royalpapi/Next3D/actions/runs/46021563912) passed on Windows, Linux and macOS Intel.
 - These validations cover training-runner policy, configuration and dataset contracts. No CUDA training has been executed.
+
+### Direct audited ZIP input for bounded pilots — 27 November 2026, 16:08 WAT
+
+- `run_large_scale_training.py` now accepts either `--data-dir` or `--data-archive` (mutually exclusive). The archive path safely extracts the flat audited analytic bundle into the run output directory, checks allowed filenames/no path traversal/no symlinks/duplicate entries, checks non-empty train/validation/test splits, and requires a passing Qwen tokenizer audit before proceeding.
+- Training users can now pass the exact GitHub artifact ZIP directly, without a separate manual unzip step. This is an input convenience for the analytic first pilot; it does not add native CAD/BIM examples.
+- Deep-training run [46022051365](https://github.com/28royalpapi/Next3D/actions/runs/46022051365) passed **135 tests** (82 corpus/training, 9 native SFT, 14 analytic, 9 benchmark, 13 Next BIM split and 8 NextCAD split) plus compilation and CLI checks.
