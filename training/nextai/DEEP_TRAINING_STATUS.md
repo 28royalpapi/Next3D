@@ -377,3 +377,9 @@ This checkpoint corrects the earlier misleading materialization status: the 250k
 - The pilot run report now records requested optimizer steps, effective batch size and nominal example presentations (steps × batch size × gradient accumulation). At defaults, 200 steps × batch size 1 × accumulation 8 = 1,600 nominal row presentations.
 - This is an exposure estimate, not a count of unique records, model mastery or full-corpus coverage. The complete analytic training split contains 225,091 rows; the pilot touches only a small portion of that scheduled data.
 - Added validation for the estimate and for safe pilot defaults. The latest change is undergoing deep-training CI and cross-platform selector smoke validation.
+
+### Pilot accounting validation completed — 27 November 2026, 16:09 WAT
+
+- Deep-training validation [46021563798](https://github.com/28royalpapi/Next3D/actions/runs/46021563798) passed: 79 corpus/training tests, 9 native SFT, 14 analytic family tests, 9 independent benchmark tests, 13 Next BIM split-validation and 8 NextCAD split-validation — **132 tests total**; compilation and CLI checks passed.
+- Selector/visual smoke matrix [46021563912](https://github.com/28royalpapi/Next3D/actions/runs/46021563912) passed on Windows, Linux and macOS Intel.
+- These validations cover training-runner policy, configuration and dataset contracts. No CUDA training has been executed.
