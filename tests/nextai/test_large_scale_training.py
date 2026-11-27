@@ -19,6 +19,8 @@ from training.nextai.generate_verified_engineering_cases import (
     solve_earthwork_average_end_area,
     FAMILY_BUILDERS,
 )
+from training.nextai.run_large_scale_training import compare_heldout_evaluations
+)
 
 
 class FakeTokenizer:
@@ -355,6 +357,65 @@ class AnalyticEngineeringCurriculumTests(unittest.TestCase):
     def test_generator_rejects_negative_case_count(self):
         with self.assertRaises(ValueError):
             generate_cases(cases_per_domain=-1)
+
+
+class HeldOutEvaluationDisciplineTests(unittest.TestCase):
+    def test_trainer_does_not_evaluate_test_split_during_training(self):
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "training/nextai/train_nextai.py").read_text(encoding="utf-8")
+        self.assertIn("validation_by_domain = evaluate_by_domain(validation_rows", source)
+        self.assertNotIn("evaluate_by_domain(test_rows", source)
+        self.assertIn('"status": "PENDING_POST_TRAINING"', source)
+        self.assertIn("eval_dataset=ConversationDataset(validation_rows)", source)
+
+    def test_runner_uses_validation_before_training_and_test_only_after(self):
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "training/nextai/run_large_scale_training.py").read_text(encoding="utf-8")
+        train_pos = source.index("execute(training_command, log_path, env)")
+        validation_pos = source.index('"--test-jsonl", str(validation_file)')
+        test_pos = source.index('"--test-jsonl", str(test_file)')
+        self.assertLess(validation_pos, train_pos)
+        self.assertGreater(test_pos, train_pos)
+        self.assertIn("test_evaluated_only_after_candidate_training", source)
+
+    def test_heldout_comparison_compares_base_and_candidate_by_domain(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            base = root / "base.json"
+            candidate = root / "candidate.json"
+            output = root / "comparison.json"
+            base.write_text(json.dumps({
+                "model": "base",
+                "test_records": 20,
+                "metrics_by_domain": {
+                    "structural": {"token_f1": 0.5, "plan_shape_valid": 0.7, "records": 20}
+                },
+            }), encoding="utf-8")
+            candidate.write_text(json.dumps({
+                "model": "candidate",
+                "test_records": 20,
+                "metrics_by_domain": {
+                    "structural": {"token_f1": 0.6, "plan_shape_valid": 0.8, "records": 20}
+                },
+            }), encoding="utf-8")
+            report = compare_heldout_evaluations(base, candidate, output)
+            self.assertTrue(report["same_held_out_test_split"])
+            self.assertTrue(report["test_evaluated_only_after_candidate_training"])
+            self.assertAlmostEqual(
+                report["metrics_by_domain"]["structural"]["token_f1"]["delta"], 0.1
+            )
+            self.assertTrue(output.is_file())
+
+    def test_heldout_comparison_rejects_different_test_record_counts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            base = root / "base.json"
+            candidate = root / "candidate.json"
+            output = root / "comparison.json"
+            base.write_text(json.dumps({"test_records": 20}), encoding="utf-8")
+            candidate.write_text(json.dumps({"test_records": 19}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "same record count"):
+                compare_heldout_evaluations(base, candidate, output)
 
 
 if __name__ == "__main__":
