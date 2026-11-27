@@ -26,6 +26,7 @@ from training.nextai.run_large_scale_training import (
     validate_training_step_budget,
     training_run_scope,
     apply_pilot_profile,
+    estimate_example_exposures,
 )
 from training.nextai.prepare_public_corpora import merge_native_trace_splits
 from training.nextai.prepare_large_scale_corpus import (
@@ -538,6 +539,16 @@ class NextCADNativeSplitCollectionTests(unittest.TestCase):
 
 
 class LargeScaleTrainingTests(unittest.TestCase):
+    def test_bounded_run_reports_nominal_example_presentations(self):
+        self.assertEqual(estimate_example_exposures(200, 1, 8), 1600)
+        self.assertEqual(estimate_example_exposures(75, 2, 4), 600)
+        self.assertIsNone(estimate_example_exposures(-1, 1, 8))
+
+    def test_example_exposure_estimate_rejects_invalid_step_or_batch_values(self):
+        for values in ((0, 1, 8), (10, 0, 8), (10, 1, 0)):
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                estimate_example_exposures(*values)
+
     def test_no_assistant_imposed_token_target_is_configured_by_default(self):
         report = require_token_target(129_430_330)
         self.assertEqual(report["decision"], "NO_TARGET_CONFIGURED")
