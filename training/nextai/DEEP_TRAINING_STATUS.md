@@ -107,3 +107,32 @@ This improves corpus portability and catches multimodal asset failures before ba
 - The runner writes `native_trace_coverage.json` into its evidence bundle, including counts, missing splits and the explicit field `native_execution_mastery_claimed: false`.
 - Corpus manifests now identify each application’s native execution trace source separately and state that source licences are recorded per record.
 - This is a fail-closed training-entry requirement for a full native-execution run. It still depends on a real set of native traces having been captured and approved; no trace collection or GPU training has happened in this session.
+
+
+## Verified work-session checkpoint — 27 November 2026, 08:03 WAT
+
+Latest branch commit at this checkpoint: `41a2450424dc2078fb355bbbd6fe8740a7234fd9`.
+
+### Landed implementation changes
+
+1. Multimodal corpus paths are relocatable; image audit and trainer both resolve relative paths against the corpus root. Missing image assets block an audit PASS unless the explicit diagnostic-only override is used.
+2. The full-scale builder can consume a live NextCAD runtime census and optionally requires one. The plan records live command/API counts and clearly states the API enumeration scope.
+3. The full-scale builder accepts six prepared native SFT input files (NextCAD and Next BIM, each train/validation/test), validates their JSONL/application/split/IDs, fingerprints them and forwards them into corpus assembly.
+4. Validated native execution traces are retained outside the public/synthetic sampler and public validation/test caps. Six application-specific sidecar JSONL files are emitted and exact per-split counts are written to the manifest.
+5. The GPU runner offers `--require-native-traces`; it blocks before tokenizer/model download and GPU use unless all six app/split trace counts are non-zero and the manifest confirms trace retention. It writes a native-trace coverage evidence report without claiming mastery.
+
+### Verification
+
+- Latest deep-training validation run `45962660663`: **52 unit tests passed**, training-pipeline compilation passed, and CLI help checks passed.
+- Latest selector visual smoke matrix run `45962660619`: Windows and macOS Intel passed; Linux was still running when this checkpoint was written.
+- Previous complete three-platform matrix on commit `2a88d990ace17bbcea627052437c1c01dc4aa9b9` passed on Windows, macOS Intel and Linux.
+
+### Not yet completed
+
+- No live NextCAD GUI runtime census was captured in this session.
+- No actual native trace dataset was supplied or collected; the new six-file gates are tested with fixtures only.
+- The 400M tokenizer-measured training target has not been achieved or verified.
+- Hugging Face reports no running jobs. The private model and dataset repositories still contain only `.gitattributes`; no adapter, checkpoint, merged weights or quantized model exists there.
+- No paid compute was launched and no model weights were changed.
+
+This checkpoint is a substantial improvement to data correctness and the path for learning/validating native operations. It is not a trained-model improvement claim.
