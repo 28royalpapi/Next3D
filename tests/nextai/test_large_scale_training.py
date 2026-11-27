@@ -19,7 +19,7 @@ from training.nextai.generate_verified_engineering_cases import (
     solve_earthwork_average_end_area,
     FAMILY_BUILDERS,
 )
-from training.nextai.run_large_scale_training import compare_heldout_evaluations
+from training.nextai.run_large_scale_training import compare_heldout_evaluations, require_token_target
 from training.nextai.train_nextai import (
     IndexedJSONL,
     validate_training_splits,
@@ -38,6 +38,27 @@ class FakeTokenizer:
 
 
 class LargeScaleTrainingTests(unittest.TestCase):
+    def test_400m_token_gate_blocks_underfilled_corpus_by_default(self):
+        with self.assertRaisesRegex(RuntimeError, "Refusing GPU fine-tuning"):
+            require_token_target(125_000_000, 400_000_000)
+
+    def test_400m_token_gate_reports_exact_shortfall(self):
+        with self.assertRaisesRegex(RuntimeError, "275,000,000"):
+            require_token_target(125_000_000, 400_000_000)
+
+    def test_explicit_pilot_override_is_recorded_not_misreported_as_target_met(self):
+        report = require_token_target(125_000_000, 400_000_000, allow_below_target=True)
+        self.assertEqual(report["decision"], "PILOT_OVERRIDE")
+        self.assertEqual(report["shortfall_tokens"], 275_000_000)
+        self.assertFalse(report["target_met"])
+        self.assertTrue(report["pilot_override_used"])
+
+    def test_full_token_target_passes_without_pilot_override(self):
+        report = require_token_target(400_000_000, 400_000_000)
+        self.assertEqual(report["decision"], "PASS")
+        self.assertTrue(report["target_met"])
+        self.assertFalse(report["pilot_override_used"])
+
     def test_conversation_text_and_tools_are_counted_separately(self):
         row = {
             "messages": [
