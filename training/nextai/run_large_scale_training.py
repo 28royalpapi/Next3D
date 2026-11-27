@@ -272,6 +272,23 @@ def compare_heldout_evaluations(
     if int(base.get("test_records", -1)) != int(candidate.get("test_records", -2)):
         raise ValueError("Base and candidate held-out evaluations did not use the same record count.")
 
+    base_source_fingerprint = str(base.get("source_test_split_sha256") or "")
+    candidate_source_fingerprint = str(candidate.get("source_test_split_sha256") or "")
+    if not base_source_fingerprint or base_source_fingerprint != candidate_source_fingerprint:
+        raise ValueError(
+            "Base and candidate evaluations must use the exact same source held-out test split fingerprint."
+        )
+    base_evaluated_fingerprint = str(base.get("evaluated_records_sha256") or "")
+    candidate_evaluated_fingerprint = str(candidate.get("evaluated_records_sha256") or "")
+    if not base_evaluated_fingerprint or base_evaluated_fingerprint != candidate_evaluated_fingerprint:
+        raise ValueError(
+            "Base and candidate evaluations must use the exact same evaluated record subset fingerprint."
+        )
+    if base.get("test_split_used_for_training") is not False or candidate.get("test_split_used_for_training") is not False:
+        raise ValueError("Held-out comparison requires both evaluations to declare the test split unused for training.")
+    if bool(base.get("evaluation_is_partial")) != bool(candidate.get("evaluation_is_partial")):
+        raise ValueError("Base and candidate evaluations disagree on whether the held-out evaluation is partial.")
+
     metric_names = (
         "json_parse", "key_recall", "scalar_match", "token_f1",
         "plan_shape_valid", "tool_sequence_exact", "tool_recall",
@@ -301,6 +318,11 @@ def compare_heldout_evaluations(
         "base_model": base.get("model"),
         "candidate_model": candidate.get("model"),
         "test_records": base.get("test_records"),
+        "source_test_split_records": base.get("source_test_split_records"),
+        "source_test_split_sha256": base_source_fingerprint,
+        "evaluated_records_sha256": base_evaluated_fingerprint,
+        "evaluation_is_partial": bool(base.get("evaluation_is_partial")),
+        "evaluation_limit": base.get("evaluation_limit"),
         "test_split_used_for_training": False,
         "test_evaluated_only_after_candidate_training": True,
         "metrics_by_domain": domains,
