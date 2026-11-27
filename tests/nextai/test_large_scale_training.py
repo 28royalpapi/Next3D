@@ -20,6 +20,7 @@ from training.nextai.generate_verified_engineering_cases import (
     FAMILY_BUILDERS,
 )
 from training.nextai.run_large_scale_training import compare_heldout_evaluations
+from training.nextai.train_nextai import IndexedJSONL, validate_training_splits
 
 
 class FakeTokenizer:
@@ -415,6 +416,70 @@ class HeldOutEvaluationDisciplineTests(unittest.TestCase):
             candidate.write_text(json.dumps({"test_records": 19}), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "same record count"):
                 compare_heldout_evaluations(base, candidate, output)
+
+
+class IndexedJSONLTests(unittest.TestCase):
+    def test_indexed_jsonl_supports_random_access_and_blank_lines(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "train.jsonl"
+            rows = [
+                {"record_id": "r0", "domain": "cad"},
+                {"record_id": "r1", "domain": "bim"},
+                {"record_id": "r2", "domain": "structural"},
+            ]
+            path.write_text(
+                "\n" + json.dumps(rows[0]) + "\n\n"
+                + json.dumps(rows[1]) + "\n"
+                + json.dumps(rows[2]) + "\n",
+                encoding="utf-8",
+            )
+            indexed = IndexedJSONL(path)
+            self.assertEqual(len(indexed), 3)
+            self.assertEqual(indexed[0]["record_id"], "r0")
+            self.assertEqual(indexed[2]["record_id"], "r2")
+            self.assertEqual(indexed[-1]["record_id"], "r2")
+            self.assertEqual(
+                [row["record_id"] for row in indexed],
+                ["r0", "r1", "r2"],
+            )
+            indexed.close()
+
+    def test_integrity_gate_accepts_indexed_splits_and_rejects_group_leakage(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source_record = {
+                "messages": [
+                    {"role": "user", "content": "Explain the equation."},
+                    {"role": "assistant", "content": "Use the supplied assumptions and units."},
+                ],
+                "source_group_sha256": "one-source-group",
+            }
+            split_records = {
+                "train": [{**source_record, "record_id": "train-1"}],
+                "validation": [{"record_id": "val-1", **source_record}],
+                "test": [{"record_id": "test-1", "messages": source_record["messages"]}],
+            }
+            indices = {}
+            for split, records in split_records.items():
+                path = root / f"{split}.jsonl"
+                path.write_text(
+                    "".join(json.dumps(record) + "\n" for record in records),
+                    encoding="utf-8",
+                )
+                indices[split] = IndexedJSONL(path)
+            with self.assertRaisesRegex(ValueError, "Data leakage detected"):
+                validate_training_splits(
+                    indices["train"], indices["validation"], indices["test"]
+                )
+            for indexed in indices.values():
+                indexed.close()
+
+    def test_large_scale_runner_uses_indexed_jsonl_data_loading(self):
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "training/nextai/train_nextai.py").read_text(encoding="utf-8")
+        self.assertIn("train_rows = IndexedJSONL", source)
+        self.assertIn("Indexed JSONL byte offsets with on-demand record parsing", source)
+        self.assertNotIn("train_rows = read_jsonl", source)
 
 
 if __name__ == "__main__":
