@@ -20,6 +20,9 @@ from typing import Any
 CAD_DATASET = "ADSKAILab/Zero-To-CAD-100k"
 BIM_DATASET = "Dietmar2020/ifc-bim-alpaca-124k"
 BIM_QA_DATASET = "Dietmar2020/ifc-bim-qa-dataset"
+BUILDENG_DATASET = "Irfanuruchi/buildeng"
+
+from buildeng_dataset import make_buildeng_record
 
 CAD_SYSTEM = (
     "You are NextAI, a CAD geometry and parametric-design specialist. "
@@ -3484,6 +3487,7 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "engineering_pipe_continuity_calculation": 0.03,
         "construction_concrete_quantity_calculation": 0.03,
         "engineering_skill_knowledge": 0.08,
+        "engineering_buildeng_reasoning": 0.18,
         "nextcad_capability_knowledge": 0.10,
         "nextbim_capability_knowledge": 0.12,
         "design_intake_water_storage_tower": 0.04,
@@ -3679,6 +3683,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "design_execution_residential_floorplan": [], "design_execution_watchtower_concept": [],
         "design_execution_parametric_mechanical_part": [], "design_execution_edit_existing_model": [],
         "nextcad_native": [], "nextbim_native": [],
+        "engineering_buildeng_reasoning": [],
     }
     validation, tests, quarantine = [], [], []
     counts = Counter()
@@ -3740,6 +3745,35 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         record = make_bim_qa_record(row, f"ifc-qa-test-{index}", "test")
         if record:
             tests.append(record)
+
+    # BuildEng publishes one upstream train split. Create stable internal
+    # train/validation/test partitions by normalized category + user brief.
+    # Keep this 145K civil/structural safety-reasoning source separately labelled.
+    buildeng_seen: set[str] = set()
+    for index, row in enumerate(load_stream(BUILDENG_DATASET, "train", args.max_buildeng_records, args.seed)):
+        counts["buildeng_source_rows"] += 1
+        try:
+            record = make_buildeng_record(row, index)
+            if record["record_id"] in buildeng_seen:
+                counts["buildeng_duplicate_rows_skipped"] += 1
+                continue
+            buildeng_seen.add(record["record_id"])
+            target_split = record["split"]
+            if target_split == "train":
+                groups["engineering_buildeng_reasoning"].append(record)
+            elif target_split == "validation":
+                validation.append(record)
+            else:
+                tests.append(record)
+            counts[f"buildeng_{target_split}_accepted"] += 1
+        except Exception as exc:
+            counts["buildeng_quarantined"] += 1
+            quarantine.append({
+                "source": BUILDENG_DATASET,
+                "split": "train_with_deterministic_internal_split",
+                "row": index,
+                "reason": str(exc),
+            })
 
     if args.swiss_dwellings_dir:
         swiss_records = read_swiss_dwellings_directory(args.swiss_dwellings_dir)
@@ -3842,6 +3876,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": CAD_DATASET, "license": "Apache-2.0", "purpose": "CAD visual feature recognition and construction sequence"},
             {"repo": BIM_DATASET, "license": "MIT", "purpose": "IFC/BIM instruction lessons; source must claim validation and score >=4.5"},
             {"repo": BIM_QA_DATASET, "license": "CC-BY-4.0", "attribution": "Dietmar2020", "purpose": "IFC/BIM conceptual QA"},
+            {"repo": BUILDENG_DATASET, "license": "Apache-2.0", "purpose": "145,117 publisher-described civil/structural/building-engineering chat examples covering conservative reasoning, missing-input discipline, calculations, inspection and repair; split deterministically by normalized category and user brief; L0 material, not Next3D native execution"},
             {"repo": "Swiss Dwellings v3.0.0", "doi": "10.5281/zenodo.7788422", "license": "CC-BY-4.0", "attribution": "Standfest et al., Archilyse AG", "purpose": "Image-grounded architectural floor-plan geometry, room typology and shared-boundary relationships; optional training-only corpus"},
             {"repo": "optional IFC model corpus", "license": "manifest-declared", "purpose": "Parsed IFC2x3/IFC4 model hierarchy, element classes, safe properties, materials and relationships; no original GlobalIds or free-text personal metadata"},
             {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, multi-turn CAD/BIM design intake, BIM concepts and construction workflows"},
@@ -3867,6 +3902,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "Optional IFC model records are split by source model or paired project team; free-text names and original GlobalIds are excluded.",
             "Guided design-intake dialogue stages remain grouped together in one split; confirmed answers are carried forward and missing requirements are asked without repetition.",
             "Native design-execution examples use the current NextCAD typed tool schemas and are validated against the registry in tests; watchtower member dimensions are concept placeholders, and the floor-plan example is room zoning only.",
+            "BuildEng source validation is a publisher-described dataset claim; its examples remain L0 authored reasoning and are not NextCAD/Next BIM execution or professional design approval.",
+            "BuildEng has only one published train split; internal validation/test partitions are generated deterministically from normalized category and user-request fingerprints, not published benchmark splits.",
         ],
     }
     if ifc_model_manifest:
@@ -3894,6 +3931,7 @@ def main() -> int:
     parser.add_argument("--max-bim-validation", type=int, default=3000)
     parser.add_argument("--max-ifcqa-train", type=int, default=5000)
     parser.add_argument("--max-ifcqa-test", type=int, default=1000)
+    parser.add_argument("--max-buildeng-records", type=int, default=145117)
     parser.add_argument("--max-mixed-train", type=int, default=24000)
     parser.add_argument("--max-validation", type=int, default=2500)
     parser.add_argument("--max-test", type=int, default=1200)
@@ -3918,7 +3956,7 @@ def main() -> int:
     if any(value < 0 for value in (
         args.max_cad_train, args.max_cad_validation, args.max_cad_test,
         args.max_bim_train, args.max_bim_validation, args.max_ifcqa_train,
-        args.max_ifcqa_test, args.max_mixed_train,
+        args.max_ifcqa_test, args.max_buildeng_records, args.max_mixed_train,
     )):
         parser.error("sample limits cannot be negative")
     print(json.dumps(prepare(args), indent=2))
