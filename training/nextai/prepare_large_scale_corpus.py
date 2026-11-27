@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -67,6 +68,23 @@ def inspect_native_trace_inputs(
                     )
                 if not isinstance(row.get("messages"), list) or len(row["messages"]) < 3:
                     raise ValueError(f"Native trace at {path}:{line_number} has no complete SFT conversation")
+                evidence = row.get("native_trace_evidence") or {}
+                if evidence.get("validation_overall") not in {"passed", "passed_with_warnings"}:
+                    raise ValueError(f"Native trace at {path}:{line_number} has no passing native-validation evidence")
+                if evidence.get("round_trip_passed") is not True or evidence.get("recompute_passed") is not True:
+                    raise ValueError(f"Native trace at {path}:{line_number} has no save/reopen and recompute evidence")
+                if not re.fullmatch(r"[0-9a-f]{64}", str(evidence.get("after_state_sha256") or "")):
+                    raise ValueError(f"Native trace at {path}:{line_number} has no verified after-state hash")
+                try:
+                    operation_count = int(evidence.get("operation_count", 0))
+                    applied_count = int(evidence.get("applied_operation_count", 0))
+                    read_only_count = int(evidence.get("read_only_operation_count", 0))
+                except (TypeError, ValueError):
+                    raise ValueError(f"Native trace at {path}:{line_number} has invalid operation counts")
+                if operation_count < 1 or applied_count + read_only_count != operation_count:
+                    raise ValueError(f"Native trace at {path}:{line_number} has incomplete operation evidence")
+                if not re.fullmatch(r"[0-9a-f]{64}", str(evidence.get("operation_trace_sha256") or "")):
+                    raise ValueError(f"Native trace at {path}:{line_number} has no operation trace fingerprint")
                 record_id = str(row.get("record_id") or "").strip()
                 if not record_id:
                     raise ValueError(f"Native trace at {path}:{line_number} has no record_id")

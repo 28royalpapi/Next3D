@@ -198,6 +198,29 @@ def _example(record: dict[str, Any]) -> dict[str, Any]:
     ]
     source = record["source"]
     privacy = record["privacy"]
+    validation = record["validation"]
+    operation_evidence = [
+        {
+            "sequence": operation["sequence"],
+            "tool": operation["tool"],
+            "tool_schema_version": operation["tool_schema_version"],
+            "arguments": operation["arguments"],
+            "status": operation["status"],
+        }
+        for operation in record["operations"]
+    ]
+    native_trace_evidence = {
+        "validation_overall": validation["overall"],
+        "round_trip_passed": validation["round_trip_passed"] is True,
+        "recompute_passed": validation["recompute_passed"] is True,
+        "after_state_sha256": states["after"]["sha256"],
+        "operation_count": len(operation_evidence),
+        "applied_operation_count": sum(item["status"] == "applied" for item in operation_evidence),
+        "read_only_operation_count": sum(item["status"] == "read_only" for item in operation_evidence),
+        "operation_trace_sha256": hashlib.sha256(
+            json.dumps(operation_evidence, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        ).hexdigest(),
+    }
     source_group_sha256 = hashlib.sha256(_source_group(record).encode("utf-8")).hexdigest()
     source_metadata = {
         "source_type": source.get("source_type"),
@@ -221,6 +244,7 @@ def _example(record: dict[str, Any]) -> dict[str, Any]:
         "split": record["split"],
         "source": source_metadata,
         "privacy": privacy_metadata,
+        "native_trace_evidence": native_trace_evidence,
     }
     if record["application"] == "nextcad":
         example["tools"] = _nextcad_tool_schemas(task["prompt"], record["operations"])

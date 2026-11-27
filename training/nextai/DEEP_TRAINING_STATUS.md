@@ -136,3 +136,10 @@ Latest branch commit at this checkpoint: `41a2450424dc2078fb355bbbd6fe8740a7234f
 - No paid compute was launched and no model weights were changed.
 
 This checkpoint is a substantial improvement to data correctness and the path for learning/validating native operations. It is not a trained-model improvement claim.
+
+
+## Native-trace evidence carried into SFT — 27 November 2026
+
+- `prepare_native_sft.py` now embeds a compact proof envelope in every accepted SFT row: validation result, recompute and save/reopen pass flags, verified native after-state SHA-256, operation counts and a canonical operation-trace SHA-256.
+- Both `prepare_public_corpora.read_native` and the full-scale builder reject native SFT inputs without that passing validation proof envelope. This closes the gap where a conversation-shaped row with source metadata could be mistaken for a verified native execution trace.
+- The proof metadata is derived from the original schema-validated native record. It is evidence of the recorded source checks, not a cryptographic attestation by the native application and not a claim of general model mastery.

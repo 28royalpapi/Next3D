@@ -114,6 +114,14 @@ class PrepareNativeSftTests(unittest.TestCase):
             self.assertTrue(example["source"]["terms_reviewed"])
             self.assertEqual(example["privacy"]["redaction_status"], "not_needed")
             self.assertEqual(len(example["source"]["source_group_sha256"]), 64)
+            evidence = example["native_trace_evidence"]
+            self.assertTrue(evidence["round_trip_passed"])
+            self.assertTrue(evidence["recompute_passed"])
+            self.assertEqual(evidence["validation_overall"], "passed")
+            self.assertEqual(evidence["operation_count"], 1)
+            self.assertEqual(evidence["applied_operation_count"], 1)
+            self.assertEqual(len(evidence["after_state_sha256"]), 64)
+            self.assertEqual(len(evidence["operation_trace_sha256"]), 64)
 
     def test_nextcad_training_input_contains_initial_state_not_post_operation_state(self):
         item = make_record("state-leak-test", "train", "initial-project")

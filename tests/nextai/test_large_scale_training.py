@@ -109,6 +109,16 @@ class NativeTraceBuildIntegrationTests(unittest.TestCase):
                 {"role": "user", "content": "request"},
                 {"role": "assistant", "content": "validated native plan"},
             ],
+            "native_trace_evidence": {
+                "validation_overall": "passed",
+                "round_trip_passed": True,
+                "recompute_passed": True,
+                "after_state_sha256": "a" * 64,
+                "operation_count": 1,
+                "applied_operation_count": 1,
+                "read_only_operation_count": 0,
+                "operation_trace_sha256": "b" * 64,
+            },
         }
         path.write_text(json.dumps(row) + "\n", encoding="utf-8")
 

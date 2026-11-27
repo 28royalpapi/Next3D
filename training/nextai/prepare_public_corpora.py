@@ -373,6 +373,23 @@ def read_native(
             privacy = row.get("privacy") or {}
             if privacy.get("contains_personal_data", True) and privacy.get("redaction_status") != "complete":
                 raise ValueError(f"Native trace {record_id} has unredacted personal data")
+            evidence = row.get("native_trace_evidence") or {}
+            if evidence.get("validation_overall") not in {"passed", "passed_with_warnings"}:
+                raise ValueError(f"Native trace {record_id} has no passing native-validation evidence")
+            if evidence.get("round_trip_passed") is not True or evidence.get("recompute_passed") is not True:
+                raise ValueError(f"Native trace {record_id} has no passing save/reopen and recompute evidence")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(evidence.get("after_state_sha256") or "")):
+                raise ValueError(f"Native trace {record_id} has no verified native after-state hash")
+            try:
+                operation_count = int(evidence.get("operation_count", 0))
+                applied_count = int(evidence.get("applied_operation_count", 0))
+                read_only_count = int(evidence.get("read_only_operation_count", 0))
+            except (TypeError, ValueError):
+                raise ValueError(f"Native trace {record_id} has invalid operation evidence counts")
+            if operation_count < 1 or applied_count + read_only_count != operation_count:
+                raise ValueError(f"Native trace {record_id} has incomplete operation evidence")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(evidence.get("operation_trace_sha256") or "")):
+                raise ValueError(f"Native trace {record_id} has no operation-trace fingerprint")
             result.append({
                 "record_id": record_id,
                 "domain": domain,
@@ -385,6 +402,7 @@ def read_native(
                 "application_version": row.get("application_version"),
                 "adapter_schema_version": row.get("adapter_schema_version"),
                 "privacy": privacy,
+                "native_trace_evidence": evidence,
                 "source_split": expected_split,
             })
     return result
