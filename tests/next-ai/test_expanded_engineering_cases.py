@@ -100,6 +100,22 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
                     expected_stage,
                 )
 
+    def test_all_new_family_solvers_return_consistent_output_contracts(self):
+        cases = (
+            (MODULE.solve_euler_column_buckling, {"unsupported_length_m": 3, "effective_length_factor": 1, "elastic_modulus_GPa": 200, "second_moment_mm4": 8e7, "area_mm2": 5000}),
+            (MODULE.solve_rankine_active_pressure, {"soil_unit_weight_kN_m3": 18, "retained_height_m": 6, "uniform_surcharge_kPa": 10, "friction_angle_deg": 30}),
+            (MODULE.solve_hydrostatic_vertical_gate, {"gate_width_m": 2, "gate_height_m": 3, "gate_top_depth_below_free_surface_m": 1.5}),
+            (MODULE.solve_terzaghi_strip_footing, {"effective_cohesion_kPa": 10, "surcharge_at_foundation_level_kPa": 20, "effective_soil_unit_weight_kN_m3": 18, "footing_width_m": 2, "bearing_factor_Nc": 37.2, "bearing_factor_Nq": 22.5, "bearing_factor_Ngamma": 19.7, "factor_of_safety": 3}),
+            (MODULE.solve_infinite_slope_factor_of_safety, {"effective_cohesion_kPa": 5, "soil_unit_weight_kN_m3": 18, "normal_soil_thickness_m": 2, "pore_water_pressure_kPa": 5, "slope_angle_deg": 30, "effective_friction_angle_deg": 25}),
+        )
+        for solver, inputs in cases:
+            with self.subTest(solver=solver.__name__):
+                result = solver(inputs)
+                self.assertEqual(set(result), {"values", "units", "steps"})
+                self.assertTrue(result["values"])
+                self.assertEqual(set(result["values"]), set(result["units"]))
+                self.assertTrue(result["steps"])
+
     def test_new_solvers_reject_invalid_physical_inputs(self):
         invalid_cases = (
             (MODULE.solve_euler_column_buckling, {"unsupported_length_m": 0, "effective_length_factor": 1, "elastic_modulus_GPa": 200, "second_moment_mm4": 8e7, "area_mm2": 5000}),
