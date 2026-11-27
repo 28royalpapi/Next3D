@@ -2,7 +2,7 @@ name: Native application builds
 
 on:
   push:
-    branches: [main, nextcad, nextai-operator-foundation]
+    branches: [main, nextcad, nextai-operator-foundation, nextai-deep-training]
     paths:
       - "scripts/verify_native_capability_indices.py"
       - "scripts/run_nextcad_capability_census.py"
@@ -52,6 +52,15 @@ on:
       - "scripts/verify_nextbim_roundtrip.py"
       - "scripts/smoke_native.py"
   workflow_dispatch:
+    inputs:
+      validation_scope:
+        description: "Linux-only native trace collection, or full cross-platform build validation"
+        required: true
+        type: choice
+        default: linux-native-evidence
+        options:
+          - linux-native-evidence
+          - full-platform-matrix
 
 permissions:
   contents: read
@@ -62,6 +71,7 @@ concurrency:
 
 jobs:
   source-preparation:
+    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.modified, '.github/workflows/native-application-build.yml')
     name: Verify pinned sources and Next AI patches
     runs-on: ubuntu-24.04
     steps:
@@ -96,6 +106,7 @@ jobs:
           python -m py_compile training/nextai/*.py
 
   nextcad:
+    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.modified, '.github/workflows/native-application-build.yml')
     name: NextCAD / ${{ matrix.os }}
     needs: source-preparation
     runs-on: ${{ matrix.runner }}
@@ -103,10 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: Linux, runner: ubuntu-24.04 }
-          - { os: Windows, runner: windows-2025 }
-          - { os: macOS, runner: macos-15 }
+        include: ${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full-platform-matrix') || (github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/nextai-deep-training')) && '[{"os":"Linux","runner":"ubuntu-24.04"},{"os":"Windows","runner":"windows-2025"},{"os":"macOS","runner":"macos-15"}]' || '[{"os":"Linux","runner":"ubuntu-24.04"}]') }}
     env:
       CMAKE_BUILD_PARALLEL_LEVEL: 2
     steps:
@@ -299,6 +307,7 @@ jobs:
           fi
 
   next-bim:
+    if: github.ref != 'refs/heads/nextai-deep-training' || github.event_name != 'push' || contains(github.event.head_commit.modified, '.github/workflows/native-application-build.yml')
     name: Next BIM / ${{ matrix.os }}
     needs: source-preparation
     runs-on: ${{ matrix.runner }}
@@ -306,10 +315,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: Linux, runner: ubuntu-22.04 }
-          - { os: Windows, runner: windows-latest }
-          - { os: macOS, runner: macos-15 }
+        include: ${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full-platform-matrix') || (github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/nextai-deep-training')) && '[{"os":"Linux","runner":"ubuntu-22.04"},{"os":"Windows","runner":"windows-latest"},{"os":"macOS","runner":"macos-15"}]' || '[{"os":"Linux","runner":"ubuntu-22.04"}]') }}
     steps:
       - name: Checkout all upstream sources
         uses: actions/checkout@v4
