@@ -77,3 +77,10 @@ Do not report “trained”, “400M tokens”, “mastered”, “native valida
 - Regression tests cover relative asset references, trainer-side resolution, and fail-closed missing-image handling.
 
 This improves corpus portability and catches multimodal asset failures before baseline evaluation or GPU preparation. It does not establish that the full corpus exists, that 400 million tokens have been measured, or that model training has occurred.
+
+
+## Live NextCAD capability-census integration — 27 November 2026
+
+- The full-scale corpus builder now accepts `--nextcad-runtime-report` from the read-only `discover_nextcad_runtime.FCMacro` capture. It forwards the report to the pinned capability census, which adds the live GUI command registry and public Python API members discovered in loaded modules to the capability inventory and L0 learning lessons.
+- `--require-nextcad-runtime` now makes the full build fail closed when a live capture is missing. The builder's plan records source modules, captured GUI commands, loaded API modules/members, BIMCraft registered commands, capability counts and the enumeration scope. It explicitly labels skill obligations as not being training examples and does not claim mastery.
+- This closes a connection gap between the live-runtime census already supported by `capability_census.py` and the large-scale build entry point. The macro still has to be run inside the pinned NextCAD GUI to create the JSON report; code integration does not mean that capture has already occurred. Its enumeration is limited to visible registered commands and loaded public Python members, not every C++ symbol or optional API.

@@ -17,6 +17,58 @@ def run(command: list[str], *, cwd: Path = REPO_ROOT) -> None:
     subprocess.run(command, cwd=cwd, check=True)
 
 
+def build_capability_census_command(
+    output_dir: Path,
+    *,
+    runtime_report: Path | None = None,
+    require_runtime: bool = False,
+) -> list[str]:
+    """Build the pinned census command, optionally using a live NextCAD runtime capture."""
+    if require_runtime and runtime_report is None:
+        raise ValueError("--require-nextcad-runtime requires --nextcad-runtime-report")
+    command = [
+        sys.executable, str(TRAINING_DIR / "capability_census.py"),
+        "--bim-catalog", str(REPO_ROOT / "docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json"),
+        "--nextcad-source-index", str(REPO_ROOT / "docs/next-ai/catalogs/NEXTCAD_WORKBENCH_SOURCE_INDEX.v1.json"),
+        "--expected-nextcad-commit", "00cb280454069966a2fb0a8e7dc184c46e7b38b3",
+        "--expected-nextbim-commit", "a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b",
+        "--output-dir", str(output_dir),
+    ]
+    if runtime_report is not None:
+        runtime_path = Path(runtime_report).resolve()
+        if not runtime_path.is_file():
+            raise FileNotFoundError(f"NextCAD runtime census report does not exist: {runtime_path}")
+        command += ["--nextcad-runtime-report", str(runtime_path)]
+    if require_runtime:
+        command.append("--require-nextcad-runtime")
+    return command
+
+
+def capability_census_summary(census_path: Path) -> dict[str, Any]:
+    """Expose source/runtime coverage honestly in the large-scale build plan."""
+    census = json.loads(census_path.read_text(encoding="utf-8"))
+    if census.get("schema") != "nextai.capability_census.v1":
+        raise ValueError("Capability census has an unexpected schema.")
+    counts = census.get("counts") or {}
+    sources = census.get("sources") or {}
+    nextcad = sources.get("nextcad") or {}
+    runtime_captured = counts.get("nextcad_runtime_census_complete") is True
+    return {
+        "nextcad_runtime_capture": nextcad.get("runtime_capture", "not_captured"),
+        "nextcad_source_modules": counts.get("nextcad_source_modules", 0),
+        "nextcad_runtime_commands": counts.get("nextcad_runtime_commands", 0),
+        "nextcad_runtime_api_modules": counts.get("nextcad_runtime_api_modules", 0),
+        "nextcad_runtime_api_members": counts.get("nextcad_runtime_api_members", 0),
+        "nextcad_runtime_census_complete": runtime_captured,
+        "nextcad_python_api_enumeration_scope": nextcad.get("python_api_enumeration_scope"),
+        "nextbim_registered_commands": counts.get("nextbim_registered_commands", 0),
+        "total_discovered_capabilities": counts.get("total_discovered_capabilities", 0),
+        "skill_obligations": counts.get("skill_obligations", 0),
+        "skill_obligations_are_training_examples": False,
+        "native_mastery_claimed": False,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", required=True, type=Path)
@@ -35,6 +87,14 @@ def main() -> int:
     parser.add_argument("--test-cap", type=int, default=50000)
     parser.add_argument("--swiss-dwellings-dir", type=Path)
     parser.add_argument("--ifc-model-corpus-dir", type=Path)
+    parser.add_argument(
+        "--nextcad-runtime-report", type=Path,
+        help="JSON report emitted by discover_nextcad_runtime.FCMacro inside the pinned NextCAD runtime.",
+    )
+    parser.add_argument(
+        "--require-nextcad-runtime", action="store_true",
+        help="Refuse to proceed unless the live NextCAD command registry/API census is captured.",
+    )
     parser.add_argument("--skip-capability-census", action="store_true")
     parser.add_argument("--skip-token-audit", action="store_true")
     parser.add_argument("--tokenizer", default="Qwen/Qwen3.5-0.8B")
@@ -50,20 +110,21 @@ def main() -> int:
         parser.error("All source and split limits must be non-negative.")
     if args.mixed_train_cap == 0 or args.validation_cap == 0 or args.test_cap == 0:
         parser.error("Mixed train, validation and test caps must be positive.")
+    if args.require_nextcad_runtime and not args.nextcad_runtime_report and not args.skip_capability_census:
+        parser.error("--require-nextcad-runtime requires --nextcad-runtime-report")
+    if args.skip_capability_census and args.nextcad_runtime_report:
+        parser.error("--nextcad-runtime-report cannot be used with --skip-capability-census")
 
     out = args.output_dir.resolve()
     out.mkdir(parents=True, exist_ok=True)
     census_path = out / "capability-census.json"
 
     if not args.skip_capability_census:
-        census_command = [
-            sys.executable, str(TRAINING_DIR / "capability_census.py"),
-            "--bim-catalog", str(REPO_ROOT / "docs/next-ai/catalogs/BIMCRAFT_NATIVE_COMMANDS.v1.json"),
-            "--nextcad-source-index", str(REPO_ROOT / "docs/next-ai/catalogs/NEXTCAD_WORKBENCH_SOURCE_INDEX.v1.json"),
-            "--expected-nextcad-commit", "00cb280454069966a2fb0a8e7dc184c46e7b38b3",
-            "--expected-nextbim-commit", "a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b",
-            "--output-dir", str(out / "capability-census"),
-        ]
+        census_command = build_capability_census_command(
+            out / "capability-census",
+            runtime_report=args.nextcad_runtime_report,
+            require_runtime=args.require_nextcad_runtime,
+        )
         run(census_command)
         census_path = out / "capability-census" / "capability-census.json"
     else:
@@ -74,6 +135,14 @@ def main() -> int:
         census_path = next((path for path in candidates if path.is_file()), None)
         if census_path is None:
             raise FileNotFoundError("--skip-capability-census requires an existing capability-census.json")
+
+    census_summary = capability_census_summary(census_path)
+    if args.require_nextcad_runtime and not census_summary["nextcad_runtime_census_complete"]:
+        raise RuntimeError(
+            "A live NextCAD runtime report is required, but the selected capability census "
+            "does not contain one. Run discover_nextcad_runtime.FCMacro inside the pinned "
+            "NextCAD GUI and pass its nextcad-runtime.json report."
+        )
 
     command = [
         sys.executable, str(TRAINING_DIR / "prepare_public_corpora.py"),
@@ -130,6 +199,8 @@ def main() -> int:
             "quarantined": manifest.get("quarantined_rows", 0),
         },
         "training_domain_counts": manifest.get("training_domain_counts", {}),
+        "capability_census_summary": census_summary,
+        "requires_live_nextcad_runtime_for_full_native_coverage": True,
         "analytic_engineering_split_counts": {
             "train": manifest.get("source_counts", {}).get("analytic_engineering_train", 0),
             "validation": manifest.get("source_counts", {}).get("analytic_engineering_validation", 0),

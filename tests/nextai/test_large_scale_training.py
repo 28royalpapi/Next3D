@@ -20,6 +20,7 @@ from training.nextai.generate_verified_engineering_cases import (
     FAMILY_BUILDERS,
 )
 from training.nextai.run_large_scale_training import compare_heldout_evaluations, require_token_target
+from training.nextai.prepare_large_scale_corpus import build_capability_census_command, capability_census_summary
 from training.nextai.evaluate_nextai import fingerprint_records
 from training.nextai.train_nextai import (
     IndexedJSONL,
@@ -36,6 +37,55 @@ class FakeTokenizer:
 
     def encode(self, text, add_special_tokens=False):
         return text.split()
+
+
+class CapabilityCensusIntegrationTests(unittest.TestCase):
+    def test_builder_forwards_live_runtime_report_and_required_flag(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            report = root / "nextcad-runtime.json"
+            report.write_text("{}", encoding="utf-8")
+            command = build_capability_census_command(
+                root / "census", runtime_report=report, require_runtime=True
+            )
+            self.assertIn("--nextcad-runtime-report", command)
+            self.assertIn(str(report.resolve()), command)
+            self.assertIn("--require-nextcad-runtime", command)
+
+    def test_required_live_runtime_without_report_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "requires --nextcad-runtime-report"):
+            build_capability_census_command(Path("census"), require_runtime=True)
+
+    def test_missing_live_runtime_report_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            missing = Path(temp) / "absent.json"
+            with self.assertRaisesRegex(FileNotFoundError, "NextCAD runtime census report does not exist"):
+                build_capability_census_command(Path(temp) / "census", runtime_report=missing)
+
+    def test_census_summary_distinguishes_live_inventory_from_source_only_catalogue(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "census.json"
+            census = {
+                "schema": "nextai.capability_census.v1",
+                "sources": {"nextcad": {"runtime_capture": "captured", "python_api_enumeration_scope": "loaded public Python names only"}},
+                "counts": {
+                    "nextcad_runtime_census_complete": True,
+                    "nextcad_runtime_commands": 1200,
+                    "nextcad_runtime_api_modules": 35,
+                    "nextcad_runtime_api_members": 8200,
+                    "nextcad_source_modules": 55,
+                    "nextbim_registered_commands": 215,
+                    "total_discovered_capabilities": 9615,
+                    "skill_obligations": 96150,
+                },
+            }
+            path.write_text(json.dumps(census), encoding="utf-8")
+            summary = capability_census_summary(path)
+            self.assertTrue(summary["nextcad_runtime_census_complete"])
+            self.assertEqual(summary["nextcad_runtime_commands"], 1200)
+            self.assertEqual(summary["nextcad_runtime_api_members"], 8200)
+            self.assertFalse(summary["skill_obligations_are_training_examples"])
+            self.assertFalse(summary["native_mastery_claimed"])
 
 
 class LargeScaleTrainingTests(unittest.TestCase):
