@@ -20,6 +20,7 @@ from training.nextai.generate_verified_engineering_cases import (
     FAMILY_BUILDERS,
 )
 from training.nextai.run_large_scale_training import compare_heldout_evaluations, require_token_target
+from training.nextai.evaluate_nextai import fingerprint_records
 from training.nextai.train_nextai import (
     IndexedJSONL,
     validate_training_splits,
@@ -436,6 +437,12 @@ class HeldOutEvaluationDisciplineTests(unittest.TestCase):
             base.write_text(json.dumps({
                 "model": "base",
                 "test_records": 20,
+                "source_test_split_records": 20,
+                "source_test_split_sha256": "full-split-sha256",
+                "evaluated_records_sha256": "evaluated-subset-sha256",
+                "evaluation_is_partial": False,
+                "evaluation_limit": 0,
+                "test_split_used_for_training": False,
                 "metrics_by_domain": {
                     "structural": {"token_f1": 0.5, "plan_shape_valid": 0.7, "records": 20}
                 },
@@ -443,6 +450,12 @@ class HeldOutEvaluationDisciplineTests(unittest.TestCase):
             candidate.write_text(json.dumps({
                 "model": "candidate",
                 "test_records": 20,
+                "source_test_split_records": 20,
+                "source_test_split_sha256": "full-split-sha256",
+                "evaluated_records_sha256": "evaluated-subset-sha256",
+                "evaluation_is_partial": False,
+                "evaluation_limit": 0,
+                "test_split_used_for_training": False,
                 "metrics_by_domain": {
                     "structural": {"token_f1": 0.6, "plan_shape_valid": 0.8, "records": 20}
                 },
@@ -454,6 +467,67 @@ class HeldOutEvaluationDisciplineTests(unittest.TestCase):
                 report["metrics_by_domain"]["structural"]["token_f1"]["delta"], 0.1
             )
             self.assertTrue(output.is_file())
+
+    def test_heldout_comparison_rejects_same_count_but_different_source_split(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            base = root / "base.json"
+            candidate = root / "candidate.json"
+            output = root / "comparison.json"
+            common = {
+                "test_records": 20,
+                "evaluated_records_sha256": "same-evaluated-subset",
+                "test_split_used_for_training": False,
+            }
+            base.write_text(json.dumps({
+                **common,
+                "source_test_split_sha256": "source-split-A",
+            }), encoding="utf-8")
+            candidate.write_text(json.dumps({
+                **common,
+                "source_test_split_sha256": "source-split-B",
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "exact same source held-out test split fingerprint"):
+                compare_heldout_evaluations(base, candidate, output)
+
+    def test_heldout_comparison_rejects_different_evaluated_subsets(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            base = root / "base.json"
+            candidate = root / "candidate.json"
+            output = root / "comparison.json"
+            common = {
+                "test_records": 10,
+                "source_test_split_sha256": "same-full-split",
+                "test_split_used_for_training": False,
+            }
+            base.write_text(json.dumps({
+                **common,
+                "evaluated_records_sha256": "first-ten-records",
+            }), encoding="utf-8")
+            candidate.write_text(json.dumps({
+                **common,
+                "evaluated_records_sha256": "different-ten-records",
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "exact same evaluated record subset fingerprint"):
+                compare_heldout_evaluations(base, candidate, output)
+
+    def test_evaluation_fingerprint_is_canonical_and_order_sensitive(self):
+        first = [
+            {"record_id": "one", "value": 1},
+            {"record_id": "two", "value": 2},
+        ]
+        reordered_keys = [
+            {"value": 1, "record_id": "one"},
+            {"value": 2, "record_id": "two"},
+        ]
+        reordered_rows = list(reversed(first))
+        self.assertEqual(fingerprint_records(first), fingerprint_records(reordered_keys))
+        self.assertNotEqual(fingerprint_records(first), fingerprint_records(reordered_rows))
+        self.assertNotEqual(
+            fingerprint_records(first),
+            fingerprint_records([{"record_id": "one", "value": 9}, first[1]]),
+        )
 
     def test_heldout_comparison_rejects_different_test_record_counts(self):
         with tempfile.TemporaryDirectory() as temp:
