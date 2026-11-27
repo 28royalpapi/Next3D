@@ -20,7 +20,12 @@ from training.nextai.generate_verified_engineering_cases import (
     FAMILY_BUILDERS,
 )
 from training.nextai.run_large_scale_training import compare_heldout_evaluations, require_token_target
-from training.nextai.prepare_large_scale_corpus import build_capability_census_command, capability_census_summary
+from training.nextai.prepare_large_scale_corpus import (
+    build_capability_census_command,
+    capability_census_summary,
+    inspect_native_trace_inputs,
+    native_trace_command_args,
+)
 from training.nextai.evaluate_nextai import fingerprint_records
 from training.nextai.train_nextai import (
     IndexedJSONL,
@@ -86,6 +91,71 @@ class CapabilityCensusIntegrationTests(unittest.TestCase):
             self.assertEqual(summary["nextcad_runtime_api_members"], 8200)
             self.assertFalse(summary["skill_obligations_are_training_examples"])
             self.assertFalse(summary["native_mastery_claimed"])
+
+
+class NativeTraceBuildIntegrationTests(unittest.TestCase):
+    def _write_trace(self, path: Path, application: str, split: str, record_id: str):
+        row = {
+            "application": application,
+            "split": split,
+            "record_id": record_id,
+            "messages": [
+                {"role": "system", "content": "system"},
+                {"role": "user", "content": "request"},
+                {"role": "assistant", "content": "validated native plan"},
+            ],
+        }
+        path.write_text(json.dumps(row) + "\\n", encoding="utf-8")
+
+    def test_all_six_native_trace_inputs_are_fingerprinted_and_forwarded(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            inputs = {}
+            for application in ("nextcad", "nextbim"):
+                for split in ("train", "validation", "test"):
+                    key = f"{application}_native_{split}"
+                    path = root / f"{key}.jsonl"
+                    self._write_trace(path, application, split, key)
+                    inputs[key] = path
+            summary = inspect_native_trace_inputs(inputs, require_all=True)
+            self.assertEqual(set(summary), set(inputs))
+            self.assertTrue(all(item["status"] == "present" for item in summary.values()))
+            self.assertTrue(all(item["records"] == 1 for item in summary.values()))
+            self.assertTrue(all(len(item["sha256"]) == 64 for item in summary.values()))
+            forwarded = native_trace_command_args(summary)
+            self.assertEqual(len(forwarded), 12)
+            self.assertEqual(forwarded[0], "--nextcad-native-train")
+            self.assertIn("--nextbim-native-test", forwarded)
+
+    def test_full_native_trace_mode_requires_both_applications_and_all_splits(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "one.jsonl"
+            self._write_trace(path, "nextcad", "train", "cad-train")
+            with self.assertRaisesRegex(ValueError, "all six"):
+                inspect_native_trace_inputs({"nextcad_native_train": path}, require_all=True)
+
+    def test_native_trace_file_rejects_wrong_application_or_split(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "wrong.jsonl"
+            self._write_trace(path, "nextbim", "train", "wrong-app")
+            with self.assertRaisesRegex(ValueError, "expected 'nextcad'"):
+                inspect_native_trace_inputs({"nextcad_native_train": path})
+
+    def test_native_trace_file_rejects_malformed_json_and_duplicate_ids(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            malformed = root / "malformed.jsonl"
+            malformed.write_text("not-json\\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Invalid native trace JSON"):
+                inspect_native_trace_inputs({"nextcad_native_train": malformed})
+            duplicate = root / "duplicate.jsonl"
+            self._write_trace(duplicate, "nextcad", "train", "same")
+            with duplicate.open("a", encoding="utf-8") as handle:
+                row = {"application": "nextcad", "split": "train", "record_id": "same",
+                       "messages": [{"role": "system"}, {"role": "user"}, {"role": "assistant"}]}
+                handle.write(json.dumps(row) + "\\n")
+            with self.assertRaisesRegex(ValueError, "Duplicate native trace record_id"):
+                inspect_native_trace_inputs({"nextcad_native_train": duplicate})
 
 
 class LargeScaleTrainingTests(unittest.TestCase):

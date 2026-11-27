@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -10,6 +11,98 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRAINING_DIR = Path(__file__).resolve().parent
+
+NATIVE_TRACE_INPUTS = (
+    ("nextcad_native_train", "--nextcad-native-train", "nextcad", "train"),
+    ("nextcad_native_validation", "--nextcad-native-validation", "nextcad", "validation"),
+    ("nextcad_native_test", "--nextcad-native-test", "nextcad", "test"),
+    ("nextbim_native_train", "--nextbim-native-train", "nextbim", "train"),
+    ("nextbim_native_validation", "--nextbim-native-validation", "nextbim", "validation"),
+    ("nextbim_native_test", "--nextbim-native-test", "nextbim", "test"),
+)
+
+
+def inspect_native_trace_inputs(
+    inputs: dict[str, Path | None],
+    *,
+    require_all: bool = False,
+) -> dict[str, dict[str, Any]]:
+    """Verify prepared native SFT files and fingerprint each application/split input."""
+    summary: dict[str, dict[str, Any]] = {}
+    missing = []
+    for key, _flag, application, split in NATIVE_TRACE_INPUTS:
+        raw_path = inputs.get(key)
+        if raw_path is None:
+            summary[key] = {"status": "not_provided", "application": application, "split": split, "records": 0}
+            if require_all:
+                missing.append(key)
+            continue
+
+        path = Path(raw_path).resolve()
+        if not path.is_file():
+            raise FileNotFoundError(f"Native {application} {split} trace file not found: {path}")
+        digest = hashlib.sha256()
+        record_count = 0
+        record_ids: set[str] = set()
+        with path.open("rb") as handle:
+            for line_number, raw_line in enumerate(handle, 1):
+                digest.update(raw_line)
+                if not raw_line.strip():
+                    continue
+                try:
+                    row = json.loads(raw_line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"Invalid native trace JSON at {path}:{line_number}: {exc}") from exc
+                if not isinstance(row, dict):
+                    raise ValueError(f"Native trace at {path}:{line_number} is not a JSON object")
+                if row.get("application") != application:
+                    raise ValueError(
+                        f"Native trace at {path}:{line_number} belongs to {row.get('application')!r}, "
+                        f"expected {application!r}"
+                    )
+                if row.get("split") != split:
+                    raise ValueError(
+                        f"Native trace at {path}:{line_number} has split {row.get('split')!r}, "
+                        f"expected {split!r}"
+                    )
+                if not isinstance(row.get("messages"), list) or len(row["messages"]) < 3:
+                    raise ValueError(f"Native trace at {path}:{line_number} has no complete SFT conversation")
+                record_id = str(row.get("record_id") or "").strip()
+                if not record_id:
+                    raise ValueError(f"Native trace at {path}:{line_number} has no record_id")
+                if record_id in record_ids:
+                    raise ValueError(f"Duplicate native trace record_id {record_id!r} in {path}")
+                record_ids.add(record_id)
+                record_count += 1
+
+        if require_all and record_count == 0:
+            missing.append(key + " (empty)")
+        summary[key] = {
+            "status": "present" if record_count else "empty",
+            "application": application,
+            "split": split,
+            "path": str(path),
+            "records": record_count,
+            "sha256": digest.hexdigest(),
+        }
+
+    if missing:
+        raise ValueError(
+            "--require-native-traces needs non-empty prepared native trace files for all six "
+            "NextCAD/Next BIM train, validation and held-out test splits. Missing: "
+            + ", ".join(missing)
+        )
+    return summary
+
+
+def native_trace_command_args(summary: dict[str, dict[str, Any]]) -> list[str]:
+    """Forward only verified native trace files into the public-corpus builder."""
+    result: list[str] = []
+    for key, flag, _application, _split in NATIVE_TRACE_INPUTS:
+        item = summary.get(key) or {}
+        if item.get("status") in {"present", "empty"} and item.get("path"):
+            result.extend([flag, str(item["path"])])
+    return result
 
 
 def run(command: list[str], *, cwd: Path = REPO_ROOT) -> None:
@@ -87,6 +180,16 @@ def main() -> int:
     parser.add_argument("--test-cap", type=int, default=50000)
     parser.add_argument("--swiss-dwellings-dir", type=Path)
     parser.add_argument("--ifc-model-corpus-dir", type=Path)
+    parser.add_argument("--nextcad-native-train", type=Path)
+    parser.add_argument("--nextcad-native-validation", type=Path)
+    parser.add_argument("--nextcad-native-test", type=Path)
+    parser.add_argument("--nextbim-native-train", type=Path)
+    parser.add_argument("--nextbim-native-validation", type=Path)
+    parser.add_argument("--nextbim-native-test", type=Path)
+    parser.add_argument(
+        "--require-native-traces", action="store_true",
+        help="Require non-empty validated NextCAD and Next BIM native traces in all train/validation/test splits.",
+    )
     parser.add_argument(
         "--nextcad-runtime-report", type=Path,
         help="JSON report emitted by discover_nextcad_runtime.FCMacro inside the pinned NextCAD runtime.",
@@ -114,6 +217,15 @@ def main() -> int:
         parser.error("--require-nextcad-runtime requires --nextcad-runtime-report")
     if args.skip_capability_census and args.nextcad_runtime_report:
         parser.error("--nextcad-runtime-report cannot be used with --skip-capability-census")
+
+    native_trace_summary = inspect_native_trace_inputs({
+        "nextcad_native_train": args.nextcad_native_train,
+        "nextcad_native_validation": args.nextcad_native_validation,
+        "nextcad_native_test": args.nextcad_native_test,
+        "nextbim_native_train": args.nextbim_native_train,
+        "nextbim_native_validation": args.nextbim_native_validation,
+        "nextbim_native_test": args.nextbim_native_test,
+    }, require_all=args.require_native_traces)
 
     out = args.output_dir.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -166,6 +278,7 @@ def main() -> int:
         command += ["--swiss-dwellings-dir", str(args.swiss_dwellings_dir.resolve())]
     if args.ifc_model_corpus_dir:
         command += ["--ifc-model-corpus-dir", str(args.ifc_model_corpus_dir.resolve())]
+    command += native_trace_command_args(native_trace_summary)
     run(command)
 
     manifest_path = out / "corpus" / "manifest.json"
@@ -200,6 +313,11 @@ def main() -> int:
         },
         "training_domain_counts": manifest.get("training_domain_counts", {}),
         "capability_census_summary": census_summary,
+        "native_execution_evidence_inputs": native_trace_summary,
+        "native_execution_evidence_record_counts": {
+            key: item.get("records", 0) for key, item in native_trace_summary.items()
+        },
+        "requires_native_traces_for_full_execution_training": True,
         "requires_live_nextcad_runtime_for_full_native_coverage": True,
         "analytic_engineering_split_counts": {
             "train": manifest.get("source_counts", {}).get("analytic_engineering_train", 0),
