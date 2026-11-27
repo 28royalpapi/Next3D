@@ -236,6 +236,14 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
             "schema_version": NATIVE_COLLECTION_MANIFEST_SPECS[application][0],
             "application": application,
             "source_revision": NATIVE_COLLECTION_MANIFEST_SPECS[application][1],
+            "evidence_level": (
+                "L3 native execution + L4 save/reopen"
+                if application == "nextcad"
+                else "L3 native CLI execution + L4 project save/reopen"
+            ),
+            "synthetic_acceptance_fixtures": True,
+            "train_validation_test_source_lineages_are_disjoint": True,
+            "source_lineages_disjoint": True,
             "independent_engineering_validation": "not_claimed",
             "sft_summary": sft_summary,
             "split_record_counts": split_counts,
@@ -289,6 +297,23 @@ class NativeCollectionManifestVerificationTests(unittest.TestCase):
             })
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "escapes its collection directory"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
+
+
+    def test_manifest_rejects_claim_of_independent_engineering_validation_or_missing_fixture_label(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manifest_path, manifest = self._build_manifest(Path(temp))
+            manifest["synthetic_acceptance_fixtures"] = False
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "controlled synthetic fixtures"):
+                verify_native_collection_manifest(manifest_path, "nextcad")
+
+    def test_manifest_rejects_missing_split_lineage_separation_flag(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manifest_path, manifest = self._build_manifest(Path(temp))
+            manifest["train_validation_test_source_lineages_are_disjoint"] = False
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "split-disjoint project lineages"):
                 verify_native_collection_manifest(manifest_path, "nextcad")
 
     def test_manifest_rejects_wrong_pinned_source_revision(self):
