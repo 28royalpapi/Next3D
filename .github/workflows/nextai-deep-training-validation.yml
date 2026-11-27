@@ -8,6 +8,7 @@ on:
       - "training/nextai/audit_nextai_corpus.py"
       - "training/nextai/prepare_large_scale_corpus.py"
       - "training/nextai/run_large_scale_training.py"
+      - "training/nextai/train_nextai.py"
       - "training/nextai/buildeng_dataset.py"
       - "training/nextai/generate_verified_engineering_cases.py"
       - "training/nextai/prepare_public_corpora.py"
