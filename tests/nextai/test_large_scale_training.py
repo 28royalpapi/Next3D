@@ -167,7 +167,13 @@ class NativeTraceBuildIntegrationTests(unittest.TestCase):
             self._write_trace(duplicate, "nextcad", "train", "same")
             with duplicate.open("a", encoding="utf-8") as handle:
                 row = {"application": "nextcad", "split": "train", "record_id": "same",
-                       "messages": [{"role": "system"}, {"role": "user"}, {"role": "assistant"}]}
+                       "messages": [{"role": "system"}, {"role": "user"}, {"role": "assistant"}],
+                       "native_trace_evidence": {
+                           "validation_overall": "passed", "round_trip_passed": True,
+                           "recompute_passed": True, "after_state_sha256": "a" * 64,
+                           "operation_count": 1, "applied_operation_count": 1,
+                           "read_only_operation_count": 0, "operation_trace_sha256": "b" * 64,
+                       }}
                 handle.write(json.dumps(row) + "\n")
             with self.assertRaisesRegex(ValueError, "Duplicate native trace record_id"):
                 inspect_native_trace_inputs({"nextcad_native_train": duplicate})
