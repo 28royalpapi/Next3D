@@ -118,7 +118,7 @@ class LargeScaleTrainingTests(unittest.TestCase):
             }
             for split, rows in records.items():
                 (root / f"{split}.jsonl").write_text(
-                    "".join(json.dumps(row) + "\\n" for row in rows),
+                    "".join(json.dumps(row) + "\n" for row in rows),
                     encoding="utf-8",
                 )
             with self.assertRaisesRegex(ValueError, "duplicates within a split"):
