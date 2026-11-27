@@ -169,6 +169,14 @@ def load_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def validate_training_step_budget(max_steps: int, epochs: float) -> None:
+    """Validate a full-epoch or explicitly bounded SFT run before any model download."""
+    if max_steps == 0 or max_steps < -1:
+        raise ValueError("max_steps must be -1 for full epochs or a positive bounded step count.")
+    if epochs <= 0:
+        raise ValueError("epochs must be positive.")
+
+
 def require_token_target(
     train_tokens: int,
     target_tokens: int,
@@ -444,6 +452,10 @@ def main() -> int:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--base-model", default="Qwen/Qwen3.5-0.8B")
     parser.add_argument("--epochs", type=float, default=1.0)
+    parser.add_argument(
+        "--max-steps", type=int, default=-1,
+        help="Pass a positive step limit to train_nextai.py for a bounded pilot; -1 runs full epochs.",
+    )
     parser.add_argument("--max-seq-length", type=int, default=4096)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--gradient-accumulation", type=int, default=8)
@@ -475,8 +487,12 @@ def main() -> int:
     parser.add_argument("--model-budget-bytes", type=int, default=1_200_000_000)
     args = parser.parse_args()
 
-    if args.epochs <= 0 or args.max_seq_length < 256 or args.batch_size < 1:
-        parser.error("epochs, sequence length and batch size are outside supported ranges.")
+    try:
+        validate_training_step_budget(args.max_steps, args.epochs)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if args.max_seq_length < 256 or args.batch_size < 1:
+        parser.error("sequence length and batch size are outside supported ranges.")
     if args.gradient_accumulation < 1 or args.lora_rank < 1 or args.target_text_tokens < 1:
         parser.error("gradient accumulation, LoRA rank and token target must be positive.")
     if args.model_budget_bytes < 1 or args.evaluation_max_records < 0 or args.engineering_max_cases < 0:
@@ -613,7 +629,7 @@ def main() -> int:
         "--data-dir", str(data_dir),
         "--output-dir", str(output_dir),
         "--base-model", args.base_model,
-        "--max-steps", "-1",
+        "--max-steps", str(args.max_steps),
         "--num-train-epochs", str(args.epochs),
         "--max-seq-length", str(args.max_seq_length),
         "--batch-size", str(args.batch_size),
