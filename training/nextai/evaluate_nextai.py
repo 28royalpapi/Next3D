@@ -7,6 +7,7 @@ BIMCraft, IFC schema, geometry or engineering validation.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from collections import Counter, defaultdict
@@ -188,6 +189,18 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def fingerprint_records(rows: list[dict[str, Any]]) -> str:
+    """Hash canonical record content in order so evaluation runs can prove split identity."""
+    digest = hashlib.sha256()
+    for row in rows:
+        canonical = json.dumps(
+            row, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        )
+        digest.update(canonical.encode("utf-8"))
+        digest.update(b"\\n")
+    return digest.hexdigest()
+
+
 def prompt_for(row: dict[str, Any]) -> tuple[str, str, list[str], str]:
     system = str(row.get("system") or "")
     prompt = str(row.get("prompt") or "")
@@ -248,11 +261,16 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=3407)
     args = parser.parse_args()
 
-    rows = load_jsonl(args.test_jsonl)
-    if args.max_records:
-        rows = rows[:args.max_records]
-    if not rows:
+    if args.max_records < 0:
+        parser.error("--max-records cannot be negative.")
+    source_rows = load_jsonl(args.test_jsonl)
+    if not source_rows:
         raise RuntimeError("The held-out test file is empty.")
+    source_test_split_records = len(source_rows)
+    source_test_split_sha256 = fingerprint_records(source_rows)
+    rows = source_rows[:args.max_records] if args.max_records else source_rows
+    evaluated_records_sha256 = fingerprint_records(rows)
+    evaluation_is_partial = len(rows) < source_test_split_records
 
     import torch
     if not torch.cuda.is_available():
@@ -345,6 +363,11 @@ def main() -> int:
     output = {
         "model": args.model,
         "test_records": len(records),
+        "source_test_split_records": source_test_split_records,
+        "source_test_split_sha256": source_test_split_sha256,
+        "evaluated_records_sha256": evaluated_records_sha256,
+        "evaluation_is_partial": evaluation_is_partial,
+        "evaluation_limit": args.max_records,
         "test_split_used_for_training": False,
         "metrics_by_domain": summary,
         "records": records,
