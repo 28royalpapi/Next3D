@@ -96,6 +96,10 @@ For the 0.8B student, training must use staged, domain-balanced batches and repl
 
 The application must also keep versioned retrieval, typed native execution and engineering validators. A compact student cannot safely store every version of every CAD/BIM manual or guarantee professional design approval from model weights alone.
 
+## Large-corpus memory and examination controls
+
+The trainer uses an indexed JSONL dataset: it first builds a compact byte-offset index, then reads/decodes one record when a batch requests it. It validates each split without retaining the full record set in memory. The validation split is used for in-training evaluation. The held-out test split is not evaluated during fine-tuning; after the candidate checkpoint is frozen, both the untouched base model and candidate are evaluated on the same test split and compared by domain. This prevents repeated peeking at the final examination while training decisions are still being made.
+
 ## Compute and reproducibility
 
 - Corpus build: full published source splits, pinned random seed, source/version and licence manifest.
