@@ -223,6 +223,65 @@ def compare_engineering_benchmarks(
     return comparison
 
 
+
+def compare_heldout_evaluations(
+    base_path: Path,
+    candidate_path: Path,
+    output_path: Path,
+) -> dict[str, Any]:
+    """Compare the untouched base and trained candidate on one post-training test split."""
+    base = load_json(base_path)
+    candidate = load_json(candidate_path)
+    base_domains = base.get("metrics_by_domain") or {}
+    candidate_domains = candidate.get("metrics_by_domain") or {}
+    if int(base.get("test_records", -1)) != int(candidate.get("test_records", -2)):
+        raise ValueError("Base and candidate held-out evaluations did not use the same record count.")
+
+    metric_names = (
+        "json_parse", "key_recall", "scalar_match", "token_f1",
+        "plan_shape_valid", "tool_sequence_exact", "tool_recall",
+        "argument_key_recall", "plan_step_count_match",
+    )
+    domains = {}
+    for domain in sorted(set(base_domains) | set(candidate_domains)):
+        before = base_domains.get(domain, {})
+        after = candidate_domains.get(domain, {})
+        domains[domain] = {
+            metric: {
+                "base": before.get(metric),
+                "candidate": after.get(metric),
+                "delta": (
+                    float(after[metric]) - float(before[metric])
+                    if before.get(metric) is not None and after.get(metric) is not None
+                    else None
+                ),
+            }
+            for metric in metric_names
+            if before.get(metric) is not None or after.get(metric) is not None
+        }
+
+    comparison = {
+        "benchmark_kind": "held_out_sft_corpus",
+        "same_held_out_test_split": True,
+        "base_model": base.get("model"),
+        "candidate_model": candidate.get("model"),
+        "test_records": base.get("test_records"),
+        "test_split_used_for_training": False,
+        "test_evaluated_only_after_candidate_training": True,
+        "metrics_by_domain": domains,
+        "interpretation_limit": (
+            "These are structural, plan-shape and token-overlap diagnostics. "
+            "They do not establish native CAD/BIM execution, dimensional engineering accuracy "
+            "or statutory compliance; review the independent engineering benchmark and native gates too."
+        ),
+    }
+    output_path.write_text(
+        json.dumps(comparison, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return comparison
+
+
 def publish_artifacts(output_dir: Path, repo_id: str, token: str) -> None:
     from huggingface_hub import HfApi
 
@@ -248,8 +307,11 @@ def publish_artifacts(output_dir: Path, repo_id: str, token: str) -> None:
         "training_result.json",
         "compute_manifest.json",
         "corpus_audit.json",
+        "base_validation_evaluation.json",
+        "candidate_validation_evaluation.json",
         "base_heldout_evaluation.json",
         "candidate_heldout_evaluation.json",
+        "heldout_evaluation_comparison.json",
         "base_engineering_benchmark.json",
         "candidate_engineering_benchmark.json",
         "engineering_benchmark_comparison.json",
@@ -343,17 +405,24 @@ def main() -> int:
 
     env = os.environ.copy()
     log_path = output_dir / "training.log"
+    validation_file = data_dir / "validation.jsonl"
     test_file = data_dir / "test.jsonl"
-    baseline_corpus_eval = output_dir / "base_heldout_evaluation.json"
+    baseline_validation_eval = output_dir / "base_validation_evaluation.json"
+    candidate_validation_eval = output_dir / "candidate_validation_evaluation.json"
+    base_heldout_eval = output_dir / "base_heldout_evaluation.json"
+    candidate_heldout_eval = output_dir / "candidate_heldout_evaluation.json"
+    heldout_comparison_path = output_dir / "heldout_evaluation_comparison.json"
     baseline_benchmark = output_dir / "base_engineering_benchmark.json"
 
+    # Validation may be inspected before/during training. The held-out test
+    # split is never evaluated until the candidate has finished training.
     if not args.skip_baseline_evaluation:
         execute(
             [
                 sys.executable, str(TRAINING / "evaluate_nextai.py"),
                 "--model", args.base_model,
-                "--test-jsonl", str(test_file),
-                "--output", str(baseline_corpus_eval),
+                "--test-jsonl", str(validation_file),
+                "--output", str(baseline_validation_eval),
                 "--max-records", str(args.evaluation_max_records),
             ],
             log_path, env,
@@ -416,11 +485,56 @@ def main() -> int:
             [
                 sys.executable, str(TRAINING / "evaluate_nextai.py"),
                 "--model", str(merged_model),
-                "--test-jsonl", str(test_file),
-                "--output", str(output_dir / "candidate_heldout_evaluation.json"),
+                "--test-jsonl", str(validation_file),
+                "--output", str(candidate_validation_eval),
                 "--max-records", str(args.evaluation_max_records),
             ],
             log_path, env,
+        )
+
+    heldout_comparison = None
+    if not args.skip_baseline_evaluation and not args.skip_candidate_evaluation:
+        # Freeze the candidate first, then perform the one final base-versus-
+        # candidate examination against the identical unseen test set.
+        execute(
+            [
+                sys.executable, str(TRAINING / "evaluate_nextai.py"),
+                "--model", args.base_model,
+                "--test-jsonl", str(test_file),
+                "--output", str(base_heldout_eval),
+                "--max-records", str(args.evaluation_max_records),
+            ],
+            log_path, env,
+        )
+        execute(
+            [
+                sys.executable, str(TRAINING / "evaluate_nextai.py"),
+                "--model", str(merged_model),
+                "--test-jsonl", str(test_file),
+                "--output", str(candidate_heldout_eval),
+                "--max-records", str(args.evaluation_max_records),
+            ],
+            log_path, env,
+        )
+        heldout_comparison = compare_heldout_evaluations(
+            base_heldout_eval,
+            candidate_heldout_eval,
+            heldout_comparison_path,
+        )
+        training_result = load_json(training_result_path)
+        training_result["held_out_test_metrics_by_domain"] = (
+            load_json(candidate_heldout_eval).get("metrics_by_domain", {})
+        )
+        training_result["base_held_out_test_metrics_by_domain"] = (
+            load_json(base_heldout_eval).get("metrics_by_domain", {})
+        )
+        training_result["held_out_test_evaluation"] = (
+            "COMPLETED_AFTER_TRAINING_ON_UNTOUCHED_SPLIT"
+        )
+        training_result_path.write_text(
+            json.dumps(training_result, indent=2, default=str) + "
+",
+            encoding="utf-8",
         )
 
     if not args.skip_engineering_benchmark:
@@ -453,7 +567,7 @@ def main() -> int:
             )
 
     run_report = {
-        "status": "TRAINED_AND_EVALUATED" if not args.skip_candidate_evaluation else "TRAINED_EVALUATION_PENDING",
+        "status": "TRAINED_AND_HELDOUT_COMPARED" if heldout_comparison else "TRAINED_EVALUATION_PENDING",
         "base_model": args.base_model,
         "training_epochs": args.epochs,
         "max_sequence_length": args.max_seq_length,
@@ -464,8 +578,11 @@ def main() -> int:
         "compute_manifest": str(output_dir / "compute_manifest.json"),
         "corpus_audit": str(output_dir / "corpus_audit.json"),
         "training_result": str(training_result_path),
-        "base_evaluation": None if args.skip_baseline_evaluation else str(baseline_corpus_eval),
-        "candidate_evaluation": None if args.skip_candidate_evaluation else str(output_dir / "candidate_heldout_evaluation.json"),
+        "base_validation_evaluation": None if args.skip_baseline_evaluation else str(baseline_validation_eval),
+        "candidate_validation_evaluation": None if args.skip_candidate_evaluation else str(candidate_validation_eval),
+        "base_heldout_evaluation": str(base_heldout_eval) if heldout_comparison else None,
+        "candidate_heldout_evaluation": str(candidate_heldout_eval) if heldout_comparison else None,
+        "heldout_evaluation_comparison": str(heldout_comparison_path) if heldout_comparison else None,
         "base_engineering_benchmark": None if args.skip_engineering_benchmark else str(baseline_benchmark),
         "candidate_engineering_benchmark": None if args.skip_engineering_benchmark else str(output_dir / "candidate_engineering_benchmark.json"),
         "engineering_benchmark_comparison": None if args.skip_engineering_benchmark else str(output_dir / "engineering_benchmark_comparison.json"),
