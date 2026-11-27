@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Collect split-disjoint native Next BIM/BIMCraft CLI traces and prepare SFT sidecars."""
 from __future__ import annotations
-import argparse, hashlib, json, subprocess, sys
+import argparse, hashlib, json, re, subprocess, sys
 from pathlib import Path
 from typing import Any
 
