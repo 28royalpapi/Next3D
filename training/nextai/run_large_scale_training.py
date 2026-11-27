@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Run a reproducible NextAI GPU fine-tune, evaluations and optional Hub publication."""
+"""Run a reproducible NextAI GPU fine-tune, multimodal export and examinations.
+
+This runner never rents compute. It must be invoked inside an already authorised
+GPU runtime (for example, a Hugging Face Job). It refuses CPU fallback.
+"""
 from __future__ import annotations
 
 import argparse
@@ -7,16 +11,15 @@ import json
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Any
-
 
 ROOT = Path(__file__).resolve().parents[2]
 TRAINING = Path(__file__).resolve().parent
 
 
 def execute(command: list[str], log_path: Path, env: dict[str, str]) -> None:
+    """Stream a subprocess into the console and a persistent run log."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
     rendered = " ".join(command)
     print(f"\n$ {rendered}", flush=True)
@@ -88,6 +91,138 @@ def runtime_manifest(output_dir: Path, token_audit: dict[str, Any]) -> dict[str,
     return result
 
 
+def prepare_llama_cpp(llama_cpp_dir: Path, log_path: Path, env: dict[str, str]) -> str:
+    """Fetch and record the converter revision used by the multimodal export."""
+    llama_cpp_dir = llama_cpp_dir.resolve()
+    if not (llama_cpp_dir / "convert_hf_to_gguf.py").is_file():
+        if llama_cpp_dir.exists() and any(llama_cpp_dir.iterdir()):
+            raise FileExistsError(
+                f"llama.cpp directory exists but is not a usable checkout: {llama_cpp_dir}"
+            )
+        llama_cpp_dir.parent.mkdir(parents=True, exist_ok=True)
+        execute(
+            [
+                "git", "clone", "--depth", "1",
+                "https://github.com/ggml-org/llama.cpp.git",
+                str(llama_cpp_dir),
+            ],
+            log_path,
+            env,
+        )
+    revision = subprocess.check_output(
+        ["git", "-C", str(llama_cpp_dir), "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+    if not revision:
+        raise RuntimeError("Unable to record the llama.cpp conversion revision.")
+    return revision
+
+
+def compact_multimodal_export(
+    output_dir: Path,
+    merged_model_dir: Path,
+    llama_cpp_dir: Path,
+    log_path: Path,
+    env: dict[str, str],
+) -> dict[str, Any]:
+    """Verify and compact the Qwen language GGUF plus its separate vision projector."""
+    gguf_dir = output_dir / "gguf_q4_k_m"
+    if not gguf_dir.is_dir():
+        raise FileNotFoundError(
+            "The trainer did not create gguf_q4_k_m; refusing to publish a language-only model."
+        )
+    revision = prepare_llama_cpp(llama_cpp_dir, log_path, env)
+    execute(
+        [
+            sys.executable,
+            str(TRAINING / "compact_multimodal_export.py"),
+            "--merged-model-dir", str(merged_model_dir),
+            "--llama-cpp-dir", str(llama_cpp_dir.resolve()),
+            "--gguf-dir", str(gguf_dir.resolve()),
+        ],
+        log_path,
+        env,
+    )
+    manifest_path = gguf_dir / "compact-export-manifest.json"
+    if not manifest_path.is_file():
+        raise RuntimeError("The multimodal exporter did not write compact-export-manifest.json.")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not any(item.get("kind") == "language_model" for item in manifest.get("files", [])):
+        raise RuntimeError("The final compact export has no language-model GGUF.")
+    if not any(item.get("kind") == "vision_projector" for item in manifest.get("files", [])):
+        raise RuntimeError("The final compact export has no Q8_0 vision projector.")
+    manifest["llama_cpp_revision"] = revision
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    (output_dir / "llama_cpp_revision.txt").write_text(revision + "\n", encoding="utf-8")
+    return manifest
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        raise FileNotFoundError(f"Required evidence file is missing: {path}")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected a JSON object in {path}")
+    return value
+
+
+def compare_engineering_benchmarks(
+    base_path: Path,
+    candidate_path: Path,
+    output_path: Path,
+) -> dict[str, Any]:
+    base = load_json(base_path)
+    candidate = load_json(candidate_path)
+    base_summary = base.get("summary") or {}
+    candidate_summary = candidate.get("summary") or {}
+    base_domains = base_summary.get("domains") or {}
+    candidate_domains = candidate_summary.get("domains") or {}
+    domain_comparison = {}
+    for domain in sorted(set(base_domains) | set(candidate_domains)):
+        before = base_domains.get(domain, {})
+        after = candidate_domains.get(domain, {})
+        before_rate = before.get("pass_rate")
+        after_rate = after.get("pass_rate")
+        domain_comparison[domain] = {
+            "base_pass_rate": before_rate,
+            "candidate_pass_rate": after_rate,
+            "delta": (
+                float(after_rate) - float(before_rate)
+                if before_rate is not None and after_rate is not None
+                else None
+            ),
+            "base_cases": before.get("case_count", 0),
+            "candidate_cases": after.get("case_count", 0),
+        }
+    base_overall = base_summary.get("overall_pass_rate")
+    candidate_overall = candidate_summary.get("overall_pass_rate")
+    comparison = {
+        "benchmark_version": candidate.get("benchmark_version"),
+        "base_model": base.get("model"),
+        "candidate_model": candidate.get("model"),
+        "base_overall_pass_rate": base_overall,
+        "candidate_overall_pass_rate": candidate_overall,
+        "overall_delta": (
+            float(candidate_overall) - float(base_overall)
+            if base_overall is not None and candidate_overall is not None
+            else None
+        ),
+        "domains": domain_comparison,
+        "promotion_rule": (
+            "Do not promote solely on overall pass rate. Review every domain, failures, "
+            "engineering limitations and native application acceptance."
+        ),
+    }
+    output_path.write_text(
+        json.dumps(comparison, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return comparison
+
+
 def publish_artifacts(output_dir: Path, repo_id: str, token: str) -> None:
     from huggingface_hub import HfApi
 
@@ -108,12 +243,20 @@ def publish_artifacts(output_dir: Path, repo_id: str, token: str) -> None:
                 commit_message=f"Publish NextAI student artifacts: {path_in_repo}",
             )
 
-    for filename in (
+    evidence_files = (
         "training_config.json",
         "training_result.json",
         "compute_manifest.json",
         "corpus_audit.json",
-    ):
+        "base_heldout_evaluation.json",
+        "candidate_heldout_evaluation.json",
+        "base_engineering_benchmark.json",
+        "candidate_engineering_benchmark.json",
+        "engineering_benchmark_comparison.json",
+        "large_scale_run_report.json",
+        "llama_cpp_revision.txt",
+    )
+    for filename in evidence_files:
         path = output_dir / filename
         if path.is_file():
             api.upload_file(
@@ -138,17 +281,24 @@ def main() -> int:
     parser.add_argument("--lora-rank", type=int, default=16)
     parser.add_argument("--target-text-tokens", type=int, default=400_000_000)
     parser.add_argument("--resume-from-checkpoint", type=Path)
+    parser.add_argument("--llama-cpp-dir", type=Path)
     parser.add_argument("--skip-baseline-evaluation", action="store_true")
     parser.add_argument("--skip-candidate-evaluation", action="store_true")
+    parser.add_argument("--skip-engineering-benchmark", action="store_true")
+    parser.add_argument("--skip-compact-export", action="store_true")
     parser.add_argument("--skip-upload", action="store_true")
     parser.add_argument("--model-repo", default="Justin75685/nextai-qwen35-engineering-student")
     parser.add_argument("--evaluation-max-records", type=int, default=0)
+    parser.add_argument("--engineering-max-cases", type=int, default=0)
+    parser.add_argument("--model-budget-bytes", type=int, default=1_200_000_000)
     args = parser.parse_args()
 
     if args.epochs <= 0 or args.max_seq_length < 256 or args.batch_size < 1:
         parser.error("epochs, sequence length and batch size are outside supported ranges.")
     if args.gradient_accumulation < 1 or args.lora_rank < 1 or args.target_text_tokens < 1:
         parser.error("gradient accumulation, LoRA rank and token target must be positive.")
+    if args.model_budget_bytes < 1 or args.evaluation_max_records < 0 or args.engineering_max_cases < 0:
+        parser.error("Model budget must be positive and evaluation limits cannot be negative.")
 
     data_dir = args.data_dir.resolve()
     output_dir = args.output_dir.resolve()
@@ -162,26 +312,28 @@ def main() -> int:
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
     audit = audit_corpus(data_dir, tokenizer, require_test=True)
-    audit_path = data_dir / "corpus_audit.json"
-    audit_path.write_text(json.dumps(audit, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "corpus_audit.json").write_text(
-        json.dumps(audit, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    audit_text = json.dumps(audit, indent=2, ensure_ascii=False) + "\n"
+    (data_dir / "corpus_audit.json").write_text(audit_text, encoding="utf-8")
+    (output_dir / "corpus_audit.json").write_text(audit_text, encoding="utf-8")
 
     train_tokens = int(audit["train_text_tokens"])
     if train_tokens <= 0:
         raise ValueError("The measured training text-token count is zero.")
+    planned_exposures = train_tokens * args.epochs
     token_target_met = train_tokens >= args.target_text_tokens
     print(
-        f"Measured train text tokens: {train_tokens:,} / target {args.target_text_tokens:,}. "
+        f"Measured unique train text tokens: {train_tokens:,} / target {args.target_text_tokens:,}. "
         f"Target met: {token_target_met}.",
         flush=True,
     )
     print(
-        "Image patch tokens and runtime chat-template overhead are not included in this "
-        "text-token count. No data is repeated automatically to inflate the budget.",
+        f"Estimated text-token exposures for {args.epochs:g} epoch(s): {planned_exposures:,}. "
+        "This estimate excludes runtime template overhead and image patch tokens.",
+        flush=True,
+    )
+    print(
+        "No samples are duplicated automatically to inflate the data/token count.",
         flush=True,
     )
 
@@ -192,6 +344,8 @@ def main() -> int:
     env = os.environ.copy()
     log_path = output_dir / "training.log"
     test_file = data_dir / "test.jsonl"
+    baseline_corpus_eval = output_dir / "base_heldout_evaluation.json"
+    baseline_benchmark = output_dir / "base_engineering_benchmark.json"
 
     if not args.skip_baseline_evaluation:
         execute(
@@ -199,11 +353,20 @@ def main() -> int:
                 sys.executable, str(TRAINING / "evaluate_nextai.py"),
                 "--model", args.base_model,
                 "--test-jsonl", str(test_file),
-                "--output", str(output_dir / "base_heldout_evaluation.json"),
+                "--output", str(baseline_corpus_eval),
                 "--max-records", str(args.evaluation_max_records),
             ],
-            log_path,
-            env,
+            log_path, env,
+        )
+    if not args.skip-engineering-benchmark:
+        execute(
+            [
+                sys.executable, str(TRAINING / "run_engineering_benchmark.py"),
+                "--model", args.base_model,
+                "--output", str(baseline_benchmark),
+                "--max-cases", str(args.engineering_max_cases),
+            ],
+            log_path, env,
         )
 
     training_command = [
@@ -225,12 +388,28 @@ def main() -> int:
     execute(training_command, log_path, env)
 
     training_result_path = output_dir / "training_result.json"
-    if not training_result_path.is_file():
-        raise RuntimeError("Trainer exited without writing training_result.json.")
-    training_result = json.loads(training_result_path.read_text(encoding="utf-8"))
+    training_result = load_json(training_result_path)
     merged_model = training_result.get("merged_16bit_checkpoint")
     if not merged_model or not (Path(merged_model) / "config.json").is_file():
         raise RuntimeError("Merged student checkpoint was not produced or is incomplete.")
+
+    compact_manifest = None
+    llama_cpp_revision = None
+    if not args.skip_compact_export:
+        llama_cpp_dir = args.llama_cpp_dir or (output_dir / "llama.cpp")
+        compact_manifest = compact_multimodal_export(
+            output_dir, Path(merged_model), llama_cpp_dir, log_path, env
+        )
+        llama_cpp_revision = compact_manifest["llama_cpp_revision"]
+        training_result = load_json(training_result_path)
+        training_result["vision_projector_quantization"] = "Q8_0"
+        training_result["compact_export_manifest"] = str(
+            output_dir / "gguf_q4_k_m" / "compact-export-manifest.json"
+        )
+        training_result_path.write_text(
+            json.dumps(training_result, indent=2, default=str) + "\n",
+            encoding="utf-8",
+        )
 
     if not args.skip_candidate_evaluation:
         execute(
@@ -241,23 +420,60 @@ def main() -> int:
                 "--output", str(output_dir / "candidate_heldout_evaluation.json"),
                 "--max-records", str(args.evaluation_max_records),
             ],
-            log_path,
-            env,
+            log_path, env,
         )
+
+    if not args.skip-engineering-benchmark:
+        execute(
+            [
+                sys.executable, str(TRAINING / "run_engineering_benchmark.py"),
+                "--model", str(merged_model),
+                "--output", str(output_dir / "candidate_engineering_benchmark.json"),
+                "--max-cases", str(args.engineering_max_cases),
+            ],
+            log_path, env,
+        )
+        if baseline_benchmark.is_file():
+            compare_engineering_benchmarks(
+                baseline_benchmark,
+                output_dir / "candidate_engineering_benchmark.json",
+                output_dir / "engineering_benchmark_comparison.json",
+            )
+
+    compact_bytes = None
+    budget_passed = None
+    if compact_manifest:
+        compact_bytes = int(compact_manifest.get("total_gguf_bytes", 0))
+        budget_passed = compact_bytes <= args.model_budget_bytes
+        if not budget_passed:
+            print(
+                f"WARNING: compact model artifacts are {compact_bytes:,} bytes, "
+                f"above the configured {args.model_budget_bytes:,}-byte model budget.",
+                flush=True,
+            )
 
     run_report = {
         "status": "TRAINED_AND_EVALUATED" if not args.skip_candidate_evaluation else "TRAINED_EVALUATION_PENDING",
         "base_model": args.base_model,
         "training_epochs": args.epochs,
         "max_sequence_length": args.max_seq_length,
-        "target_train_text_tokens": args.target_text_tokens,
-        "measured_train_text_tokens": train_tokens,
+        "target_unique_train_text_tokens": args.target_text_tokens,
+        "measured_unique_train_text_tokens": train_tokens,
+        "estimated_text_token_exposures": planned_exposures,
         "token_target_met": token_target_met,
         "compute_manifest": str(output_dir / "compute_manifest.json"),
         "corpus_audit": str(output_dir / "corpus_audit.json"),
         "training_result": str(training_result_path),
-        "base_evaluation": None if args.skip_baseline_evaluation else str(output_dir / "base_heldout_evaluation.json"),
+        "base_evaluation": None if args.skip_baseline_evaluation else str(baseline_corpus_eval),
         "candidate_evaluation": None if args.skip_candidate_evaluation else str(output_dir / "candidate_heldout_evaluation.json"),
+        "base_engineering_benchmark": None if args.skip-engineering-benchmark else str(baseline_benchmark),
+        "candidate_engineering_benchmark": None if args.skip-engineering-benchmark else str(output_dir / "candidate_engineering_benchmark.json"),
+        "engineering_benchmark_comparison": None if args.skip-engineering-benchmark else str(output_dir / "engineering_benchmark_comparison.json"),
+        "compact_export": str(output_dir / "gguf_q4_k_m") if compact_manifest else None,
+        "compact_model_bytes": compact_bytes,
+        "model_budget_bytes": args.model_budget_bytes,
+        "model_budget_passed": budget_passed,
+        "llama_cpp_revision": llama_cpp_revision,
         "native_application_acceptance": "PENDING",
         "package_size_acceptance": "PENDING",
         "note": "Fine-tuning and held-out model evaluation do not prove native CAD/BIM operations or professional engineering approval.",
