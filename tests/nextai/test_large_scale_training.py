@@ -24,6 +24,7 @@ from training.nextai.run_large_scale_training import (
     require_token_target,
     validate_native_trace_coverage,
     validate_training_step_budget,
+    training_run_scope,
 )
 from training.nextai.prepare_public_corpora import merge_native_trace_splits
 from training.nextai.prepare_large_scale_corpus import (
@@ -69,6 +70,15 @@ class BoundedTrainingPilotTests(unittest.TestCase):
         for value in (0.0, -0.5):
             with self.subTest(epochs=value), self.assertRaisesRegex(ValueError, "epochs"):
                 validate_training_step_budget(-1, value)
+
+
+    def test_any_step_bounded_run_is_explicitly_labelled_as_a_pilot(self):
+        self.assertEqual(training_run_scope(200, True), "bounded_pilot")
+        self.assertEqual(training_run_scope(200, False), "bounded_pilot")
+
+    def test_full_programme_label_requires_full_epochs_and_measured_token_target(self):
+        self.assertEqual(training_run_scope(-1, True), "full_programme")
+        self.assertEqual(training_run_scope(-1, False), "bounded_pilot")
 
 
 class CapabilityCensusIntegrationTests(unittest.TestCase):
