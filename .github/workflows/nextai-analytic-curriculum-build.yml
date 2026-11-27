@@ -108,9 +108,9 @@ jobs:
               "split_records": counts,
               "qwen_tokenizer": audit.get("tokenizer"),
               "qwen_train_text_tokens": audit["train_text_tokens"],
-              "target_train_text_tokens": 400_000_000,
-              "train_token_target_fraction": audit["train_text_tokens"] / 400_000_000,
-              "train_token_shortfall": max(0, 400_000_000 - audit["train_text_tokens"]),
+              "project_token_target": None,
+              "project_token_target_status": "NOT_CONFIGURED_BY_PROJECT_OWNER",
+              "token_volume_note": "Measured for planning; no minimum token count has been specified by the project owner.",
               "native_execution_verified": False,
               "fine_tuning_started": False
           }
