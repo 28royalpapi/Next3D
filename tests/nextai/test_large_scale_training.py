@@ -251,6 +251,107 @@ class AnalyticEngineeringCurriculumTests(unittest.TestCase):
             self.assertTrue(expected["assumptions"])
             self.assertEqual(row["source_split"], "original_synthetic")
 
+    def test_all_17_solver_families_match_independent_equations(self):
+        import math
+
+        center = solve_beam_udl({
+            "span_m": 4.0, "udl_kN_per_m": 10.0,
+            "elastic_modulus_GPa": 200.0, "second_moment_mm4": 80_000_000.0,
+        })
+        center_load = __import__(
+            "training.nextai.generate_verified_engineering_cases",
+            fromlist=["solve_beam_centre_load"],
+        ).solve_beam_centre_load({
+            "span_m": 4.0, "central_point_load_kN": 20.0,
+            "elastic_modulus_GPa": 200.0, "second_moment_mm4": 80_000_000.0,
+        })
+        self.assertAlmostEqual(center_load["values"]["maximum_deflection_mm"], 1.666667, places=5)
+
+        from training.nextai.generate_verified_engineering_cases import (
+            solve_cantilever_tip_load, solve_solid_shaft_torsion,
+            solve_darcy_weisbach, solve_manning_rectangular,
+            solve_consolidation, solve_rebar_mass, solve_gear_ratio,
+            solve_rectangle_section,
+        )
+        cantilever = solve_cantilever_tip_load({
+            "cantilever_length_m": 2.0, "tip_load_kN": 10.0,
+            "elastic_modulus_GPa": 200.0, "second_moment_mm4": 80_000_000.0,
+        })
+        self.assertEqual(cantilever["values"]["fixed_end_moment_kN_m"], 20.0)
+        self.assertAlmostEqual(cantilever["values"]["tip_deflection_mm"], 1.666667, places=5)
+
+        torque, diameter, shaft_length, shear_modulus = 1.0e6, 50.0, 1000.0, 80_000.0
+        torsion = solve_solid_shaft_torsion({
+            "torque_kN_m": 1.0, "shaft_diameter_mm": 50.0,
+            "shaft_length_m": 1.0, "shear_modulus_GPa": 80.0,
+        })
+        self.assertAlmostEqual(
+            torsion["values"]["maximum_shear_stress_MPa"],
+            16.0 * torque / (math.pi * diameter**3),
+            places=5,
+        )
+        polar = math.pi * diameter**4 / 32.0
+        self.assertAlmostEqual(
+            torsion["values"]["angle_of_twist_rad"],
+            torque * shaft_length / (shear_modulus * polar),
+            places=7,
+        )
+
+        q, d, length, f = 0.02, 0.2, 1000.0, 0.02
+        area = math.pi * d**2 / 4.0
+        velocity = q / area
+        darcy = solve_darcy_weisbach({
+            "flow_L_per_s": 20.0, "internal_diameter_mm": 200.0,
+            "pipe_length_m": length, "darcy_friction_factor": f,
+        })
+        self.assertAlmostEqual(darcy["values"]["mean_velocity_m_per_s"], velocity, places=5)
+        self.assertAlmostEqual(
+            darcy["values"]["darcy_head_loss_m"],
+            f * (length / d) * velocity**2 / (2.0 * 9.80665),
+            places=5,
+        )
+
+        b, depth, n, slope = 3.0, 1.0, 0.015, 0.001
+        manning_area = b * depth
+        radius = manning_area / (b + 2.0 * depth)
+        expected_velocity = (1.0 / n) * radius**(2.0 / 3.0) * math.sqrt(slope)
+        manning = solve_manning_rectangular({
+            "channel_width_m": b, "flow_depth_m": depth,
+            "manning_n": n, "energy_slope": slope,
+        })
+        self.assertAlmostEqual(manning["values"]["discharge_m3_per_s"], manning_area * expected_velocity, places=5)
+
+        cc, h, e0, sigma0, delta = 0.3, 5.0, 0.8, 100.0, 100.0
+        consolidation = solve_consolidation({
+            "compression_index_Cc": cc, "compressible_layer_thickness_m": h,
+            "initial_void_ratio": e0, "initial_effective_stress_kPa": sigma0,
+            "stress_increment_kPa": delta,
+        })
+        expected_settlement = cc * h / (1.0 + e0) * math.log10((sigma0 + delta) / sigma0) * 1000.0
+        self.assertAlmostEqual(
+            consolidation["values"]["primary_consolidation_settlement_mm"],
+            expected_settlement,
+            places=5,
+        )
+
+        density, bar_d, bar_length = 7850.0, 0.016, 100.0
+        rebar = solve_rebar_mass({"bar_diameter_mm": 16.0, "total_bar_length_m": bar_length})
+        self.assertAlmostEqual(
+            rebar["values"]["total_steel_mass_kg"],
+            density * math.pi * bar_d**2 / 4.0 * bar_length,
+            places=5,
+        )
+
+        gear = solve_gear_ratio({
+            "driver_teeth": 20, "driven_teeth": 60, "driver_speed_rpm": 1500.0,
+        })
+        self.assertEqual(gear["values"]["driven_speed_rpm"], 500.0)
+
+        section = solve_rectangle_section({"breadth_mm": 200.0, "depth_mm": 400.0})
+        expected_i = 200.0 * 400.0**3 / 12.0
+        self.assertAlmostEqual(section["values"]["second_moment_about_strong_axis_mm4"], expected_i, places=3)
+        self.assertAlmostEqual(section["values"]["elastic_section_modulus_mm3"], expected_i / 200.0, places=3)
+
     def test_generator_rejects_negative_case_count(self):
         with self.assertRaises(ValueError):
             generate_cases(cases_per_domain=-1)
