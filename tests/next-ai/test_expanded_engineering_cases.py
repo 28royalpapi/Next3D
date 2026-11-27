@@ -1,5 +1,6 @@
 import importlib.util
 import math
+import random
 import unittest
 from pathlib import Path
 
@@ -170,6 +171,15 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
         })
         self.assertAlmostEqual(result["values"]["soil_elastic_modulus_kPa"], 20000.0, places=6)
         self.assertAlmostEqual(result["values"]["elastic_settlement_mm"], 13.65, places=6)
+
+    def test_reinforcement_mass_family_has_distinct_10k_input_pairs(self):
+        rng = random.Random(3407)
+        rows = [MODULE._rebar_inputs(rng) for _ in range(10_000)]
+        input_pairs = {
+            (row["bar_diameter_mm"], row["total_bar_length_m"])
+            for row in rows
+        }
+        self.assertEqual(len(input_pairs), 10_000)
 
     def test_new_families_join_deterministic_l0_corpus_generation(self):
         splits, manifest = MODULE.generate_cases(cases_per_domain=3, seed=20261127)
