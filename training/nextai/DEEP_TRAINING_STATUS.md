@@ -99,3 +99,11 @@ This improves corpus portability and catches multimodal asset failures before ba
 - Native NextCAD and Next BIM operation traces are now assembled separately from the capped public/synthetic sample. All accepted native training traces are appended after public-data sampling; all native validation and test traces are appended after the public validation/test caps.
 - Six application/split sidecar files are emitted (`nextcad_native_{train,validation,test}.jsonl` and `nextbim_native_{train,validation,test}.jsonl`) and their exact per-split counts are recorded in the manifest.
 - This prevents high-evidence native operation examples from being lost to random down-sampling and protects native held-out evidence from public-data limits. The test split remains held out and is not added to training.
+
+
+## Pre-training native-evidence gate and provenance — 27 November 2026
+
+- The GPU runner now accepts `--require-native-traces`. Before loading the tokenizer or model, it checks the corpus manifest for non-empty NextCAD and Next BIM train, validation and test splits and verifies the traces were retained outside the public-data caps.
+- The runner writes `native_trace_coverage.json` into its evidence bundle, including counts, missing splits and the explicit field `native_execution_mastery_claimed: false`.
+- Corpus manifests now identify each application’s native execution trace source separately and state that source licences are recorded per record.
+- This is a fail-closed training-entry requirement for a full native-execution run. It still depends on a real set of native traces having been captured and approved; no trace collection or GPU training has happened in this session.
