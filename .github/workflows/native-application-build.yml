@@ -221,14 +221,24 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Verify real NextAI typed operations in native FreeCAD on Linux
+      - name: Collect independent native NextCAD train/validation/test traces
         if: runner.os == 'Linux'
         working-directory: upstream/FreeCAD
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libxkbcommon-x11-0
+          sudo apt-get install -y --no-install-recommends libxkbcommon-x11-0 xvfb
           mkdir -p ../../artifacts
-          xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/run_nextcad_ai_acceptance.py --executable build/relWithDebInfo/bin/FreeCAD --output ../../artifacts/nextcad-ai-native-acceptance.json
+          xvfb-run -a -s "-screen 0 1600x1000x24" pixi run python ../../scripts/collect_nextcad_native_splits.py \\
+            --executable build/relWithDebInfo/bin/FreeCAD \\
+            --output-dir ../../artifacts/nextcad-native-corpus
+      - name: Upload validated NextCAD native training corpus
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextcad-native-training-corpus
+          path: artifacts/nextcad-native-corpus/
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Capture the real NextCAD interface
         if: runner.os == 'Linux'

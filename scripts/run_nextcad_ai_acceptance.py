@@ -20,9 +20,14 @@ def main() -> int:
     mode.add_argument("--command-prefix", help='Launcher prefix, e.g. "pixi run freecad"')
     parser.add_argument("--timeout-seconds", type=int, default=600)
     parser.add_argument("--output", type=Path, help="Optional JSON report path; defaults to artifacts/nextcad-ai-native-acceptance.json")
+    parser.add_argument("--split", choices=("train", "validation", "test"), default="test")
+    parser.add_argument("--scenario-id", default="baseline")
+    parser.add_argument("--scenario-scale", type=float, default=1.0)
     args = parser.parse_args()
     if args.timeout_seconds < 30:
         parser.error("--timeout-seconds must be at least 30")
+    if not args.scenario_id.strip() or not 0.5 <= args.scenario_scale <= 2.0:
+        parser.error("--scenario-id is required and --scenario-scale must be within [0.5, 2.0]")
 
     repo = Path(__file__).resolve().parents[1]
     schema_tools = repo / "training" / "nextai"
@@ -65,6 +70,9 @@ def main() -> int:
     env["NEXT3D_NEXTCAD_AI_ACCEPTANCE_MARKER"] = str(output)
     env["NEXT3D_NEXTCAD_AI_ACCEPTANCE_PROJECT"] = str(project)
     env["NEXT3D_NEXTCAD_AI_ACCEPTANCE_STAGE_PROJECT"] = str(stage_project)
+    env["NEXT3D_NATIVE_TRACE_SPLIT"] = args.split
+    env["NEXT3D_NATIVE_TRACE_SCENARIO"] = args.scenario_id.strip()
+    env["NEXT3D_NATIVE_TRACE_SCALE"] = str(args.scenario_scale)
     log_path = output.with_suffix(output.suffix + ".launcher.log")
     process = None
     try:
@@ -113,8 +121,13 @@ def main() -> int:
                 for line in trace_path.read_text(encoding="utf-8").splitlines()
                 if line.strip()
             ]
-            if len(trace_rows) != 2 or any(row.get("split") != "test" for row in trace_rows):
-                raise RuntimeError("Native acceptance trace must contain two held-out test records.")
+            if len(trace_rows) != 2 or any(row.get("split") != args.split for row in trace_rows):
+                raise RuntimeError(f"Native acceptance trace must contain two {args.split} records.")
+            source_groups = {row.get("source", {}).get("source_id") for row in trace_rows}
+            if len(source_groups) != 1 or not next(iter(source_groups)):
+                raise RuntimeError("The two stages must share one non-empty source lineage.")
+            if args.scenario_id.strip() not in next(iter(source_groups)):
+                raise RuntimeError("Native acceptance trace source lineage does not match the requested scenario.")
             if any(len(row.get("operations", [])) > 20 for row in trace_rows):
                 raise RuntimeError("A native acceptance plan exceeds the NextAI runtime step limit.")
             for row in trace_rows:
@@ -124,6 +137,7 @@ def main() -> int:
                 f"{len(result.get('checks', {}))} checks, "
                 f"{result.get('native_object_count')} reopened objects, "
                 f"{sum(len(row.get('operations', [])) for row in trace_rows)} native operation records, "
+                f"split={args.split}, scenario={args.scenario_id}, scale={args.scenario_scale}, "
                 f"report={output}, project={project}, trace={trace_path}"
             )
     finally:

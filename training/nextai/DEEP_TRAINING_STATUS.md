@@ -143,3 +143,12 @@ This checkpoint is a substantial improvement to data correctness and the path fo
 - `prepare_native_sft.py` now embeds a compact proof envelope in every accepted SFT row: validation result, recompute and save/reopen pass flags, verified native after-state SHA-256, operation counts and a canonical operation-trace SHA-256.
 - Both `prepare_public_corpora.read_native` and the full-scale builder reject native SFT inputs without that passing validation proof envelope. This closes the gap where a conversation-shaped row with source metadata could be mistaken for a verified native execution trace.
 - The proof metadata is derived from the original schema-validated native record. It is evidence of the recorded source checks, not a cryptographic attestation by the native application and not a claim of general model mastery.
+
+
+## Split-disjoint native NextCAD collection harness — 27 November 2026
+
+- The native GUI acceptance runner now accepts explicit `--split`, `--scenario-id` and `--scenario-scale` values. The actual Part/PartDesign geometry, operation arguments, boolean-volume assertion and recorded millimetre parameters scale together so the three runs are not identical copies.
+- New `scripts/collect_nextcad_native_splits.py` launches three separate native GUI acceptance processes: compact train (0.8×), standard validation (1.0×), and expanded held-out test (1.25×). Each produces two staged traces. The collector rejects missing/failed operations, duplicate IDs, wrong split labels and reused project lineage across train/validation/test.
+- It combines the six raw schema records, runs `prepare_native_sft.py`, emits split-specific raw files plus SFT train/validation/test sidecars, and writes a manifest with file hashes, counts and explicit L3/L4-only evidence classification.
+- The native build workflow now collects and uploads this corpus from its Linux GUI acceptance environment. The build remains manually dispatched; routine branch pushes do not initiate the expensive native build.
+- This will produce six controlled native acceptance examples when the workflow runs successfully. It does not provide broad CAD task coverage, Next BIM traces or independent engineering validation.

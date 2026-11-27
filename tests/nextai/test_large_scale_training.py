@@ -32,6 +32,7 @@ from training.nextai.prepare_large_scale_corpus import (
     native_trace_command_args,
 )
 from training.nextai.evaluate_nextai import fingerprint_records
+from scripts.collect_nextcad_native_splits import validate_split_trace_rows, validate_source_lineage_separation
 from training.nextai.train_nextai import (
     IndexedJSONL,
     validate_training_splits,
@@ -236,6 +237,39 @@ class NativeTraceTrainingGateTests(unittest.TestCase):
         self.assertEqual(report["total_native_execution_trace_records"], 0)
         self.assertTrue(report["missing_or_empty_splits"])
         self.assertFalse(report["native_execution_mastery_claimed"])
+
+
+class NextCADNativeSplitCollectionTests(unittest.TestCase):
+    def rows(self, split, scenario):
+        return [{
+            "record_id": f"{scenario}-{stage}", "schema_version": "1.0.0", "application": "nextcad",
+            "split": split, "source": {"source_id": f"native:{scenario}:pinned"},
+            "task": {"prompt": f"{scenario} stage {stage}"},
+            "validation": {"overall": "passed", "round_trip_passed": True, "recompute_passed": True},
+            "native_states": {"after": {"sha256": "a" * 64}},
+            "operations": [{"tool": "create_part_box", "status": "applied"}],
+        } for stage in ("a", "b")]
+
+    def test_three_splits_have_distinct_source_lineages(self):
+        reports = {
+            "train": validate_split_trace_rows("train", self.rows("train", "train-compact")),
+            "validation": validate_split_trace_rows("validation", self.rows("validation", "validation-standard")),
+            "test": validate_split_trace_rows("test", self.rows("test", "test-expanded")),
+        }
+        validate_source_lineage_separation(reports)
+        self.assertEqual([reports[k]["records"] for k in ("train", "validation", "test")], [2, 2, 2])
+        self.assertEqual(len({reports[k]["source_id"] for k in reports}), 3)
+
+    def test_same_native_project_cannot_be_reused_across_splits(self):
+        reports = {"train": {"source_id": "same"}, "validation": {"source_id": "same"}, "test": {"source_id": "heldout"}}
+        with self.assertRaisesRegex(ValueError, "assigned to more than one split"):
+            validate_source_lineage_separation(reports)
+
+    def test_trace_requires_native_save_reopen_and_recompute(self):
+        rows = self.rows("test", "test-expanded")
+        rows[0]["validation"]["round_trip_passed"] = False
+        with self.assertRaisesRegex(ValueError, "lacks save/reopen or recompute evidence"):
+            validate_split_trace_rows("test", rows)
 
 
 class LargeScaleTrainingTests(unittest.TestCase):

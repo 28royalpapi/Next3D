@@ -16,6 +16,15 @@ marker = Path(os.environ["NEXT3D_NEXTCAD_AI_ACCEPTANCE_MARKER"]).resolve()
 project = Path(os.environ["NEXT3D_NEXTCAD_AI_ACCEPTANCE_PROJECT"]).resolve()
 stage_project = Path(os.environ["NEXT3D_NEXTCAD_AI_ACCEPTANCE_STAGE_PROJECT"]).resolve()
 module_root = Path(os.environ["NEXT3D_NEXTCAD_AI_MODULE_PATH"]).resolve()
+trace_split = os.environ.get("NEXT3D_NATIVE_TRACE_SPLIT", "test").strip().lower()
+scenario_id = os.environ.get("NEXT3D_NATIVE_TRACE_SCENARIO", "baseline").strip()
+scenario_scale = float(os.environ.get("NEXT3D_NATIVE_TRACE_SCALE", "1.0"))
+if trace_split not in {"train", "validation", "test"}:
+    raise RuntimeError("NEXT3D_NATIVE_TRACE_SPLIT must be train, validation or test")
+if not scenario_id or not (0.5 <= scenario_scale <= 2.0):
+    raise RuntimeError("Native trace scenario ID is required and scale must be within [0.5, 2.0]")
+def mm(value):
+    return round(float(value) * scenario_scale, 6)
 sys.path.insert(0, str(module_root))
 
 report = {
@@ -52,10 +61,10 @@ try:
     # Basic native Part solids and a true BRep boolean.
     created = run([
         {"tool": "create_part_box", "args": {
-            "length": 20, "width": 20, "height": 10, "label": "Acceptance base block"
+            "length": mm(20), "width": mm(20), "height": mm(10), "label": "Acceptance base block"
         }},
         {"tool": "create_part_box", "args": {
-            "length": 10, "width": 10, "height": 10, "origin": [5, 5, 0],
+            "length": mm(10), "width": mm(10), "height": mm(10), "origin": [mm(5), mm(5), 0],
             "label": "Acceptance cutter block"
         }},
     ])
@@ -67,16 +76,16 @@ try:
     }}])[0]
     cut_object = doc.getObject(cut["created"])
     require(cut_object is not None and cut_object.Shape.isValid(), "Native Part boolean cut is invalid.")
-    require(abs(float(cut_object.Shape.Volume) - 3000.0) < 1e-4,
+    require(abs(float(cut_object.Shape.Volume) - 3000.0 * scenario_scale ** 3) < 1e-4,
             f"Boolean cut volume mismatch: {cut_object.Shape.Volume}")
     report["checks"]["part_primitives_and_boolean"] = "PASS"
 
     # Transforms and copies preserve the source object and remain native objects.
     moved = run([{"tool": "transform_object", "args": {
-        "object_name": base_name, "translate_x": 100, "relative": True
+        "object_name": base_name, "translate_x": mm(100), "relative": True
     }}])[0]
     base_object = doc.getObject(base_name)
-    require(abs(float(base_object.Placement.Base.x) - 100.0) < 1e-6,
+    require(abs(float(base_object.Placement.Base.x) - mm(100.0)) < 1e-6,
             "Native relative transform did not move the source object.")
     source_object = doc.getObject(cutter_name)
     source_position_before = tuple(
@@ -86,7 +95,7 @@ try:
             source_object.Placement.Base.z,
         )
     )
-    duplicate_offset_y = 40.0
+    duplicate_offset_y = mm(40.0)
     duplicate = run([{"tool": "duplicate_object", "args": {
         "object_name": cutter_name, "translate_y": duplicate_offset_y,
         "label": "Acceptance independent copy"
@@ -127,7 +136,7 @@ try:
 
     # Real BRep fillet and chamfer on all edges of separate simple blocks.
     fillet = run([{"tool": "fillet_edges", "args": {
-        "object_name": cutter_name, "edges": ["all"], "radius": 0.5,
+        "object_name": cutter_name, "edges": ["all"], "radius": mm(0.5),
         "label": "Acceptance fillet"
     }}])[0]
     fillet_object = doc.getObject(fillet["created"])
@@ -135,7 +144,7 @@ try:
             and len(fillet_object.Shape.Solids) == 1,
             "Native Part fillet did not produce one valid solid.")
     chamfer = run([{"tool": "chamfer_edges", "args": {
-        "object_name": base_name, "edges": ["all"], "size": 0.25,
+        "object_name": base_name, "edges": ["all"], "size": mm(0.25),
         "label": "Acceptance chamfer"
     }}])[0]
     chamfer_object = doc.getObject(chamfer["created"])
@@ -152,11 +161,11 @@ try:
     }}])
     run([{"tool": "add_sketch_polygon", "args": {
         "sketch_name": "AcceptancePatternProfile",
-        "points": [[0, 0], [10, 0], [10, 10], [0, 10]]
+        "points": [[0, 0], [mm(10), 0], [mm(10), mm(10)], [0, mm(10)]]
     }}])
     pad = run([{"tool": "create_partdesign_pad", "args": {
         "body_name": "AcceptancePatternBody", "sketch_name": "AcceptancePatternProfile",
-        "length": 10, "name": "AcceptancePad"
+        "length": mm(10), "name": "AcceptancePad"
     }}])[0]
     body = doc.getObject("AcceptancePatternBody")
     require(body.Tip is not None and body.Tip.Name == pad["feature"],
@@ -164,7 +173,7 @@ try:
     require(body.Tip.Shape.isValid() and len(body.Tip.Shape.Solids) == 1,
             "PartDesign Pad is not one valid solid.")
     linear = run([{"tool": "linear_pattern", "args": {
-        "feature_name": pad["feature"], "direction": "X", "length": 18,
+        "feature_name": pad["feature"], "direction": "X", "length": mm(18),
         "occurrences": 3, "label": "Acceptance linear pattern"
     }}])[0]
     require(body.Tip.Name == linear["created"] and body.Tip.Shape.isValid()
@@ -195,11 +204,11 @@ try:
         "plane": "XY_Plane"
     }}])
     run([{"tool": "add_sketch_circle", "args": {
-        "sketch_name": "AcceptancePolarHubProfile", "center": [0, 0], "radius": 5
+        "sketch_name": "AcceptancePolarHubProfile", "center": [0, 0], "radius": mm(5)
     }}])
     run([{"tool": "create_partdesign_pad", "args": {
         "body_name": "AcceptancePolarBody", "sketch_name": "AcceptancePolarHubProfile",
-        "length": 8, "name": "AcceptancePolarHub"
+        "length": mm(8), "name": "AcceptancePolarHub"
     }}])
     run([{"tool": "create_partdesign_sketch", "args": {
         "body_name": "AcceptancePolarBody", "name": "AcceptancePolarSpokeProfile",
@@ -207,11 +216,11 @@ try:
     }}])
     run([{"tool": "add_sketch_polygon", "args": {
         "sketch_name": "AcceptancePolarSpokeProfile",
-        "points": [[4, -2], [12, -2], [12, 2], [4, 2]]
+        "points": [[mm(4), mm(-2)], [mm(12), mm(-2)], [mm(12), mm(2)], [mm(4), mm(2)]]
     }}])
     polar_pad = run([{"tool": "create_partdesign_pad", "args": {
         "body_name": "AcceptancePolarBody", "sketch_name": "AcceptancePolarSpokeProfile",
-        "length": 8, "name": "AcceptancePolarSpokePad"
+        "length": mm(8), "name": "AcceptancePolarSpokePad"
     }}])[0]
     polar = run([{"tool": "polar_pattern", "args": {
         "feature_name": polar_pad["feature"], "axis": "Z",
@@ -260,7 +269,7 @@ try:
             "PartDesign pattern Body is invalid after reopen.")
     require(reopened.getObject("AcceptancePolarBody").Tip.Shape.isValid(),
             "PartDesign polar Body is invalid after reopen.")
-    require(abs(float(reopened.getObject(cut["created"]).Shape.Volume) - 3000.0) < 1e-4,
+    require(abs(float(reopened.getObject(cut["created"]).Shape.Volume) - 3000.0 * scenario_scale ** 3) < 1e-4,
             "Boolean result volume changed after reopen.")
     report["checks"]["native_save_close_reopen"] = "PASS"
 
@@ -339,7 +348,7 @@ try:
             }],
             "source": {
                 "source_type": "synthetic",
-                "source_id": "nextcad-native-acceptance:" + os.environ.get("NEXT3D_NEXTCAD_SOURCE_COMMIT", "pinned-source"),
+                "source_id": "nextcad-native-acceptance:" + scenario_id + ":" + trace_split + ":" + os.environ.get("NEXT3D_NEXTCAD_SOURCE_COMMIT", "pinned-source"),
                 "author_or_owner": "Next3D",
                 "license": "project-authored",
                 "permission_status": "not_required",
@@ -353,7 +362,7 @@ try:
                 "public_release_allowed": True,
                 "redaction_status": "not_needed",
             },
-            "split": "test",
+            "split": trace_split,
         }
 
     after_summary = freecad_tools.inspect_document()
@@ -378,7 +387,7 @@ try:
     training_records = [
         build_training_record(
             "nextcad-stage-a-" + stage_after["sha256"][:16],
-            "Create Part primitives, subtract a boolean cutter, move and duplicate native objects, then apply native fillet and chamfer operations.",
+            f"Create a {mm(20):g} mm base block and {mm(10):g} mm cutter, then apply native boolean, transform, duplicate, fillet and chamfer operations ({scenario_id}).",
             stage_a_operations,
             None,
             stage_summary,
@@ -402,7 +411,7 @@ try:
         ),
         build_training_record(
             "nextcad-stage-b-" + sha256_file(project)[:16],
-            "Continue the saved CAD document by creating constrained PartDesign profiles and pads, applying linear and circular patterns, and generating a model-derived Spreadsheet schedule.",
+            f"Continue the saved CAD document with a {mm(5):g} mm hub, {mm(8):g} mm pads and {mm(12):g} mm spokes; create patterns and a model-derived schedule ({scenario_id}).",
             final_operations,
             dict(stage_after),
             after_summary,
@@ -423,6 +432,10 @@ try:
             ],
         ),
     ]
+    for record in training_records:
+        for parameter in record["specification"]["parameters"]:
+            if parameter.get("unit") == "mm" and isinstance(parameter.get("value"), (int, float)):
+                parameter["value"] = mm(parameter["value"])
     trace_path = marker.with_name("nextcad-ai-native-acceptance-trace.jsonl")
     trace_path.write_text(
         "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in training_records),
@@ -437,7 +450,7 @@ try:
     report["training_trace"] = {
         "path": str(trace_path),
         "records": len(training_records),
-        "split": "test",
+        "split": trace_split,
         "operation_records": len(trace_operations),
         "evidence_level": "L3 native execution + L4 save/reopen",
         "independent_engineering_validation": "not_claimed",
