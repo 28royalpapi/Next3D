@@ -160,3 +160,29 @@ This checkpoint is a substantial improvement to data correctness and the path fo
 - Each recorded trace retains exact command ID and arguments, CLI output, before/after project hashes, native project summaries, command schema catalogue revision, save/reopen checks and source lineage. The SFT converter keeps Next BIM's distinct `steps` response contract.
 - Added a three-run collector (0.8× compact train, 1.0× standard validation, 1.25× expanded test) with split-disjoint source lineage and SFT conversion. The native build workflow's Linux Next BIM job now uploads its output as a 30-day artifact.
 - The trace evidence confirms that the BIMCraft CLI accepted the command and reopened the saved project with the expected wall count. It does not claim independent geometry or engineering approval.
+
+
+## Native trace collection milestone — verified checkpoint 27 November 2026, 09:42 WAT
+
+### Collection implementation now present
+
+- NextCAD GUI acceptance runner supports train/validation/test labels and three scaled scenario families (0.8x, 1.0x, 1.25x). It executes the existing typed Part/PartDesign workflow in three separate GUI processes and checks the emitted stage records' split and scenario lineage.
+- `collect_nextcad_native_splits.py` validates two stage records per split, operation success, schema, save/reopen/recompute evidence, distinct source lineages and record IDs; converts the six records with `prepare_native_sft.py`; and writes raw, split-specific and SFT sidecars plus a hashed manifest.
+- Next BIM now has a native BIMCraft CLI runner that applies actual `wall` commands to a sampled project, saves and reopens after each command, and requires the reported wall count to increase by exactly one. It records two stage records per run with exact arguments, before/after BIMC hashes and count-based persistence evidence.
+- `collect_nextbim_native_splits.py` runs the 0.8x/1.0x/1.25x scenarios, validates app/split/schema/evidence/operation scope and split-disjoint project lineages, converts six records to SFT and writes split sidecars plus a manifest.
+- The manually dispatched native application build workflow now runs both collectors on Linux and uploads separate 30-day artifacts for NextCAD and Next BIM. The workflow was deliberately not dispatched during this work session to avoid starting long-running native builds / compute without an explicit request to incur those costs.
+- Next BIM's split validator now requires each source lineage to identify the expected split scenario and only admits the native `wall` operation used by this acceptance harness.
+
+### Latest validation evidence
+
+Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f53392d95`.
+
+- Deep-training CI run `45967629751`: **55 core tests, 9 native SFT tests and 6 Next BIM split-validation tests passed** (70 tests total across the groups). Python compilation and CLI help checks passed.
+- Run URL: https://github.com/28royalpapi/Next3D/actions/runs/45967629751
+- Selector visual smoke run `45967630002` was triggered for this branch; its final result should be checked independently.
+
+### What remains unclaimed
+
+- The native application workflow has not yet been run on the new collection path, so the planned six NextCAD and six Next BIM native examples do not yet exist as collected artifacts.
+- These controlled scenarios are software acceptance fixtures for specific typed operations/CLI commands, not broad user design coverage, not 100k/10k capability mastery, and not independent L5 engineering validation.
+- No training corpus reaching 400M measured Qwen text tokens has been built or audited. No Hugging Face GPU job has been launched; no adapter/checkpoint/quantized student weights have been produced. Paid compute remains unstarted.
