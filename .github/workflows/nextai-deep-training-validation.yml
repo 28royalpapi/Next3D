@@ -15,6 +15,8 @@ on:
       - "training/nextai/LARGE_SCALE_TRAINING_PROGRAMME.md"
       - "scripts/collect_nextcad_native_splits.py"
       - "scripts/run_nextcad_ai_acceptance.py"
+      - "scripts/run_nextbim_ai_acceptance.py"
+      - "scripts/collect_nextbim_native_splits.py"
       - "tests/nextai/test_large_scale_training.py"
       - ".github/workflows/nextai-deep-training-validation.yml"
   workflow_dispatch:
@@ -34,15 +36,23 @@ jobs:
         run: python -m unittest tests.nextai.test_large_scale_training -v
       - name: Compile training pipeline scripts
         run: |
-          python -m py_compile \
-            training/nextai/audit_nextai_corpus.py \
-            training/nextai/prepare_large_scale_corpus.py \
-            training/nextai/prepare_public_corpora.py \
-            training/nextai/buildeng_dataset.py \
-            training/nextai/generate_verified_engineering_cases.py \
-            training/nextai/run_large_scale_training.py \\
-            scripts/run_nextcad_ai_acceptance.py \\
-            scripts/collect_nextcad_native_splits.py
+          python - <<'PY'
+          import py_compile
+          files = [
+              "training/nextai/audit_nextai_corpus.py",
+              "training/nextai/prepare_large_scale_corpus.py",
+              "training/nextai/prepare_public_corpora.py",
+              "training/nextai/buildeng_dataset.py",
+              "training/nextai/generate_verified_engineering_cases.py",
+              "training/nextai/run_large_scale_training.py",
+              "scripts/run_nextcad_ai_acceptance.py",
+              "scripts/collect_nextcad_native_splits.py",
+              "scripts/run_nextbim_ai_acceptance.py",
+              "scripts/collect_nextbim_native_splits.py",
+          ]
+          for path in files:
+              py_compile.compile(path, doraise=True)
+          PY
       - name: Check CLI help without downloading any model
         run: |
           python training/nextai/prepare_large_scale_corpus.py --help
@@ -51,3 +61,5 @@ jobs:
           python training/nextai/generate_verified_engineering_cases.py --help
           python scripts/run_nextcad_ai_acceptance.py --help
           python scripts/collect_nextcad_native_splits.py --help
+          python scripts/run_nextbim_ai_acceptance.py --help
+          python scripts/collect_nextbim_native_splits.py --help

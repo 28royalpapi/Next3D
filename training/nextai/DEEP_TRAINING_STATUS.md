@@ -152,3 +152,11 @@ This checkpoint is a substantial improvement to data correctness and the path fo
 - It combines the six raw schema records, runs `prepare_native_sft.py`, emits split-specific raw files plus SFT train/validation/test sidecars, and writes a manifest with file hashes, counts and explicit L3/L4-only evidence classification.
 - The native build workflow now collects and uploads this corpus from its Linux GUI acceptance environment. The build remains manually dispatched; routine branch pushes do not initiate the expensive native build.
 - This will produce six controlled native acceptance examples when the workflow runs successfully. It does not provide broad CAD task coverage, Next BIM traces or independent engineering validation.
+
+
+## Native Next BIM/BIMCraft command-trace collector — 27 November 2026
+
+- Added a native CLI acceptance runner for the pinned BIMCraft executable. It loads the sample project, applies two actual `wall` commands with explicit millimetre coordinates, saves after each command, reopens through `bimcraft-cli info`, and requires the wall count to increase by exactly one each time.
+- Each recorded trace retains exact command ID and arguments, CLI output, before/after project hashes, native project summaries, command schema catalogue revision, save/reopen checks and source lineage. The SFT converter keeps Next BIM's distinct `steps` response contract.
+- Added a three-run collector (0.8× compact train, 1.0× standard validation, 1.25× expanded test) with split-disjoint source lineage and SFT conversion. The native build workflow's Linux Next BIM job now uploads its output as a 30-day artifact.
+- The trace evidence confirms that the BIMCraft CLI accepted the command and reopened the saved project with the expected wall count. It does not claim independent geometry or engineering approval.

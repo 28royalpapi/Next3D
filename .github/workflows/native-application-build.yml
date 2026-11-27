@@ -374,6 +374,18 @@ jobs:
         if: runner.os != 'Windows'
         working-directory: upstream/BIMCraft
         run: python ../../scripts/verify_nextbim_roundtrip.py --cli target/release/bimcraft-cli
+      - name: Collect independent native Next BIM train/validation/test traces
+        if: runner.os == 'Linux'
+        working-directory: upstream/BIMCraft
+        run: python ../../scripts/collect_nextbim_native_splits.py --cli target/release/bimcraft-cli --output-dir ../../artifacts/nextbim-native-corpus
+      - name: Upload validated Next BIM native training corpus
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextbim-native-training-corpus
+          path: artifacts/nextbim-native-corpus/
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Launch Next BIM on Windows
         if: runner.os == 'Windows'
