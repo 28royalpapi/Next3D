@@ -238,7 +238,7 @@ def apply_pilot_profile(args: argparse.Namespace) -> argparse.Namespace:
     if args.max_steps == -1:
         args.max_steps = 200
     args.allow_below_token_target = True
-    args.skip_upload = True
+    args.skip_upload = not args.upload
     args.skip_compact_export = True
     if args.evaluation_max_records == 0:
         args.evaluation_max_records = 128
@@ -521,6 +521,7 @@ def main() -> int:
     parser.add_argument("--skip-engineering-benchmark", action="store_true")
     parser.add_argument("--skip-compact-export", action="store_true")
     parser.add_argument("--skip-upload", action="store_true")
+    parser.add_argument("--upload", action="store_true", help="Allow a pilot to publish its resulting weights/evidence to the configured private Hub repository; requires a write-enabled HF_TOKEN.")
     parser.add_argument("--model-repo", default="Justin75685/nextai-qwen35-engineering-student")
     parser.add_argument("--evaluation-max-records", type=int, default=0)
     parser.add_argument("--engineering-max-cases", type=int, default=0)
