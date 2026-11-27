@@ -479,6 +479,58 @@ class IndexedJSONLTests(unittest.TestCase):
             for indexed in indices.values():
                 indexed.close()
 
+    def test_integrity_index_uses_disk_backed_sqlite(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            rows = {
+                "train": [{"record_id": "t1", "prompt": "A", "completion": "B"}],
+                "validation": [{"record_id": "v1", "prompt": "C", "completion": "D"}],
+                "test": [{"record_id": "x1", "prompt": "E", "completion": "F"}],
+            }
+            indices = {}
+            for split, records in rows.items():
+                path = root / f"{split}.jsonl"
+                path.write_text(
+                    "".join(json.dumps(record) + "\n" for record in records),
+                    encoding="utf-8",
+                )
+                indices[split] = IndexedJSONL(path)
+            report = validate_training_splits(
+                indices["train"], indices["validation"], indices["test"]
+            )
+            self.assertEqual(report["status"], "PASS")
+            self.assertEqual(
+                report["identity_index_storage"], "temporary_disk_backed_sqlite"
+            )
+            for indexed in indices.values():
+                indexed.close()
+
+    def test_duplicate_record_id_within_split_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            rows = {
+                "train": [
+                    {"record_id": "same", "prompt": "A", "completion": "B"},
+                    {"record_id": "same", "prompt": "C", "completion": "D"},
+                ],
+                "validation": [{"record_id": "v1", "prompt": "E", "completion": "F"}],
+                "test": [{"record_id": "t1", "prompt": "G", "completion": "H"}],
+            }
+            indices = {}
+            for split, records in rows.items():
+                path = root / f"{split}.jsonl"
+                path.write_text(
+                    "".join(json.dumps(record) + "\n" for record in records),
+                    encoding="utf-8",
+                )
+                indices[split] = IndexedJSONL(path)
+            with self.assertRaisesRegex(ValueError, "Duplicate record_id"):
+                validate_training_splits(
+                    indices["train"], indices["validation"], indices["test"]
+                )
+            for indexed in indices.values():
+                indexed.close()
+
     def test_large_scale_runner_uses_indexed_jsonl_data_loading(self):
         root = Path(__file__).resolve().parents[2]
         source = (root / "training/nextai/train_nextai.py").read_text(encoding="utf-8")
