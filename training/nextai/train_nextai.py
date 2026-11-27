@@ -297,6 +297,7 @@ def curriculum_stage_for_record(row: dict[str, Any]) -> str:
     foundation_prefixes = (
         "engineering_statics_",
         "engineering_structural_axial_",
+        "engineering_structural_euler_column_",
         "engineering_mechanical_torsion",
         "engineering_hydraulics_",
         "engineering_geotechnical_",
