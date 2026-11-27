@@ -13,9 +13,14 @@ import json
 import math
 import random
 import re
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
+
+# Keep sibling training helpers importable both when this file is run directly
+# and when legacy acceptance tests load it through importlib.util.spec_from_file_location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 CAD_DATASET = "ADSKAILab/Zero-To-CAD-100k"
 BIM_DATASET = "Dietmar2020/ifc-bim-alpaca-124k"
