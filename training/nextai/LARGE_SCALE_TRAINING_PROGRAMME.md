@@ -29,7 +29,7 @@ python training/nextai/run_large_scale_training.py \\
   --pilot
 ```
 
-The profile defaults to 200 optimizer steps, a 2,048-token context, at most 128 validation and held-out records per evaluation, skips compact GGUF export, and keeps resulting files local. Explicit step or context-length settings are preserved. Add `--upload` only when a write-enabled HF_TOKEN is configured and the private model repository should receive the pilot. The pilot does not require native CAD/BIM traces; if they are absent, its report explicitly limits the result to analytic engineering education. It must not be presented as a finished model or native operator.
+The profile defaults to 200 optimizer steps, a 2,048-token context, at most 128 validation and held-out records per evaluation, skips compact GGUF export, and keeps resulting files local. Explicit step or context-length settings are preserved. The run report also records the effective batch size and nominal example presentations implied by steps × batch size × gradient accumulation (1,600 at the defaults). This is an exposure estimate, not a unique-record count, model-mastery claim or guarantee that the complete 225,091-row training split has been covered. Add `--upload` only when a write-enabled HF_TOKEN is configured and the private model repository should receive the pilot. The pilot does not require native CAD/BIM traces; if they are absent, its report explicitly limits the result to analytic engineering education. It must not be presented as a finished model or native operator.
 
 The runner refuses CPU fallback and never rents compute. It must run in a CUDA environment whose cost and persistence have been authorised separately.
 
