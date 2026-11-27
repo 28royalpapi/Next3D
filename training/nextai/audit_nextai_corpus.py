@@ -100,6 +100,7 @@ def audit_corpus(
     split_summaries: dict[str, Any] = {}
     identity_locations: dict[str, set[str]] = defaultdict(set)
     exact_hash_locations: dict[str, set[str]] = defaultdict(set)
+    duplicate_text_records: list[dict[str, str]] = []
     duplicate_ids: list[dict[str, str]] = []
     missing_images: list[dict[str, Any]] = []
     domain_tokens: dict[str, Counter] = defaultdict(Counter)
@@ -171,6 +172,12 @@ def audit_corpus(
                 previous_split = global_text_hashes.get(digest)
                 if previous_split and previous_split != split:
                     exact_hash_locations[digest].update({previous_split, split})
+                elif previous_split == split:
+                    duplicate_text_records.append({
+                        "sha256": digest,
+                        "split": split,
+                        "record_id": record_id or f"{split}:{line_number}",
+                    })
                 else:
                     global_text_hashes[digest] = split
 
@@ -239,6 +246,11 @@ def audit_corpus(
         raise ValueError("Cross-split source identity leakage detected: " + json.dumps(leakage[:12], ensure_ascii=False))
     if content_leakage:
         raise ValueError("Exact normalized text duplicates cross splits: " + json.dumps(content_leakage[:12], ensure_ascii=False))
+    if duplicate_text_records:
+        raise ValueError(
+            "Exact normalized text duplicates within a split would inflate training exposure: "
+            + json.dumps(duplicate_text_records[:12], ensure_ascii=False)
+        )
     if duplicate_ids:
         raise ValueError("Duplicate record IDs found: " + json.dumps(duplicate_ids[:12]))
 
@@ -257,6 +269,7 @@ def audit_corpus(
         "missing_image_files": missing_images,
         "cross_split_identity_leakage": 0,
         "cross_split_exact_text_leakage": 0,
+        "duplicate_text_records_within_split": 0,
         "duplicate_record_ids": 0,
         "license_record_counts": dict(sorted(license_counts.items())),
         "evidence_level_record_counts": dict(sorted(evidence_counts.items())),
