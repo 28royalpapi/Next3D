@@ -17,31 +17,73 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    if split not in SCENARIOS:
+        raise ValueError(f"Unknown Next BIM split: {split}")
+    if len(rows) != 2:
+        raise ValueError(f"Next BIM {split} must contain exactly two native operation records")
+    ids: set[str] = set()
+    lineages: set[str] = set()
+    operation_count = 0
+    for row in rows:
+        record_id = str(row.get("record_id") or "")
+        if not record_id or record_id in ids:
+            raise ValueError(f"Next BIM {split} records contain a missing or duplicate record ID")
+        ids.add(record_id)
+        if row.get("schema_version") != "1.0.0" or row.get("application") != "nextbim":
+            raise ValueError(f"Next BIM {split} record has the wrong application or schema")
+        if row.get("split") != split:
+            raise ValueError(f"Next BIM {split} file contains a record labelled {row.get('split')!r}")
+        source_id = str((row.get("source") or {}).get("source_id") or "")
+        if not source_id:
+            raise ValueError(f"Next BIM {split} record has no source lineage")
+        lineages.add(source_id)
+        validation = row.get("validation") or {}
+        if validation.get("overall") not in {"passed", "passed_with_warnings"}:
+            raise ValueError(f"Next BIM {split} record has no passing validation result")
+        if validation.get("round_trip_passed") is not True or validation.get("recompute_passed") is not True:
+            raise ValueError(f"Next BIM {split} record lacks save/reopen or recompute evidence")
+        after = (row.get("native_states") or {}).get("after") or {}
+        if not re.fullmatch(r"[0-9a-f]{64}", str(after.get("sha256") or "")):
+            raise ValueError(f"Next BIM {split} record has no valid saved project hash")
+        operations = row.get("operations")
+        if not isinstance(operations, list) or not operations:
+            raise ValueError(f"Next BIM {split} record contains no native commands")
+        if any(operation.get("status") != "applied" for operation in operations):
+            raise ValueError(f"Next BIM {split} record contains a failed command")
+        operation_count += len(operations)
+    if len(lineages) != 1:
+        raise ValueError(f"Next BIM {split} stage records must share one source lineage")
+    return {"records": len(rows), "source_id": next(iter(lineages)), "record_ids": sorted(ids),
+            "operation_count": operation_count, "scenario_id": SCENARIOS[split][0], "scenario_scale": SCENARIOS[split][1]}
+
+
+def validate_source_lineage_separation(reports: dict[str, dict[str, Any]]) -> None:
+    seen: set[str] = set()
+    for split in ("train", "validation", "test"):
+        source_id = str((reports.get(split) or {}).get("source_id") or "")
+        if not source_id:
+            raise ValueError(f"Missing Next BIM {split} source lineage")
+        if source_id in seen:
+            raise ValueError("A native BIM project lineage was assigned to more than one split")
+        seen.add(source_id)
+
+
 def collect_trace_files(trace_files: dict[str, Path], output_dir: Path) -> dict[str, Any]:
     if set(trace_files) != set(SCENARIOS):
         raise ValueError("Exactly Next BIM train, validation and test files are required")
-    rows_all, reports, ids, lineages = [], {}, set(), set()
+    rows_all, reports, ids = [], {}, set()
     for split in ("train","validation","test"):
         path=Path(trace_files[split]).resolve()
         if not path.is_file(): raise FileNotFoundError(f"Missing Next BIM {split} trace: {path}")
         rows=[json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        if len(rows)!=2: raise ValueError(f"Next BIM {split} must contain two native operation records")
-        source_ids={row.get("source",{}).get("source_id") for row in rows}
-        if len(source_ids)!=1 or not next(iter(source_ids)): raise ValueError(f"Next BIM {split} records must share one source lineage")
-        source_id=next(iter(source_ids))
-        if source_id in lineages: raise ValueError("A native BIM project lineage was assigned to more than one split")
-        lineages.add(source_id)
-        for row in rows:
-            if row.get("application")!="nextbim" or row.get("split")!=split: raise ValueError(f"Wrong application or split in Next BIM {split} trace")
-            if row.get("record_id") in ids: raise ValueError("Duplicate Next BIM record ID")
-            ids.add(row.get("record_id"))
-            validation=row.get("validation",{})
-            if validation.get("overall") not in {"passed","passed_with_warnings"} or validation.get("round_trip_passed") is not True or validation.get("recompute_passed") is not True:
-                raise ValueError(f"Next BIM {split} record lacks passing native evidence")
-            if not row.get("operations") or any(op.get("status")!="applied" for op in row["operations"]):
-                raise ValueError(f"Next BIM {split} record contains missing or failed commands")
-        reports[split]={"records":len(rows),"source_id":source_id,"sha256":sha256_file(path),"scenario_id":SCENARIOS[split][0],"scenario_scale":SCENARIOS[split][1]}
+        report = validate_split_trace_rows(split, rows)
+        if ids.intersection(report["record_ids"]):
+            raise ValueError("Duplicate Next BIM record ID across data splits")
+        ids.update(report["record_ids"])
+        reports[split] = {**report, "sha256": sha256_file(path)}
         rows_all.extend(rows)
+    validate_source_lineage_separation(reports)
     output_dir.mkdir(parents=True,exist_ok=True)
     raw=output_dir/"native-records.jsonl"
     raw.write_text("".join(json.dumps(row,ensure_ascii=False)+"\n" for row in rows_all),encoding="utf-8")
