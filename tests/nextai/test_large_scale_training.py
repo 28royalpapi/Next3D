@@ -762,11 +762,11 @@ class AnalyticEngineeringCurriculumTests(unittest.TestCase):
         })
         self.assertEqual(earthwork["values"]["earthwork_volume_m3"], 120.0)
 
-    def test_generator_has_17_formula_families_and_keeps_all_splits(self):
-        self.assertEqual(len(FAMILY_BUILDERS), 17)
+    def test_generator_has_22_formula_families_and_keeps_all_splits(self):
+        self.assertEqual(len(FAMILY_BUILDERS), 22)
         first, manifest = generate_cases(cases_per_domain=3, seed=3407)
         second, _ = generate_cases(cases_per_domain=3, seed=3407)
-        self.assertEqual(manifest["total_records"], 17 * 3)
+        self.assertEqual(manifest["total_records"], 22 * 3)
         self.assertEqual(manifest["families"], {key: 3 for key in sorted(FAMILY_BUILDERS)})
         for split in ("train", "validation", "test"):
             self.assertEqual(
@@ -774,7 +774,7 @@ class AnalyticEngineeringCurriculumTests(unittest.TestCase):
                 [row["record_id"] for row in second[split]],
             )
         all_rows = [row for split in first.values() for row in split]
-        self.assertEqual(len({row["record_id"] for row in all_rows}), 51)
+        self.assertEqual(len({row["record_id"] for row in all_rows}), 66)
         for row in all_rows:
             expected = row["expected"]
             self.assertEqual(row["evidence_level"], "L0")
@@ -784,7 +784,7 @@ class AnalyticEngineeringCurriculumTests(unittest.TestCase):
             self.assertTrue(expected["assumptions"])
             self.assertEqual(row["source_split"], "original_synthetic")
 
-    def test_all_17_solver_families_match_independent_equations(self):
+    def test_original_solver_families_match_independent_equations(self):
         import math
 
         center = solve_beam_udl({
