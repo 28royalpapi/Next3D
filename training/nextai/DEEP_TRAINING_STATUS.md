@@ -28,7 +28,7 @@ This is a corpus-integrity improvement only. It does not mean the full public co
 
 - Full-source corpus builder for the published Zero-to-CAD, IFC/BIM Alpaca and IFC/BIM QA splits.
 - BuildEng V8 ingestion: 145,117 published civil/structural/building-engineering chat records under Apache-2.0. Since the source publishes one train split, Next3D assigns deterministic internal partitions by category and normalized user brief.
-- Original analytic engineering generator: 17 families, 10,000 parameterised cases per family (170,000 target generated records), with governing equations, inputs, units, assumptions, expected values and limitations.
+- Original analytic engineering generator: 22 families, 10,000 parameterised cases per family (220,000 target generated records), with governing equations, inputs, units, assumptions, expected values and limitations.
 - Five-stage progressive curriculum: foundations, CAD/BIM fluency, engineering disciplines, operator methods and integrated projects.
 - 10% spaced rehearsal from earlier stages after each 32 new examples; sequential training sampler preserves the schedule.
 - Indexed JSONL data access and disk-backed SQLite split-integrity checks.
@@ -40,7 +40,7 @@ This is a corpus-integrity improvement only. It does not mean the full public co
 
 ## Configured corpus scale
 
-The full-source builder currently targets a mixed train cap of 700,000 records, validation capacity of 60,000 records and held-out test capacity of 50,000 records. The source limits include the full published source splits and the 170,000 analytic-case target.
+The full-source builder currently targets a mixed train cap of 700,000 records, validation capacity of 60,000 records and held-out test capacity of 50,000 records. The source limits include the full published source splits and the 220,000 analytic-case target.
 
 The programme uses 400 million measured Qwen text tokens as a planning target. It is not an achieved count. The final measured number must come from `corpus_audit.json`; image patches and runtime chat-template overhead are counted separately. If the permitted corpus falls short, the report must state the shortfall and add further licence-cleared sources rather than duplicate records to inflate the token count.
 
@@ -230,3 +230,12 @@ Latest active branch head at this checkpoint: `531eb2c419e85804c7e97ad8166bd75f5
 - Run: https://github.com/28royalpapi/Next3D/actions/runs/45972631867
 - Selector smoke run 45972631858 passed on Windows, Linux and macOS Intel; all three jobs completed successfully.
 - Hugging Face recheck: zero active jobs; the model and dataset repositories still contain only .gitattributes. No weights or corpus artifacts have been published, and no paid compute has been started.
+
+
+## Expanded verified engineering curriculum — 27 November 2026
+
+- The deterministic analytic engineering generator has expanded from 17 to 22 calculation families. New families cover ideal elastic Euler column buckling, Rankine active earth pressure with uniform surcharge, hydrostatic resultant and centre of pressure on a vertical rectangular gate, Terzaghi general-shear bearing pressure for strip footings using supplied factors, and infinite-slope limit-equilibrium factor of safety.
+- Each new family includes unit-aware inputs/outputs, governing equations, worked calculation steps, assumptions and explicit limitations. The solvers reject invalid or out-of-domain inputs. They are bounded L0 educational calculations, not code-compliance checks or design approvals.
+- At the existing 10,000-cases-per-family setting, the analytic curriculum target increases from 170,000 to 220,000 records (+50,000, +29.4%). Actual records are generated only when the full corpus builder runs; the tokenizer-measured token contribution remains unverified until its audit artifact exists.
+- The deep-training workflow now runs dedicated reference-solution tests for all five new solvers, deterministic family generation, record identity, and inclusion of worked calculation steps.
+- The 400M target is explicitly a target for Qwen-tokenizer-measured training-split text tokens. It is not an optimizer-step count, epoch count, image-token count, or current achieved total.
