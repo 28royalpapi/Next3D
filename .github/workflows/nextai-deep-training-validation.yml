@@ -13,12 +13,15 @@ on:
       - "training/nextai/generate_verified_engineering_cases.py"
       - "training/nextai/prepare_public_corpora.py"
       - "training/nextai/LARGE_SCALE_TRAINING_PROGRAMME.md"
+      - "training/nextai/engineering_benchmark_v1.py"
+      - "training/nextai/run_engineering_benchmark.py"
       - "scripts/collect_nextcad_native_splits.py"
       - "scripts/run_nextcad_ai_acceptance.py"
       - "scripts/run_nextbim_ai_acceptance.py"
       - "scripts/collect_nextbim_native_splits.py"
       - "tests/nextai/test_large_scale_training.py"
       - "tests/next-ai/test_expanded_engineering_cases.py"
+      - "tests/next-ai/test_engineering_benchmark.py"
       - "tests/next-ai/test_nextbim_native_collection.py"
       - "tests/next-ai/test_nextbim_split_validation.py"
       - "tests/next-ai/test_collect_nextcad_native_splits.py"
@@ -42,6 +45,8 @@ jobs:
         run: python -m unittest discover -s tests/next-ai -p 'test_nextbim_native_collection.py' -v
       - name: Test expanded analytic engineering curriculum
         run: python -m unittest discover -s tests/next-ai -p 'test_expanded_engineering_cases.py' -v
+      - name: Test independent held-out engineering benchmark
+        run: python -m unittest discover -s tests/next-ai -p 'test_engineering_benchmark.py' -v
       - name: Test Next BIM train/validation/test isolation gates
         run: python -m unittest discover -s tests/next-ai -p 'test_nextbim_split_validation.py' -v
       - name: Test NextCAD native split lineage and state fingerprints
