@@ -66,6 +66,10 @@ The next curriculum phase is specified in [COMPREHENSIVE_CAPABILITY_CURRICULUM.m
 - Cairn IFC BIM deduplicated data is excluded from positive training until its generated IFC has been independently validated; its own dataset card says its IFC output is unvalidated.
 - CAD-Recode v1.5 (CC-BY-NC-4.0) is excluded from commercial model training unless separate commercial permission is obtained.
 
+## Progressive course schedule
+
+Training is delivered in five sequential stages: engineering foundations; CAD/BIM fluency; specialist engineering disciplines; native operator methods; and integrated projects. Later stages include 10% deterministic rehearsal from earlier stages after every 32 new examples. The trainer uses Transformers' sequential sampling strategy so the course ordering is preserved. Each run records stage/domain counts, replay exposures, the seed and an SHA-256 hash of the exact ordered index in `curriculum_schedule.json`. Checkpoint resume is meaningful only with the same corpus and schedule.
+
 ## Large-corpus runtime
 
 The SFT trainer now indexes each JSONL split by byte offset and reads conversations on demand. Split validation still scans every record for schema/target completeness, image availability, duplicate IDs and cross-split source-group leakage, but the full training corpus is not materialized in a Python list. This lowers the RAM pressure of scaling from tens of thousands to hundreds of thousands or millions of examples. The validation split remains the only dataset used by `trainer.evaluate()` during fine-tuning; the held-out test split is inspected for integrity and evaluated only after training, when the frozen base and candidate are compared on the same test records.
