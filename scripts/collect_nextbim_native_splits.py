@@ -25,6 +25,7 @@ def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[st
     ids: set[str] = set()
     lineages: set[str] = set()
     operation_count = 0
+    prompts: set[str] = set()
     for row in rows:
         record_id = str(row.get("record_id") or "")
         if not record_id or record_id in ids:
@@ -41,24 +42,54 @@ def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[st
         if expected_scenario not in source_id or split not in source_id:
             raise ValueError(f"Next BIM {split} record has a source lineage that does not match its scenario")
         lineages.add(source_id)
+        prompt = str((row.get("task") or {}).get("prompt") or "").strip()
+        if not prompt:
+            raise ValueError(f"Next BIM {split} record has no task prompt")
+        prompts.add(prompt)
         validation = row.get("validation") or {}
         if validation.get("overall") not in {"passed", "passed_with_warnings"}:
             raise ValueError(f"Next BIM {split} record has no passing validation result")
         if validation.get("round_trip_passed") is not True or validation.get("recompute_passed") is not True:
             raise ValueError(f"Next BIM {split} record lacks save/reopen or recompute evidence")
-        after = (row.get("native_states") or {}).get("after") or {}
-        if not re.fullmatch(r"[0-9a-f]{64}", str(after.get("sha256") or "")):
-            raise ValueError(f"Next BIM {split} record has no valid saved project hash")
+        native_states = row.get("native_states") or {}
+        before = native_states.get("before") or {}
+        after = native_states.get("after") or {}
+        before_hash = str(before.get("sha256") or "")
+        after_hash = str(after.get("sha256") or "")
+        if not re.fullmatch(r"[0-9a-f]{64}", before_hash):
+            raise ValueError(f"Next BIM {split} record has no valid before-project SHA-256")
+        if not re.fullmatch(r"[0-9a-f]{64}", after_hash) or after_hash == before_hash:
+            raise ValueError(f"Next BIM {split} record has no distinct valid saved after-project SHA-256")
         operations = row.get("operations")
-        if not isinstance(operations, list) or not operations:
-            raise ValueError(f"Next BIM {split} record contains no native commands")
-        if any(operation.get("status") != "applied" for operation in operations):
+        if not isinstance(operations, list) or len(operations) != 1:
+            raise ValueError(f"Next BIM {split} acceptance record must contain exactly one native wall command")
+        operation = operations[0]
+        if operation.get("status") != "applied":
             raise ValueError(f"Next BIM {split} record contains a failed command")
-        if any(operation.get("tool") != "wall" for operation in operations):
+        if operation.get("tool") != "wall":
             raise ValueError(f"Next BIM {split} acceptance trace may contain only native wall commands")
-        operation_count += len(operations)
+        if operation.get("before_state_hash") != before_hash or operation.get("after_state_hash") != after_hash:
+            raise ValueError(f"Next BIM {split} operation hashes do not match the native before/after states")
+        result = operation.get("result") or {}
+        try:
+            count_before = int(result.get("wall_count_before"))
+            count_after = int(result.get("wall_count_after_reopen"))
+            count_delta = int(result.get("count_delta"))
+        except (TypeError, ValueError):
+            raise ValueError(f"Next BIM {split} wall command has incomplete reopened-count evidence")
+        if count_after != count_before + 1 or count_delta != 1:
+            raise ValueError(f"Next BIM {split} wall command does not prove exactly one persisted wall")
+        checks = validation.get("checks") or []
+        increment = next((item for item in checks if item.get("check_id") == "wall_count_increment"), None)
+        if not increment or increment.get("status") != "pass":
+            raise ValueError(f"Next BIM {split} record lacks a passing wall-count validation check")
+        if increment.get("expected") != count_before + 1 or increment.get("actual") != count_after:
+            raise ValueError(f"Next BIM {split} validation count does not match the recorded CLI result")
+        operation_count += 1
     if len(lineages) != 1:
         raise ValueError(f"Next BIM {split} stage records must share one source lineage")
+    if len(prompts) != 2:
+        raise ValueError(f"Next BIM {split} stage prompts must be present and distinct")
     return {"records": len(rows), "source_id": next(iter(lineages)), "record_ids": sorted(ids),
             "operation_count": operation_count, "scenario_id": SCENARIOS[split][0], "scenario_scale": SCENARIOS[split][1]}
 
