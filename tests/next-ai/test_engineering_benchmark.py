@@ -41,11 +41,30 @@ class IndependentEngineeringBenchmarkTests(unittest.TestCase):
         })
 
     def test_benchmark_has_unique_train_excluded_cases_across_engineering_domains(self):
-        self.assertEqual(BENCHMARK_VERSION, "nextai-engineering-heldout-v1")
-        self.assertEqual(len(self.cases), 28)
+        self.assertEqual(BENCHMARK_VERSION, "nextai-engineering-heldout-v2")
+        self.assertEqual(len(self.cases), 35)
         self.assertEqual(len(self.by_id), len(self.cases))
         self.assertGreaterEqual(len({case["domain"] for case in self.cases}), 8)
         self.assertTrue(all(case["level"] for case in self.cases))
+
+
+    def test_new_analytic_families_are_covered_by_the_train_excluded_benchmark(self):
+        expected = {
+            "STR-05": "ideal_euler_column_buckling",
+            "GEO-04": "rankine_active_earth_pressure_with_surcharge",
+            "HYD-05": "vertical_rectangular_gate_hydrostatic_force",
+            "GEO-05": "terzaghi_strip_footing_bearing_capacity_supplied_factors",
+            "GEO-06": "infinite_slope_effective_stress_factor_of_safety",
+            "HYD-06": "pump_power_with_separate_pump_and_motor_efficiency",
+            "GEO-07": "simplified_immediate_elastic_shallow_foundation_settlement",
+        }
+        for case_id, method in expected.items():
+            with self.subTest(case_id=case_id):
+                case = self.by_id[case_id]
+                self.assertEqual(case["level"], "independent_quantitative")
+                self.assertEqual(case["expected"]["method"], method)
+                self.assertTrue(case["expected"]["values"])
+                self.assertTrue(case["expected"]["units"])
 
     def test_reference_answers_pass_the_numeric_and_safety_rubric(self):
         scored = [
@@ -54,8 +73,8 @@ class IndependentEngineeringBenchmarkTests(unittest.TestCase):
         ]
         self.assertTrue(all(row["passed"] for row in scored))
         summary = aggregate_scores(scored)
-        self.assertEqual(summary["case_count"], 28)
-        self.assertEqual(summary["passed_cases"], 28)
+        self.assertEqual(summary["case_count"], 35)
+        self.assertEqual(summary["passed_cases"], 35)
         self.assertEqual(summary["overall_pass_rate"], 1.0)
 
     def test_numerically_wrong_result_fails_even_when_json_and_method_are_valid(self):
