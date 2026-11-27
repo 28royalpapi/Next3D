@@ -86,7 +86,7 @@ def verify_native_collection_manifest(manifest_path: Path, application: str) -> 
                 raise ValueError(f"Native collection manifest record count mismatch for {label}")
         return artifact
 
-    check_artifact(inventory["raw_trace"], "raw_trace")
+    raw_trace_path = check_artifact(inventory["raw_trace"], "raw_trace")
     for group_name in ("raw_splits", "sft_splits"):
         group = inventory[group_name]
         if not isinstance(group, dict) or set(group) != {"train", "validation", "test"}:
@@ -94,33 +94,91 @@ def verify_native_collection_manifest(manifest_path: Path, application: str) -> 
         for split, item in group.items():
             check_artifact(item, f"{group_name}.{split}")
     check_artifact(inventory["sft_quarantine"], "sft_quarantine")
-    check_artifact(inventory["sft_summary"], "sft_summary")
+    summary_path = check_artifact(inventory["sft_summary"], "sft_summary")
+    try:
+        actual_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Native SFT summary artifact is not valid JSON") from exc
+    if actual_summary != sft_summary:
+        raise ValueError("Native collection manifest SFT summary does not match the hashed summary artifact")
 
     declared_counts = manifest.get("split_record_counts") or {}
     if set(declared_counts) != {"train", "validation", "test"}:
         raise ValueError("Native collection manifest must declare all three split counts")
-    sft_files: dict[str, str] = {}
-    seen_ids: set[str] = set()
-    for split in ("train", "validation", "test"):
-        item = inventory["sft_splits"][split]
-        if int(item.get("records", 0)) < 1 or item.get("records") != declared_counts.get(split):
-            raise ValueError(f"Native {application} {split} SFT count does not match its collection manifest")
-        artifact = (root / str(item["path"])).resolve()
-        with artifact.open("r", encoding="utf-8") as handle:
+
+    def read_jsonl(path: Path, label: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        with path.open("r", encoding="utf-8") as handle:
             for line_number, line in enumerate(handle, 1):
                 if not line.strip():
                     continue
                 try:
                     row = json.loads(line)
                 except json.JSONDecodeError as exc:
-                    raise ValueError(f"Invalid SFT JSON in {artifact}:{line_number}") from exc
-                if not isinstance(row, dict) or row.get("application") != application or row.get("split") != split:
-                    raise ValueError(f"Native SFT artifact {artifact}:{line_number} has the wrong application or split")
-                record_id = str(row.get("record_id") or "").strip()
-                if not record_id or record_id in seen_ids:
-                    raise ValueError(f"Native {application} collection has a missing or duplicate SFT record ID")
-                seen_ids.add(record_id)
+                    raise ValueError(f"Invalid JSON in native artifact {label}:{line_number}") from exc
+                if not isinstance(row, dict):
+                    raise ValueError(f"Native artifact {label}:{line_number} is not a JSON object")
+                rows.append(row)
+        return rows
+
+    raw_rows = read_jsonl(raw_trace_path, "raw_trace")
+    raw_ids_by_split: dict[str, set[str]] = {split: set() for split in ("train", "validation", "test")}
+    lineages_by_split: dict[str, set[str]] = {split: set() for split in ("train", "validation", "test")}
+    all_raw_ids: set[str] = set()
+    for index, row in enumerate(raw_rows, 1):
+        split = row.get("split")
+        if row.get("application") != application or split not in raw_ids_by_split:
+            raise ValueError(f"Native raw trace row {index} has the wrong application or split")
+        record_id = str(row.get("record_id") or "").strip()
+        if not record_id or record_id in all_raw_ids:
+            raise ValueError(f"Native {application} raw trace has a missing or duplicate record ID")
+        all_raw_ids.add(record_id)
+        raw_ids_by_split[split].add(record_id)
+        source_id = str((row.get("source") or {}).get("source_id") or "").strip()
+        if not source_id:
+            raise ValueError(f"Native {application} raw trace row {index} has no source lineage")
+        lineages_by_split[split].add(source_id)
+
+    all_lineages: set[str] = set()
+    for split in ("train", "validation", "test"):
+        expected_count = declared_counts.get(split)
+        raw_item = inventory["raw_splits"][split]
+        sft_item = inventory["sft_splits"][split]
+        if not isinstance(expected_count, int) or expected_count < 1:
+            raise ValueError(f"Native {application} {split} split count must be a positive integer")
+        if raw_item.get("records") != expected_count or len(raw_ids_by_split[split]) != expected_count:
+            raise ValueError(f"Native {application} {split} raw trace count does not match its collection manifest")
+        raw_split_rows = read_jsonl((root / str(raw_item["path"])).resolve(), f"raw_splits.{split}")
+        if any(row.get("application") != application or row.get("split") != split for row in raw_split_rows):
+            raise ValueError(f"Native {application} raw split artifact {split} contains a wrong app or split row")
+        if {str(row.get("record_id") or "") for row in raw_split_rows} != raw_ids_by_split[split]:
+            raise ValueError(f"Native {application} raw split artifact {split} does not match raw_trace")
+        if int(sft_item.get("records", 0)) != expected_count:
+            raise ValueError(f"Native {application} {split} SFT count does not match its collection manifest")
+        if not lineages_by_split[split].isdisjoint(all_lineages):
+            raise ValueError(f"Native {application} project lineage crosses train/validation/test boundaries")
+        all_lineages.update(lineages_by_split[split])
+
+    sft_files: dict[str, str] = {}
+    all_sft_ids: set[str] = set()
+    for split in ("train", "validation", "test"):
+        item = inventory["sft_splits"][split]
+        artifact = (root / str(item["path"])).resolve()
+        sft_ids: set[str] = set()
+        for line_number, row in enumerate(read_jsonl(artifact, f"sft_splits.{split}"), 1):
+            if row.get("application") != application or row.get("split") != split:
+                raise ValueError(f"Native SFT artifact {artifact}:{line_number} has the wrong application or split")
+            record_id = str(row.get("record_id") or "").strip()
+            if not record_id or record_id in all_sft_ids:
+                raise ValueError(f"Native {application} collection has a missing or duplicate SFT record ID")
+            sft_ids.add(record_id)
+            all_sft_ids.add(record_id)
+        if sft_ids != raw_ids_by_split[split]:
+            raise ValueError(f"Native {application} {split} SFT IDs do not exactly match accepted raw trace IDs")
         sft_files[split] = str(artifact)
+
+    if all_sft_ids != all_raw_ids:
+        raise ValueError(f"Native {application} SFT conversion changed the accepted raw trace record set")
 
     return {
         "application": application,
