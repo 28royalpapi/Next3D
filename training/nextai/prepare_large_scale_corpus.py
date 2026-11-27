@@ -28,6 +28,7 @@ def main() -> int:
     parser.add_argument("--bim-validation", type=int, default=13000)
     parser.add_argument("--ifcqa-train", type=int, default=10000)
     parser.add_argument("--ifcqa-test", type=int, default=4000)
+    parser.add_argument("--buildeng-records", type=int, default=145117)
     parser.add_argument("--mixed-train-cap", type=int, default=400000)
     parser.add_argument("--validation-cap", type=int, default=50000)
     parser.add_argument("--test-cap", type=int, default=40000)
@@ -41,6 +42,7 @@ def main() -> int:
     limits = (
         args.cad_train, args.cad_validation, args.cad_test,
         args.bim_train, args.bim_validation, args.ifcqa_train, args.ifcqa_test,
+        args.buildeng_records,
         args.mixed_train_cap, args.validation_cap, args.test_cap,
     )
     if any(value < 0 for value in limits):
@@ -82,6 +84,7 @@ def main() -> int:
         "--max-bim-validation", str(args.bim_validation),
         "--max-ifcqa-train", str(args.ifcqa_train),
         "--max-ifcqa-test", str(args.ifcqa_test),
+        "--max-buildeng-records", str(args.buildeng_records),
         "--max-mixed-train", str(args.mixed_train_cap),
         "--max-validation", str(args.validation_cap),
         "--max-test", str(args.test_cap),
@@ -110,6 +113,7 @@ def main() -> int:
             "bim_validation_source_rows": args.bim_validation,
             "ifcqa_train_source_rows": args.ifcqa_train,
             "ifcqa_test_source_rows": args.ifcqa_test,
+            "buildeng_source_rows": args.buildeng_records,
             "mixed_train_cap": args.mixed_train_cap,
             "validation_cap": args.validation_cap,
             "test_cap": args.test_cap,
