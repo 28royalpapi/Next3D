@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from training.nextai.audit_nextai_corpus import audit_corpus, render_record_text
@@ -27,6 +28,7 @@ from training.nextai.run_large_scale_training import (
     training_run_scope,
     apply_pilot_profile,
     estimate_example_exposures,
+    extract_analytic_corpus_archive,
 )
 from training.nextai.prepare_public_corpora import merge_native_trace_splits
 from training.nextai.prepare_large_scale_corpus import (
@@ -536,6 +538,56 @@ class NextCADNativeSplitCollectionTests(unittest.TestCase):
         rows[0]["validation"]["round_trip_passed"] = False
         with self.assertRaisesRegex(ValueError, "lacks save/reopen or recompute evidence"):
             validate_split_trace_rows("test", rows)
+
+
+class TrainingArchiveInputTests(unittest.TestCase):
+    def _write_archive(self, archive_path: Path, entries: dict[str, str]) -> None:
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, content in entries.items():
+                archive.writestr(name, content)
+
+    def test_audited_analytic_zip_is_extracted_for_training(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            archive = root / "corpus.zip"
+            entries = {
+                "train.jsonl": '{"record_id":"train-1"}\\n',
+                "validation.jsonl": '{"record_id":"validation-1"}\\n',
+                "test.jsonl": '{"record_id":"test-1"}\\n',
+                "manifest.json": json.dumps({"total_records": 3}),
+                "corpus_audit.json": json.dumps({"status": "PASS", "train_text_tokens": 1200}),
+                "milestone-summary.json": json.dumps({"project_token_target": None}),
+            }
+            self._write_archive(archive, entries)
+            destination = extract_analytic_corpus_archive(archive, root / "extracted")
+            self.assertEqual((destination / "train.jsonl").read_text(encoding="utf-8"), entries["train.jsonl"])
+            self.assertEqual(json.loads((destination / "corpus_audit.json").read_text())["train_text_tokens"], 1200)
+
+    def test_archive_extraction_rejects_path_traversal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            archive = root / "unsafe.zip"
+            entries = {
+                "train.jsonl": "{}\\n", "validation.jsonl": "{}\\n", "test.jsonl": "{}\\n",
+                "manifest.json": "{}", "corpus_audit.json": '{"status":"PASS","train_text_tokens":1}',
+                "../escape.txt": "must not escape",
+            }
+            self._write_archive(archive, entries)
+            with self.assertRaisesRegex(ValueError, "Unsafe or unexpected"):
+                extract_analytic_corpus_archive(archive, root / "extracted")
+            self.assertFalse((root / "escape.txt").exists())
+
+    def test_archive_extraction_requires_passing_tokenizer_audit(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            archive = root / "invalid.zip"
+            entries = {
+                "train.jsonl": "{}\\n", "validation.jsonl": "{}\\n", "test.jsonl": "{}\\n",
+                "manifest.json": "{}", "corpus_audit.json": '{"status":"FAIL","train_text_tokens":0}',
+            }
+            self._write_archive(archive, entries)
+            with self.assertRaisesRegex(ValueError, "passing Qwen-tokenizer audit"):
+                extract_analytic_corpus_archive(archive, root / "extracted")
 
 
 class LargeScaleTrainingTests(unittest.TestCase):
