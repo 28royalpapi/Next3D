@@ -371,3 +371,9 @@ This checkpoint corrects the earlier misleading materialization status: the 250k
 - Native build/collection run [46016419877](https://github.com/28royalpapi/Next3D/actions/runs/46016419877) remains in progress at last inspection: NextCAD is still compiling; Next BIM's native workspace tests are still running. The collector steps have not executed and no new native trace artifacts are verified.
 - Hugging Face OAuth is read-only for repositories (`read-repos`) plus job access; no `write-repos` scope. The private model and dataset repositories still list only `.gitattributes`. Jobs listing is empty.
 - No fine-tuning has started and no adapter/checkpoint/updated weights exist. The connected execution container has no CUDA GPU, and no GPU spending limit has been authorised. Therefore the bounded pilot is now unblocked in software policy but cannot be executed until a CUDA runtime is authorised and supplied. For persistent Hub publication, configure a write-enabled `HF_TOKEN` securely in GitHub Actions; alternatively use a local output directory on a persistent authorised GPU machine.
+
+### Pilot exposure accounting — 27 November 2026, 16:07 WAT
+
+- The pilot run report now records requested optimizer steps, effective batch size and nominal example presentations (steps × batch size × gradient accumulation). At defaults, 200 steps × batch size 1 × accumulation 8 = 1,600 nominal row presentations.
+- This is an exposure estimate, not a count of unique records, model mastery or full-corpus coverage. The complete analytic training split contains 225,091 rows; the pilot touches only a small portion of that scheduled data.
+- Added validation for the estimate and for safe pilot defaults. The latest change is undergoing deep-training CI and cross-platform selector smoke validation.
