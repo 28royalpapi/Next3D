@@ -828,6 +828,16 @@ def generate_cases(
     family_counts: Counter = Counter()
     solver_names: dict[str, str] = {}
     seen_cases: set[str] = set()
+    seen_conversation_hashes: set[str] = set()
+    duplicate_conversation_retries = 0
+    duplicate_retries_by_family: Counter = Counter()
+    max_duplicate_resamples = 100
+    system = (
+        "You are NextAI, a careful engineering calculation assistant. "
+        "Use only the stated inputs, preserve units, show the governing "
+        "relationship, check dimensional consistency, and distinguish "
+        "an educational calculation from a complete design or approval."
+    )
 
     for family, (make_case, solver_name) in sorted(FAMILY_BUILDERS.items()):
         solver_names[family] = solver_name
@@ -836,19 +846,28 @@ def generate_cases(
             if case_id in seen_cases:
                 raise ValueError(f"Duplicate generated engineering case ID: {case_id}")
             seen_cases.add(case_id)
-            values = make_case(rng)
-            expected_text = json.dumps(values["expected"], ensure_ascii=False, sort_keys=True)
-            system = (
-                "You are NextAI, a careful engineering calculation assistant. "
-                "Use only the stated inputs, preserve units, show the governing "
-                "relationship, check dimensional consistency, and distinguish "
-                "an educational calculation from a complete design or approval."
-            )
-            messages = [
-                {"role": "system", "content": system},
-                {"role": "user", "content": values["prompt"]},
-                {"role": "assistant", "content": expected_text},
-            ]
+            for _attempt in range(max_duplicate_resamples + 1):
+                values = make_case(rng)
+                expected_text = json.dumps(values["expected"], ensure_ascii=False, sort_keys=True)
+                messages = [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": values["prompt"]},
+                    {"role": "assistant", "content": expected_text},
+                ]
+                rendered = "\n".join(
+                    f"<{message['role']}>\n{message['content']}" for message in messages
+                )
+                conversation_hash = _sha(" ".join(rendered.split()))
+                if conversation_hash not in seen_conversation_hashes:
+                    seen_conversation_hashes.add(conversation_hash)
+                    break
+                duplicate_conversation_retries += 1
+                duplicate_retries_by_family[family] += 1
+            else:
+                raise ValueError(
+                    f"Could not generate a unique model-facing conversation for {family} "
+                    f"after {max_duplicate_resamples} duplicate resamples."
+                )
             source_group = _sha(f"{family}|{case_id}")
             bucket = int(source_group[:8], 16) % 100
             split = "test" if bucket < 5 else "validation" if bucket < 10 else "train"
@@ -886,6 +905,8 @@ def generate_cases(
         "solver_functions": solver_names,
         "split_counts": {split: len(rows) for split, rows in result.items()},
         "total_records": sum(len(rows) for rows in result.values()),
+        "duplicate_conversation_retries": duplicate_conversation_retries,
+        "duplicate_conversation_retries_by_family": dict(sorted(duplicate_retries_by_family.items())),
         "split_policy": "Deterministic source-group SHA-256 partition: 90% train, 5% validation, 5% test target; actual counts may differ by hash bucket.",
         "evidence_level": "L0",
         "native_execution_verified": False,
