@@ -20,7 +20,11 @@ from training.nextai.generate_verified_engineering_cases import (
     FAMILY_BUILDERS,
 )
 from training.nextai.run_large_scale_training import compare_heldout_evaluations
-from training.nextai.train_nextai import IndexedJSONL, validate_training_splits
+from training.nextai.train_nextai import (
+    IndexedJSONL,
+    validate_training_splits,
+    conversation_row_for_collator,
+)
 
 
 class FakeTokenizer:
@@ -480,6 +484,56 @@ class IndexedJSONLTests(unittest.TestCase):
         self.assertIn("train_rows = IndexedJSONL", source)
         self.assertIn("Indexed JSONL byte offsets with on-demand record parsing", source)
         self.assertNotIn("train_rows = read_jsonl", source)
+
+
+class MultimodalConversationCollatorTests(unittest.TestCase):
+    def test_message_format_image_placeholders_receive_real_assets(self):
+        row = {
+            "messages": [
+                {"role": "user", "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": "Identify the CAD feature families."},
+                    {"type": "image"},
+                ]},
+                {"role": "assistant", "content": "A pad and a pocket."},
+            ],
+            "images": ["view_0.jpg", "view_1.jpg"],
+        }
+        result = conversation_row_for_collator(
+            row,
+            image_loader=lambda path: "loaded:" + path,
+        )
+        content = result["messages"][0]["content"]
+        self.assertEqual(content[0], {"type": "image", "image": "loaded:view_0.jpg"})
+        self.assertEqual(content[1]["text"], "Identify the CAD feature families.")
+        self.assertEqual(content[2], {"type": "image", "image": "loaded:view_1.jpg"})
+
+    def test_images_are_prepended_when_user_message_has_no_image_placeholders(self):
+        row = {
+            "messages": [
+                {"role": "user", "content": "Describe this component."},
+                {"role": "assistant", "content": "It is a bracket."},
+            ],
+            "images": ["front.jpg"],
+        }
+        result = conversation_row_for_collator(
+            row,
+            image_loader=lambda path: "loaded:" + path,
+        )
+        content = result["messages"][0]["content"]
+        self.assertEqual(content[0], {"type": "image", "image": "loaded:front.jpg"})
+        self.assertEqual(content[1]["text"], "Describe this component.")
+
+    def test_excess_image_placeholders_fail_closed(self):
+        row = {
+            "messages": [
+                {"role": "user", "content": [{"type": "image"}, {"type": "image"}]},
+                {"role": "assistant", "content": "Visual explanation."},
+            ],
+            "images": ["only-one.jpg"],
+        }
+        with self.assertRaisesRegex(ValueError, "more image placeholders"):
+            conversation_row_for_collator(row, image_loader=lambda path: path)
 
 
 if __name__ == "__main__":
