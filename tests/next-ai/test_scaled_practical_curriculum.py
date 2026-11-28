@@ -82,6 +82,31 @@ class ScaledPracticalCurriculumTests(unittest.TestCase):
                 values = {row["scenario_axes"][key] for row in rows}
                 self.assertGreaterEqual(len(values), 4, f"{collection} axis {key} is too narrow")
 
+    def test_every_profile_option_is_represented_in_each_collection(self):
+        coverage = self.summary["scenario_axis_coverage"]
+        self.assertEqual(set(coverage), set(COLLECTIONS))
+        for collection in COLLECTIONS:
+            self.assertEqual(
+                set(coverage[collection]),
+                {
+                    "project_context", "primary_objective", "operation",
+                    "starting_state", "constraint", "input_quality",
+                    "deliverable", "affected_input",
+                },
+            )
+            for axis, report in coverage[collection].items():
+                self.assertEqual(
+                    report["unique_options"],
+                    report["required_options"],
+                    f"{collection} axis {axis} omits profile options",
+                )
+                self.assertEqual(report["missing_options"], [])
+                self.assertGreater(report["min_examples_per_option"], 0)
+                self.assertEqual(report["total_examples"], len([
+                    row for row in self.expansion
+                    if row["curriculum_collection"] == collection
+                ]))
+
     def test_missing_conflicting_and_unverified_inputs_block_native_writes(self):
         blocked = 0
         for row in self.expansion:
