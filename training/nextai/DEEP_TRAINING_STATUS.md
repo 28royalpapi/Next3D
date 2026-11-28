@@ -417,3 +417,17 @@ This checkpoint corrects the earlier misleading materialization status: the 250k
 - These new master examples are L0 authored learning data. They are not native execution success or professional engineering validation. The separate 18-task practical examination remains outside the training corpus.
 
 - Follow-up split correction: the baseline and core operation variants are now explicitly assigned to training; the delivery variant goes to validation; and the independent-review variant is held out for testing. The manifest reports this variant-by-split allocation, rather than relying on insertion-order modulo assignment.
+
+
+## Owner-directed practical curriculum scale v1 materialized — 28 November 2026
+
+- Following the project owner's instruction to reach tens of thousands per practical curriculum, the target is now 20,000 in each of five collections: NextCAD, Next BIM, Engineering disciplines, Complex engineering projects, and Native operator/tool selection/recovery.
+- The original 620 master v2 records are included in the 100,000 total. The generator adds 99,380 scenario records. The manifest confirms 20,000 per collection and exact split counts of 80,000 train, 10,000 validation and 10,000 held-out test.
+- The 62 source subjects are allocated 1,250–2,000 each, not 20,000 each. Reaching 20,000 per each of the 62 subjects would require 1.24 million practical examples and is outside this tranche.
+- Scenario generation uses eight fields: project context, objective, operation, starting state, constraint/issue, input quality, deliverable and the specific input/reference under review. The 99,380 new records contain 69,542 confirmed-input cases, 9,914 missing, 9,914 conflicting and 10,010 unverified. Blocked examples name the unresolved input and contain an empty native write plan.
+- Uploaded artifact \`nextai-scaled-practical-curriculum-v1\`, artifact ID \`15253559568\`; 60,767,855 bytes; ZIP SHA-256 \`fdd565e2318361ce88c010c91165b5958133619fed003137a88f24461f6bb0e9\`. The ZIP includes three JSONL splits and a manifest with per-split SHA-256 values.
+- Deep-training validation [46121809893](https://github.com/28royalpapi/Next3D/actions/runs/46121809893) passed **152 tests**. The 100k materializer, read-back checks, unique prompt/ID checks, split-group isolation, input-quality balance and compilation/CLI checks passed.
+- Combining the prior 250,000 analytic cases with the 100,000 practical rows gives a counted subtotal of **350,000**: 305,091 train, 22,491 validation and 22,418 held-out test. This excludes optional public CAD/BIM/BuildEng sources, skills/capability packs and native traces until the full corpus is built. The old 250,620 number is the pre-scale historical subtotal and is superseded.
+- The 250,000 analytic source remains 25 formula families × 10,000 examples. Its earlier tokenizer counts are not transferable to the new 100,000 practical dataset. Rebuild and run the exact Qwen tokenizer audit on the merged corpus before final training configuration.
+- Every generated practical row is L0 authored scenario data. The expansion does not claim native application execution or engineering approval. The practical generator adds planning/decision scenarios, not 99,380 verified CAD/BIM tool-call traces.
+- No fine-tuning has started, and no adapter/checkpoint/updated weights have been produced. GPU training still requires a genuinely available zero-cost/authorised CUDA runtime; no paid Hugging Face job was started.

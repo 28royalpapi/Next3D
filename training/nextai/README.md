@@ -223,3 +223,18 @@ The local execution container currently has no CUDA GPU. No actual model trainin
 Open [NextAI_Qwen35_Engineering_Student.ipynb](./NextAI_Qwen35_Engineering_Student.ipynb) in Google Colab, select a GPU runtime, and run the cells from top to bottom. It downloads only the bounded teaching sample, trains the single 0.8B student, evaluates the untouched test set, and reports the exported GGUF byte size. The notebook does not upload training data or model files into the Next3D application package.
 
 The notebook is a reproducible training entry point, not evidence that a training run has completed. The Qwen3.5 vision projector is a separate runtime artifact: public Q4_K_M examples list a roughly 564 MB language model plus a roughly 198 MB F16 projector, so both must be counted. A public Qwen3.5-0.8B GGUF listing reports about 564 MB for Q4_K_M and 198 MB for the F16 projector ([reference](https://huggingface.co/notschmee/Qwen3.5-0.8B-GGUF)). Our Q8 projector export is intended to reduce this second component, but its actual bytes must be measured after export. Save its output and training report as the experiment artifact. Do not promote a candidate based on training loss alone.
+
+
+### 100,000-example practical curriculum
+
+The five project-authored practical collections now have 20,000 examples each (100,000
+total, including the original 620 master-curriculum rows). Build these standalone curriculum
+splits and manifest with:
+
+    python training/nextai/build_scaled_practical_curriculum.py --output-dir /workspace/nextai-practical-curriculum
+
+The output contains \`train.jsonl\` (80,000), \`validation.jsonl\` (10,000), \`test.jsonl\`
+(10,000) and \`manifest.json\`. This standalone artifact is the authored practical curriculum,
+not the final merged public/native corpus and not a native execution-trace dataset. The full
+corpus builder also includes these rows outside the mixed-source sampling caps. Rebuild the
+merged corpus and run the exact Qwen tokenizer/leakage audit before fine-tuning.

@@ -181,8 +181,62 @@ The original 62 subject seeds have been expanded to ten distinct examples per su
 materializer writes 496 train, 62 validation and 62 held-out test rows, preserves every row
 outside the mixed sampler cap, and emits per-domain and per-variant manifest counts.
 
-Combined with the previously verified 250,000 analytic calculation examples, the currently
-counted curated inventory is 250,620 across splits. Training-eligible rows in those two
-collections total 225,587; the remainder are validation/test. This is not the total full
-corpus: upstream CAD/BIM/BuildEng data, skill packs, capability metadata and native execution
-traces are separately admitted and must be counted after the full corpus build.
+This 250,620 figure is the historical pre-scale subtotal (250,000 analytic + 620
+master-curriculum baseline rows). The 620 are now included inside the 100,000-example
+practical curriculum recorded in the following section; do not add them twice.
+
+
+## Owner-directed practical curriculum expansion v1 — 28 November 2026
+
+The project owner directed that the practical curriculum must reach tens of thousands of
+examples in each major collection. The first explicit floor is now **20,000 records in each
+of the five collections**, 100,000 total. The original 620 master-curriculum examples are
+included in these 100,000; the expansion contributes 99,380 additional rows.
+
+| Collection | Total records |
+|---|---:|
+| NextCAD | 20,000 |
+| Next BIM | 20,000 |
+| Engineering disciplines | 20,000 |
+| Complex engineering projects | 20,000 |
+| Native operator, tool selection and recovery | 20,000 |
+| **Total** | **100,000** |
+
+The materializer produces exactly 80,000 training, 10,000 validation and 10,000 held-out
+test records. Scenario groups do not cross split boundaries. The generation matrix varies
+eight dimensions: project context, primary objective, requested operation, starting model
+state, constraint/issue, input quality, required deliverable and the specific input/reference
+under review. The manifest verifies 100,000 unique record IDs and 100,000 unique normalized
+prompts.
+
+The 99,380 new expansion rows contain 69,542 confirmed-input scenarios, 9,914 missing-input
+scenarios, 9,914 conflicting-input scenarios and 10,010 unverified-input scenarios. Thus
+69.9759% have confirmed inputs; 30.0241% require clarification or verification. For every
+blocked case, the target identifies the unresolved input and keeps \`native_write_plan\` empty.
+The mix is deliberately weighted toward well-specified tasks so the student is not trained to
+ask questions when it already has sufficient information.
+
+**Subject-level distribution is not 20,000 each.** The 20,000 floor applies to the five
+collections: the 62 underlying subject seeds receive between 1,250 and 2,000 records each
+(NextCAD, Next BIM and operator subjects: 1,666/1,667; engineering subjects: 1,250; integrated
+project subjects: 2,000). A separate requirement of 20,000 per each of the 62 subjects would
+mean 1.24 million practical records and has not been met by this tranche.
+
+The independently verified 250,000 analytic calculation corpus remains separate: 25
+calculation families × 10,000 records each. Combining that corpus with the 100,000 practical
+curriculum gives a **350,000-record counted subtotal**: 305,091 train, 22,491 validation and
+22,418 held-out test. It excludes the other public CAD/BIM/BuildEng datasets, local skill packs,
+capability metadata lessons and native execution traces until the full merged corpus is built
+and audited. The existing Qwen tokenizer figures (129,430,330 train text tokens plus the
+previously measured validation/test counts) apply to the 250,000 analytic corpus only. The
+100,000 practical corpus still needs a full Qwen/Qwen3.5-0.8B tokenizer audit after merge.
+
+### Build evidence
+
+- Branch: \`nextai-deep-training\`
+- Code commit: [0aa1d3145ad6b14119ba482c3dacf9495df19cba](https://github.com/28royalpapi/Next3D/commit/0aa1d3145ad6b14119ba482c3dacf9495df19cba)
+- Deep-training validation: [run 46121809893](https://github.com/28royalpapi/Next3D/actions/runs/46121809893), success; 152 tests passed, including eight scaled-curriculum tests, full split/materialization checks, Python compilation and CLI checks.
+- Uploaded artifact: \`nextai-scaled-practical-curriculum-v1\`, artifact ID \`15253559568\`, 60,767,855 bytes, ZIP SHA-256 \`fdd565e2318361ce88c010c91165b5958133619fed003137a88f24461f6bb0e9\`.
+- Artifact files: \`train.jsonl\` 80,000 rows; \`validation.jsonl\` 10,000; \`test.jsonl\` 10,000; and \`manifest.json\`, with SHA-256 hashes for each split.
+
+All these generated practical examples are **L0 authored learning/scenario examples**. They are not native NextCAD/BIMCraft execution traces, verified tool-call trajectories, professional engineering validations or statutory approvals. Native trace collection, domain expert review, the full merged-corpus rebuild/deduplication/leakage audit and tokenizer audit remain before fine-tuning. **Fine-tuning has not started; no trained adapter or checkpoint exists.**
