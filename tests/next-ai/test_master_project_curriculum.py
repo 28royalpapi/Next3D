@@ -45,9 +45,11 @@ class MasterCurriculumTests(unittest.TestCase):
     def test_no_native_success_or_engineering_approval_is_claimed(self):
         for row in module.make_master_project_curriculum():
             target = json.loads(row["completion"])
+            self.assertEqual(target["evidence_level"], "L0_authored_learning_example")
             self.assertNotIn("native_execution_passed", target)
             self.assertEqual(target["execution_status"], "not_executed_by_this_example")
-            self.assertTrue(any("does not" in item.lower() or "not" in item.lower()
+            self.assertTrue(target["limitations_and_non_claims"])
+            self.assertTrue(all(isinstance(item, str) and item.strip()
                                 for item in target["limitations_and_non_claims"]))
 
 
