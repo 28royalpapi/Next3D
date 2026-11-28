@@ -91,7 +91,8 @@ def build_native_record(
     parameters = [
         {
             "name": name,
-            "value": value,
+            "value": value if isinstance(value, (str, int, float, bool)) or value is None
+                      else json.dumps(value, ensure_ascii=False, separators=(",", ":")),
             "unit": "mm",
             "description": f"Native {category} command parameter: {name}",
             "origin": "derived",
