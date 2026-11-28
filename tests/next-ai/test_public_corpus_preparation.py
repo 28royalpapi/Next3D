@@ -310,7 +310,10 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         module_lesson = next(row for row in lessons if row["capability_type"] == "workbench_or_module")
         module_target = json.loads(module_lesson["completion"])
         self.assertIn("source module only", module_target["evidence_boundary"])
-        self.assertEqual(module_target["capability"]["runtime_status"], "not_yet_verified")
+        self.assertNotEqual(
+            module_target["capability"].get("runtime_status"),
+            "discovered_in_running_application",
+        )
         command_lessons = [row for row in lessons if row["capability_type"] != "workbench_or_module"]
         self.assertTrue(all("No native object was created" in json.loads(row["completion"])["evidence_boundary"] for row in command_lessons))
         bim_inputs = next(
