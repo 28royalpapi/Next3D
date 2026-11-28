@@ -24,10 +24,10 @@ class MasterCurriculumTests(unittest.TestCase):
     def test_materialized_files_and_manifest_report_exact_student_examples(self):
         with tempfile.TemporaryDirectory() as temp:
             manifest = build_module.build(Path(temp))
-            self.assertEqual(manifest["total_examples"], 620)
-            self.assertEqual(manifest["by_split"], {"train": 496, "validation": 62, "test": 62})
-            self.assertEqual(manifest["combined_reference_inventory"]["analytic_plus_master_curriculum_total"], 250620)
-            self.assertEqual(manifest["combined_reference_inventory"]["train_eligible_records"], 225587)
+            self.assertEqual(manifest["total_examples"], 940)
+            self.assertEqual(manifest["by_split"], {"train": 752, "validation": 94, "test": 94})
+            self.assertEqual(manifest["combined_reference_inventory"]["analytic_plus_master_curriculum_total"], 250940)
+            self.assertEqual(manifest["combined_reference_inventory"]["train_eligible_records"], 225843)
             self.assertTrue(manifest["all_subjects_have_ten_examples"])
             self.assertTrue(manifest["all_record_ids_unique"])
             self.assertTrue(manifest["all_normalized_prompts_unique"])
@@ -38,26 +38,26 @@ class MasterCurriculumTests(unittest.TestCase):
             self.assertEqual(manifest["by_collection"]["Complex engineering projects"], 100)
             self.assertEqual(manifest["by_collection"]["Native operator, tool selection and recovery"], 120)
             self.assertEqual(manifest["by_application"], {
-                "nextcad": 120, "nextbim": 120, "engineering": 160,
-                "integrated": 100, "operator": 120,
+                "nextcad": 120, "nextbim": 120, "engineering": 280,
+                "integrated": 200, "operator": 220,
             })
-            self.assertEqual(manifest["by_split_and_variant"]["validation"], {"DELIVERY": 62})
-            self.assertEqual(manifest["by_split_and_variant"]["test"], {"INDEPENDENT_REVIEW": 62})
+            self.assertEqual(manifest["by_split_and_variant"]["validation"], {"DELIVERY": 94})
+            self.assertEqual(manifest["by_split_and_variant"]["test"], {"INDEPENDENT_REVIEW": 94})
     def test_each_subject_has_ten_meaningfully_distinct_examples(self):
         rows = module.make_master_project_curriculum()
-        self.assertEqual(len(rows), 620)
-        self.assertEqual(len({row["record_id"] for row in rows}), 620)
-        self.assertEqual(len({row["prompt"] for row in rows}), 620)
+        self.assertEqual(len(rows), 940)
+        self.assertEqual(len({row["record_id"] for row in rows}), 940)
+        self.assertEqual(len({row["prompt"] for row in rows}), 940)
         grouped = defaultdict(list)
         for row in rows:
             grouped[row["curriculum_subject_id"]].append(row)
-        self.assertEqual(len(grouped), 62)
+        self.assertEqual(len(grouped), 94)
         self.assertTrue(all(len(items) == 10 for items in grouped.values()))
         expected = {
             "NextCAD": 120,
             "Next BIM": 120,
-            "Engineering disciplines": 160,
-            "Complex engineering projects": 100,
+            "Engineering disciplines": 280,
+            "Complex engineering projects": 200,
             "Native operator, tool selection and recovery": 120,
         }
         self.assertEqual(dict(Counter(row["curriculum_collection"] for row in rows)), expected)
@@ -67,15 +67,15 @@ class MasterCurriculumTests(unittest.TestCase):
         splits = corpus_module.split_synthetic_curriculum(rows)
         self.assertEqual(build_module.split_curriculum(rows), splits)
         summary = module.summarize_master_curriculum_splits(splits)
-        self.assertEqual(summary["total"], 620)
-        self.assertEqual(summary["by_split"], {"train": 496, "validation": 62, "test": 62})
-        self.assertEqual(sum(summary["by_domain"].values()), 620)
-        self.assertEqual(sum(summary["by_application"].values()), 620)
+        self.assertEqual(summary["total"], 940)
+        self.assertEqual(summary["by_split"], {"train": 752, "validation": 94, "test": 94})
+        self.assertEqual(sum(summary["by_domain"].values()), 940)
+        self.assertEqual(sum(summary["by_application"].values()), 940)
         expected_collections = {
             "NextCAD": 120,
             "Next BIM": 120,
-            "Engineering disciplines": 160,
-            "Complex engineering projects": 100,
+            "Engineering disciplines": 280,
+            "Complex engineering projects": 200,
             "Native operator, tool selection and recovery": 120,
         }
         self.assertEqual(summary["by_collection"], expected_collections)
@@ -133,6 +133,51 @@ class MasterCurriculumTests(unittest.TestCase):
             self.assertTrue(target["limitations_and_non_claims"])
             self.assertTrue(all(isinstance(item, str) and item.strip()
                                 for item in target["limitations_and_non_claims"]))
+
+
+    def test_stage_three_explicitly_covers_electrical_and_mechanical_disciplines(self):
+        rows = module.make_master_project_curriculum()
+        subjects = {
+            row["curriculum_subject_id"]: (row["domain"], row["stage"])
+            for row in rows if row["curriculum_variant_id"] == "BASELINE"
+        }
+        required = {
+            "ENG-017": "engineering_electrical_load_and_distribution",
+            "ENG-018": "engineering_electrical_lighting_and_emergency",
+            "ENG-019": "engineering_electrical_earthing_protection",
+            "ENG-020": "engineering_electrical_control_panels",
+            "ENG-021": "engineering_instrumentation_and_control",
+            "ENG-022": "engineering_power_system_studies",
+            "ENG-023": "engineering_renewable_microgrids",
+            "ENG-024": "engineering_mechanical_hvac_thermal",
+            "ENG-025": "engineering_mechanical_thermodynamics",
+            "ENG-026": "engineering_mechanical_machine_elements",
+            "ENG-027": "engineering_product_design_and_manufacturing",
+            "ENG-028": "engineering_electromechanical_integration",
+        }
+        for subject_id, domain in required.items():
+            self.assertEqual(subjects[subject_id], (domain, "discipline_depth"))
+
+    def test_stage_four_and_five_are_expanded_with_concrete_subjects(self):
+        rows = module.make_master_project_curriculum()
+        baseline = {
+            row["curriculum_subject_id"]: row
+            for row in rows if row["curriculum_variant_id"] == "BASELINE"
+        }
+        operator_ids = [f"OPS-{number:03d}" for number in range(13, 23)]
+        project_ids = [f"PRJ-{number:03d}" for number in range(11, 21)]
+        for subject_id in operator_ids:
+            self.assertIn(subject_id, baseline)
+            self.assertEqual(baseline[subject_id]["stage"], "operator_method")
+        for subject_id in project_ids:
+            self.assertIn(subject_id, baseline)
+            self.assertEqual(baseline[subject_id]["stage"], "integrated_projects")
+        for subject_id in operator_ids + project_ids:
+            target = json.loads(baseline[subject_id]["completion"])
+            self.assertGreaterEqual(len(target["workflow"]), 4)
+            self.assertGreaterEqual(len(target["acceptance_checks"]), 4)
+            self.assertTrue(target["limitations_and_non_claims"])
+
 
 
 if __name__ == "__main__":
