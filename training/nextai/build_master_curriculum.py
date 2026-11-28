@@ -102,6 +102,7 @@ def build(output_dir: Path) -> dict[str, Any]:
         "by_domain": coverage["by_domain"],
         "by_variant": coverage["by_variant"],
         "by_split": coverage["by_split"],
+        "by_split_and_variant": coverage["by_split_and_variant"],
         "by_split_and_collection": coverage["by_split_and_collection"],
         "all_subjects_have_ten_examples": True,
         "all_record_ids_unique": len(all_ids) == len(rows),
