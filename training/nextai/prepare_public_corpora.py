@@ -3504,6 +3504,8 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                 "curriculum_split": lesson.get("curriculum_split"),
                 "application": lesson.get("application"),
                 "evidence_level": lesson.get("evidence_level"),
+                "scenario_hash": lesson.get("scenario_hash"),
+                "scenario_axes": lesson.get("scenario_axes"),
             } if lesson.get("curriculum_version") and lesson.get("record_id") else {}),
             **({"split_group": lesson["split_group"], "stage": lesson["stage"]}
                if lesson.get("split_group") else {}),
