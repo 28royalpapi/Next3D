@@ -76,7 +76,7 @@ class ScaledPracticalCurriculumTests(unittest.TestCase):
             ]))
             keys = [
                 "project_context", "primary_objective", "operation", "starting_state",
-                "constraint", "input_quality", "deliverable",
+                "constraint", "input_quality", "deliverable", "affected_input",
             ]
             for key in keys:
                 values = {row["scenario_axes"][key] for row in rows}
@@ -93,6 +93,15 @@ class ScaledPracticalCurriculumTests(unittest.TestCase):
                 blocked += 1
                 self.assertEqual(target["native_write_plan"], [])
                 self.assertIn(target["scenario_axes"]["input_quality"], {"MISSING", "CONFLICT", "UNVERIFIED"})
+                self.assertEqual(len(target["unresolved_inputs"]), 1)
+                self.assertEqual(
+                    target["unresolved_inputs"][0]["input"],
+                    target["scenario_axes"]["affected_input"],
+                )
+                self.assertNotIn(
+                    target["scenario_axes"]["affected_input"],
+                    target["confirmed_inputs"],
+                )
             else:
                 self.assertIsInstance(target["native_write_plan"], str)
                 self.assertNotEqual(target["native_write_plan"], "")

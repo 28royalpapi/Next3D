@@ -371,11 +371,16 @@ def _subject_target_counts() -> dict[str, int]:
     return counts
 
 
-def _draw_scenarios(spec_id: str, profile: dict[str, list[Any]], count: int) -> list[tuple[int, ...]]:
+def _draw_scenarios(
+    spec_id: str,
+    profile: dict[str, list[Any]],
+    count: int,
+    input_count: int,
+) -> list[tuple[int, ...]]:
     lengths = [len(profile[key]) for key in (
         "contexts", "objectives", "operations", "states", "constraints",
         "input_quality", "deliverables",
-    )]
+    )] + [input_count]
     capacity = 1
     for length in lengths:
         capacity *= length
@@ -384,9 +389,33 @@ def _draw_scenarios(spec_id: str, profile: dict[str, list[Any]], count: int) -> 
     seed = SEED + int(_digest(spec_id)[:8], 16)
     rng = random.Random(seed)
     selected: set[tuple[int, ...]] = set()
-    while len(selected) < count:
-        vector = tuple(rng.randrange(length) for length in lengths)
-        selected.add(vector)
+    # Keep useful, executable work as the majority of the curriculum.
+    # Missing/conflicting/unverified briefs remain important but must not swamp
+    # positive examples. The 70/10/10/10 mix is exact per subject expansion.
+    quality_quotas = [
+        count * 7 // 10,
+        count // 10,
+        count // 10,
+        count - (count * 7 // 10) - (count // 10) - (count // 10),
+    ]
+    for quality_index, quota in enumerate(quality_quotas):
+        quality_selected = 0
+        attempts = 0
+        max_attempts = max(10_000, quota * 100)
+        while quality_selected < quota:
+            attempts += 1
+            if attempts > max_attempts:
+                raise ValueError(
+                    f"Could not draw {quota} distinct scenarios for input-quality stratum "
+                    f"{quality_index} in {spec_id}"
+                )
+            values = [rng.randrange(length) for length in lengths]
+            values[5] = quality_index
+            vector = tuple(values)
+            if vector in selected:
+                continue
+            selected.add(vector)
+            quality_selected += 1
     result = list(selected)
     rng.shuffle(result)
     return result
@@ -402,6 +431,7 @@ def _build_prompt(spec: dict[str, Any], scenario: dict[str, Any]) -> str:
         "Starting state: " + scenario["state"]["text"],
         "Constraint or issue: " + scenario["constraint"]["text"],
         "Input status: " + scenario["input_quality"]["text"],
+        "Specific input/reference under review: " + scenario["affected_input"],
         "Required deliverable: " + scenario["deliverable"]["text"],
         "Give an ordered, reversible workflow. Identify the live native capabilities and exact schemas that must be inspected; do not invent command names or arguments.",
         "If information quality blocks safe action, ask for the missing resolution and return an empty native write plan.",
@@ -447,8 +477,20 @@ def _build_completion(spec: dict[str, Any], scenario: dict[str, Any]) -> dict[st
             "constraint": constraint["id"],
             "input_quality": input_quality["id"],
             "deliverable": deliverable["id"],
+            "affected_input": scenario["affected_input"],
         },
-        "confirmed_inputs": list(spec["inputs"]),
+        "confirmed_inputs": (
+            list(spec["inputs"])
+            if not blocked
+            else [item for item in spec["inputs"] if item != scenario["affected_input"]]
+        ),
+        "unresolved_inputs": (
+            [] if not blocked else [{
+                "input": scenario["affected_input"],
+                "status": input_quality["id"],
+                "required_resolution": input_quality["step"],
+            }]
+        ),
         "workflow": [{"sequence": index + 1, "objective": item} for index, item in enumerate(workflow)],
         "acceptance_checks": (
             list(spec["checks"][:3])
@@ -466,7 +508,9 @@ def _build_completion(spec: dict[str, Any], scenario: dict[str, Any]) -> dict[st
         "execution_status": "not_executed_by_this_example",
         "execution_blocked_until_clarification": blocked,
         "native_write_plan": [] if blocked else "requires live state, declared tool schemas and action-specific authorization",
-        "blocking_reason": input_quality["text"] if blocked else None,
+        "blocking_reason": (
+            f"{scenario['affected_input']}: {input_quality['text']}" if blocked else None
+        ),
         "deliverable": deliverable["text"],
         "training_note": "Distinct structured scenario from the authored practical curriculum; not a native success trace.",
     }
@@ -486,7 +530,7 @@ def make_scaled_curriculum_expansion() -> list[dict[str, Any]]:
         if current != 10 or target < current:
             raise ValueError(f"Unexpected baseline/target count for {spec['id']}: {current}/{target}")
         profile = PROFILES[collection]
-        vectors = _draw_scenarios(spec["id"], profile, target - current)
+        vectors = _draw_scenarios(spec["id"], profile, target - current, len(spec["inputs"]))
         for number, vector in enumerate(vectors, start=1):
             scenario = {
                 "context": profile["contexts"][vector[0]],
@@ -496,6 +540,7 @@ def make_scaled_curriculum_expansion() -> list[dict[str, Any]]:
                 "constraint": profile["constraints"][vector[4]],
                 "input_quality": profile["input_quality"][vector[5]],
                 "deliverable": profile["deliverables"][vector[6]],
+                "affected_input": spec["inputs"][vector[7]],
             }
             scenario_payload = {
                 "subject": spec["id"],
@@ -503,7 +548,7 @@ def make_scaled_curriculum_expansion() -> list[dict[str, Any]]:
                     scenario["context"], scenario["objective"],
                     scenario["operation"]["id"], scenario["state"]["id"],
                     scenario["constraint"]["id"], scenario["input_quality"]["id"],
-                    scenario["deliverable"]["id"],
+                    scenario["deliverable"]["id"], scenario["affected_input"],
                 ],
             }
             scenario_hash = _digest(json.dumps(scenario_payload, sort_keys=True, ensure_ascii=False))
@@ -650,7 +695,7 @@ def summarize_scaled_curriculum(
         "unique_normalized_prompts": len({" ".join(row["prompt"].lower().split()) for row in all_rows}),
         "scenario_dimensions": [
             "project_context", "primary_objective", "operation", "starting_state",
-            "constraint", "input_quality", "deliverable",
+            "constraint", "input_quality", "deliverable", "affected_input",
         ],
         "evidence_level": "L0_authored_learning_example",
         "native_execution_claimed": False,
