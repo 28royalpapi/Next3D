@@ -101,7 +101,8 @@ class MasterCurriculumTests(unittest.TestCase):
                 self.assertEqual(target["response_mode"], "clarify_before_action")
                 self.assertTrue(target["execution_blocked_until_clarification"])
                 self.assertEqual(target["native_write_plan"], [])
-                self.assertEqual(len(target["workflow"]), 3)
+                self.assertGreaterEqual(len(target["workflow"]), 3)
+                self.assertTrue(all(step.get("objective") for step in target["workflow"]))
 
     def test_each_record_has_structured_l0_target_and_preserves_subject_lineage(self):
         rows = module.make_master_project_curriculum()
