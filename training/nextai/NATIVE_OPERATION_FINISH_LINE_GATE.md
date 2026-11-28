@@ -93,6 +93,15 @@ merged-corpus tokenizer/leakage audit and held-out evaluation remain independent
 5. Native tool-planning tests on unseen command combinations and failure/recovery cases, plus independent engineering validation where design correctness or safety is claimed.
 6. Untouched held-out exams remain excluded from optimizer updates.
 
+## Final native-evidence request — 28 November 2026
+
+This final pre-fine-tuning phase requests the Linux native acceptance workflow on this branch.
+The required job must build the pinned NextCAD/BIMCraft applications, run the corrected NextCAD
+create/edit/save/reopen acceptance and live runtime census, run Next BIM wall/floor acceptance
+for train/validation/test, and publish inspectable artifacts. A skipped job, contract test or
+source-only census is not a native PASS. If the workflow cannot produce the artifacts, record
+the exact runner/dependency blocker and keep the native gate closed.
+
 ## Non-claims
 
 - L0 capability lessons are not L3 native execution traces.
