@@ -233,8 +233,12 @@ splits and manifest with:
 
     python training/nextai/build_scaled_practical_curriculum.py --output-dir /workspace/nextai-practical-curriculum
 
-The output contains \`train.jsonl\` (80,000), \`validation.jsonl\` (10,000), \`test.jsonl\`
-(10,000) and \`manifest.json\`. This standalone artifact is the authored practical curriculum,
-not the final merged public/native corpus and not a native execution-trace dataset. The full
-corpus builder also includes these rows outside the mixed-source sampling caps. Rebuild the
-merged corpus and run the exact Qwen tokenizer/leakage audit before fine-tuning.
+The output contains train.jsonl (80,000), validation.jsonl (10,000), test.jsonl (10,000)
+and manifest.json. The validated CI artifact also includes corpus_audit.json:
+Qwen/Qwen3.5-0.8B tokenization reports 76,157,082 train, 9,521,610 validation and 9,528,431
+test text tokens (95,207,123 total), with zero duplicate IDs/text or cross-split leakage.
+This standalone artifact is authored practical curriculum, not the final merged public/native
+corpus and not a native execution-trace dataset. The full corpus builder also includes these
+rows outside the mixed-source sampling caps. Rebuild the merged corpus and repeat the exact
+Qwen tokenizer/leakage audit after other sources, skills, capability lessons and native traces
+are merged before fine-tuning.

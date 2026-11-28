@@ -227,16 +227,20 @@ calculation families × 10,000 records each. Combining that corpus with the 100,
 curriculum gives a **350,000-record counted subtotal**: 305,091 train, 22,491 validation and
 22,418 held-out test. It excludes the other public CAD/BIM/BuildEng datasets, local skill packs,
 capability metadata lessons and native execution traces until the full merged corpus is built
-and audited. The existing Qwen tokenizer figures (129,430,330 train text tokens plus the
-previously measured validation/test counts) apply to the 250,000 analytic corpus only. The
-100,000 practical corpus still needs a full Qwen/Qwen3.5-0.8B tokenizer audit after merge.
+and audited. The 250,000 analytic corpus retains its prior Qwen tokenizer measurement (129,430,330 train
+text tokens, plus its previously measured validation/test counts). The 100,000 practical
+curriculum has now passed its own exact Qwen/Qwen3.5-0.8B tokenizer audit: 76,157,082 train,
+9,521,610 validation and 9,528,431 held-out test text tokens (95,207,123 total). The final
+merged corpus still needs a fresh audit after admitting other public CAD/BIM/BuildEng sources,
+local skill/capability packs and any native traces.
 
 ### Build evidence
 
 - Branch: \`nextai-deep-training\`
-- Code commit: [0aa1d3145ad6b14119ba482c3dacf9495df19cba](https://github.com/28royalpapi/Next3D/commit/0aa1d3145ad6b14119ba482c3dacf9495df19cba)
-- Deep-training validation: [run 46121809893](https://github.com/28royalpapi/Next3D/actions/runs/46121809893), success; 152 tests passed, including eight scaled-curriculum tests, full split/materialization checks, Python compilation and CLI checks.
-- Uploaded artifact: \`nextai-scaled-practical-curriculum-v1\`, artifact ID \`15253559568\`, 60,767,855 bytes, ZIP SHA-256 \`fdd565e2318361ce88c010c91165b5958133619fed003137a88f24461f6bb0e9\`.
-- Artifact files: \`train.jsonl\` 80,000 rows; \`validation.jsonl\` 10,000; \`test.jsonl\` 10,000; and \`manifest.json\`, with SHA-256 hashes for each split.
+- Final code commit including the pinned Qwen tokenizer audit: [afe181440115284213bd25e7b2ab0823cf0dad5b](https://github.com/28royalpapi/Next3D/commit/afe181440115284213bd25e7b2ab0823cf0dad5b)
+- Deep-training validation: [run 46122422035](https://github.com/28royalpapi/Next3D/actions/runs/46122422035), success; 152 tests passed. CI installed transformers==5.24.1, ran the exact Qwen/Qwen3.5-0.8B tokenizer on all records and uploaded the audit.
+- Qwen practical-curriculum audit: PASS; 76,157,082 train, 9,521,610 validation, 9,528,431 held-out test text tokens; 95,207,123 total. Zero missing images, cross-split identity leaks, cross-split exact-text leaks, within-split duplicate texts or duplicate record IDs.
+- Final uploaded artifact: nextai-scaled-practical-curriculum-v1, artifact ID 15253339666, 60,771,586 bytes, ZIP SHA-256 9d35dd3f4e0729f1c342cf8b73d67a9d8e5dd40269f9eed8cc95f9419f3eb3f2.
+- Artifact contains train.jsonl (80,000), validation.jsonl (10,000), test.jsonl (10,000), manifest.json and corpus_audit.json; each JSONL SHA-256 matches the manifest.
 
-All these generated practical examples are **L0 authored learning/scenario examples**. They are not native NextCAD/BIMCraft execution traces, verified tool-call trajectories, professional engineering validations or statutory approvals. Native trace collection, domain expert review, the full merged-corpus rebuild/deduplication/leakage audit and tokenizer audit remain before fine-tuning. **Fine-tuning has not started; no trained adapter or checkpoint exists.**
+All these generated practical examples are **L0 authored learning/scenario examples**. They are not native NextCAD/BIMCraft execution traces, verified tool-call trajectories, professional engineering validations or statutory approvals. Native trace collection, domain expert review and the full merged-corpus rebuild/deduplication/leakage/tokenizer audit remain before fine-tuning. **Fine-tuning has not started; no trained adapter or checkpoint exists.**
