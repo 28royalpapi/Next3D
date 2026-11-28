@@ -389,3 +389,13 @@ This checkpoint corrects the earlier misleading materialization status: the 250k
 - `run_large_scale_training.py` now accepts either `--data-dir` or `--data-archive` (mutually exclusive). The archive path safely extracts the flat audited analytic bundle into the run output directory, checks allowed filenames/no path traversal/no symlinks/duplicate entries, checks non-empty train/validation/test splits, and requires a passing Qwen tokenizer audit before proceeding.
 - Training users can now pass the exact GitHub artifact ZIP directly, without a separate manual unzip step. This is an input convenience for the analytic first pilot; it does not add native CAD/BIM examples.
 - Deep-training run [46022051365](https://github.com/28royalpapi/Next3D/actions/runs/46022051365) passed **135 tests** (82 corpus/training, 9 native SFT, 14 analytic, 9 benchmark, 13 Next BIM split and 8 NextCAD split) plus compilation and CLI checks.
+
+
+## Master curriculum v1 integrated — 28 November 2026
+
+- The new `nextai_master_curriculum.py` supplies 62 authored examples: 12 NextCAD, 12 Next BIM, 16 discipline-depth engineering, 10 integrated project and 12 operator/recovery lessons. Every target has a sequenced workflow, acceptance checks, failure modes and explicit limitations; each lesson has unique split lineage.
+- `prepare_public_corpora.py` now includes those examples through its normal synthetic-curriculum path.
+- Added `operator_practical_exam_v1.json` with 18 held-out tasks. The pack is explicitly `training_excluded: true` and is not imported by the corpus builder.
+- Added unit tests for curriculum breadth, record structure, evidence labelling, unique split lineage and exam isolation.
+- Removed the stale 400,000,000 value from the full corpus planner's descriptive plan. The project has no owner-defined token target; measured token counts remain reported, not gated.
+- This commit adds authored L0 curriculum. It does not claim that all 10,000-per-application scenario expansion, live command census, broad native trace collection, L5 engineering validation, full corpus rebuild or fine-tuning is complete.

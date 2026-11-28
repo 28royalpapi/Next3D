@@ -35,6 +35,20 @@ python training/nextai/prepare_public_corpora.py \
 
 The native GUI acceptance workflow is designed to emit two synthetic NextCAD training-record examples. Each contains the exact native tool calls/arguments, transaction IDs, before/after document-state hashes, source version, FCStd hash and successful save/close/reopen evidence. They are labelled L3/L4 software acceptance, not independent engineering validation, and remain in the held-out test split. The SFT converter maps NextCAD records into the runtime's exact `message` + `plan` structure; Next BIM retains its own `steps` structure.
 
+## Master project and operator curriculum v1
+
+The corpus builder now merges an authored master collection covering parametric CAD, mechanical assemblies,
+sheet metal, FEM/CAM preparation, BIM building systems, levels/grids, high-rise variation, MEP coordination,
+IFC exchange, structural/geotechnical/hydraulic/civil design workflows, multidisciplinary projects, tool
+discovery/selection, identity-preserving edits and failure recovery. Each record has a unique split group,
+a structured workflow, acceptance checks, failure modes and explicit limits. These are L0 authored learning
+examples, not native operation traces or engineering approvals.
+
+Generate/validate this collection through the normal full corpus build. The separate
+`operator_practical_exam_v1.json` is evaluation-only and must remain outside SFT and retrieval. Its tasks
+require native execution and save/reopen evidence where applicable; independent engineering validation is
+still a separate acceptance gate.
+
 ## Comprehensive capability programme
 
 The implementation standard is documented in [COMPLETE_NATIVE_CAPABILITY_STANDARD.md](./COMPLETE_NATIVE_CAPABILITY_STANDARD.md). It defines full source/runtime discovery for both applications, ten learning obligations per native command, and separate counts for discovered capabilities, lessons, native execution and mastery.

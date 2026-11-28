@@ -1,0 +1,426 @@
+{
+  "schema_version": "nextai-operator-practical-exam.v1",
+  "title": "NextAI independent native-operator practical examination",
+  "purpose": "Held-out acceptance tasks for the trained candidate. These tasks and their rubrics are evaluation-only and must never enter SFT, retrieval examples, prompt demonstrations or training augmentation.",
+  "training_excluded": true,
+  "split": "test",
+  "evidence_policy": {
+    "L0": "Authored question/rubric only; no evidence of execution.",
+    "L1": "Command/schema compatibility checked.",
+    "L2": "Ordered plan checked.",
+    "L3": "Execution in the actual pinned native app.",
+    "L4": "Save/close/reopen and state comparison.",
+    "L5": "Independent domain-specific validation."
+  },
+  "cases": [
+    {
+      "case_id": "EX-CAD-01",
+      "application": "nextcad",
+      "prompt": "Create a constrained plate with a non-symmetric hole layout from an unseen dimensioned brief.",
+      "acceptance_criteria": [
+        "Sketch constraints",
+        "parametric feature sequence",
+        "units",
+        "hole positions",
+        "valid solid",
+        "save/reopen."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-CAD-02",
+      "application": "nextcad",
+      "prompt": "Modify one existing PartDesign feature while preserving downstream feature references and body identity.",
+      "acceptance_criteria": [
+        "Before/after feature tree",
+        "identity preservation",
+        "recompute",
+        "geometry comparison",
+        "round-trip."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-CAD-03",
+      "application": "nextcad",
+      "prompt": "Build a two-component gearbox housing and shaft assembly from supplied interface drawings.",
+      "acceptance_criteria": [
+        "Component identity",
+        "datums",
+        "axis alignment",
+        "clearances",
+        "editable assembly",
+        "interference review."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-CAD-04",
+      "application": "nextcad",
+      "prompt": "Create a TechDraw drawing from a revised native part and identify stale views or dimensions.",
+      "acceptance_criteria": [
+        "Model revision linkage",
+        "correct views",
+        "dimensions",
+        "projection",
+        "title/revision metadata."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-CAD-05",
+      "application": "nextcad",
+      "prompt": "Diagnose an imported mesh containing open boundaries and non-manifold edges.",
+      "acceptance_criteria": [
+        "Topology report",
+        "scale confirmation",
+        "reversible repair",
+        "volume/bounds comparison",
+        "solid validity."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-CAD-06",
+      "application": "nextcad",
+      "prompt": "Prepare an FEM model where one material property and one boundary condition are intentionally missing.",
+      "acceptance_criteria": [
+        "Correct refusal/clarification",
+        "no guessed input",
+        "mesh/BC preflight",
+        "limitations."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-BIM-01",
+      "application": "nextbim",
+      "prompt": "Create a multi-level residential model from an unseen room schedule and survey datum.",
+      "acceptance_criteria": [
+        "Level/grid accuracy",
+        "room completeness",
+        "host relationships",
+        "spaces",
+        "schedules",
+        "round-trip."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-BIM-02",
+      "application": "nextbim",
+      "prompt": "Revise one wall and relocate a hosted door without replacing unrelated building elements.",
+      "acceptance_criteria": [
+        "Stable IDs",
+        "host preservation",
+        "geometry/property checks",
+        "no collateral modifications."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-BIM-03",
+      "application": "nextbim",
+      "prompt": "Coordinate a duct, beam and cable-tray clash using an approved resolution option.",
+      "acceptance_criteria": [
+        "Correct element query",
+        "issue ownership",
+        "approval gate",
+        "recheck and evidence."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-BIM-04",
+      "application": "nextbim",
+      "prompt": "Build and validate an IFC exchange with a required spatial hierarchy and property sets.",
+      "acceptance_criteria": [
+        "Schema",
+        "entity mapping",
+        "GlobalIds",
+        "relationships",
+        "coordinates",
+        "independent reopen."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-BIM-05",
+      "application": "nextbim",
+      "prompt": "Generate a quantity schedule and identify elements missing required classifications.",
+      "acceptance_criteria": [
+        "Native property extraction",
+        "units",
+        "type/instance distinction",
+        "reconciliation and exceptions."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-BIM-06",
+      "application": "nextbim",
+      "prompt": "Model a ten-storey building with unique podium, transfer and plant floors.",
+      "acceptance_criteria": [
+        "No blind floor repetition",
+        "level continuity",
+        "editable repeated floors",
+        "riser/shaft coordination."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": false,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-ENG-01",
+      "application": "engineering",
+      "prompt": "Assess a two-way reinforced-concrete slab panel when the design code edition is supplied but reinforcement cover is not.",
+      "acceptance_criteria": [
+        "Missing-input discipline",
+        "panel classification",
+        "correct method selection",
+        "no guessed detailing."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": true,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-ENG-02",
+      "application": "engineering",
+      "prompt": "Evaluate a shallow foundation under eccentric loading using layered soil and a fluctuating groundwater table.",
+      "acceptance_criteria": [
+        "Effective dimensions",
+        "bearing and settlement separation",
+        "groundwater",
+        "uncertainty and review."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": true,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-ENG-03",
+      "application": "engineering",
+      "prompt": "Develop a stormwater drainage concept with multiple subcatchments and a constrained outfall.",
+      "acceptance_criteria": [
+        "Catchment accounting",
+        "IDF selection",
+        "flow method limits",
+        "hydraulic grade",
+        "exceedance route."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": true,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-ENG-04",
+      "application": "engineering",
+      "prompt": "Review a retaining wall where the user supplies active pressure but the wall is restrained.",
+      "acceptance_criteria": [
+        "Identify incorrect pressure assumption",
+        "clarify restraint",
+        "water",
+        "surcharge and stability checks."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": true,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-INT-01",
+      "application": "integrated",
+      "prompt": "Take a three-bedroom bungalow from brief to coordinated architectural/structural/MEP BIM and drawing package.",
+      "acceptance_criteria": [
+        "Requirement traceability",
+        "separate engineering validation",
+        "schedules",
+        "clash review and IFC."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": true,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    },
+    {
+      "case_id": "EX-INT-02",
+      "application": "integrated",
+      "prompt": "Retrofit an existing building around a new stair core while preserving unaffected model identity.",
+      "acceptance_criteria": [
+        "Condition confidence",
+        "temporary works questions",
+        "phased edits",
+        "ID preservation",
+        "verification."
+      ],
+      "expected_evidence": [
+        "L2_plan_checked",
+        "L3_native_execution",
+        "L4_save_reopen"
+      ],
+      "independent_validation_required": true,
+      "prohibited_claims": [
+        "professional engineering approval without independent review",
+        "native success without native evidence",
+        "IFC validity without independent parsing"
+      ]
+    }
+  ]
+}

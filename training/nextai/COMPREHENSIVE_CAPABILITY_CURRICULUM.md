@@ -189,3 +189,35 @@ The headline claim must match the strongest evidence actually obtained. “100,0
 6. Collect real native execution traces and held-out tests; promote only after measured improvement.
 
 This programme is the coverage plan. It does not claim that the 10,000-case or 100,000-case targets have already been generated, that the model has been fine-tuned, or that all native operations have been verified.
+
+
+## Master project/operator curriculum v1 — 28 November 2026
+
+The corpus builder now includes an additional authored collection in
+`nextai_master_curriculum.py`. It adds 62 distinct L0 scenario families:
+
+| Collection | New examples | Coverage |
+|---|---:|---|
+| NextCAD | 12 | Parametric sketches/features, solids/surfaces, sweeps, gears, sheet metal, assemblies, drawings, FEM/CAM preparation, mesh repair and safe revisions |
+| Next BIM | 12 | Datums, residential and multi-storey buildings, structural framing, healthcare spaces, MEP, clashes, quantities, IFC, renovation and georeferencing |
+| Engineering disciplines | 16 | RC beams/slabs/columns, foundations, settlement, retaining walls, piles, slope stability, roads, drainage, channels, pumping, water networks, survey, earthworks and QA |
+| Integrated projects | 10 | Bungalow, apartment, office tower, clinic, road/drainage, bridge/culvert, water tower, pump station, industrial skid and retrofit |
+| Operator method/recovery | 12 | Intake, live discovery, tool selection, decomposition, identity-preserving edit, recompute/constraint/schema/IFC recovery, missing inputs and save/reopen verification |
+
+These records enter the normal synthetic curriculum path, each with unique split lineage,
+ordered workflow objectives, acceptance checks, failure modes and explicit non-claims.
+They are L0 authored examples—not native traces or professional design approvals.
+
+A separate `operator_practical_exam_v1.json` contains 18 evaluation-only tasks across CAD,
+BIM, engineering and integrated projects. It is explicitly held out and is not imported by
+the training corpus builder. Native practical examinations must still run inside the pinned
+applications and produce L3/L4 evidence; engineering cases also require domain-specific L5
+review where safety or code adequacy is being assessed.
+
+### What this addition does not complete
+
+- The 62 new scenarios do not satisfy the 10,000-case-per-application expansion milestone.
+- The 215 BIMCraft command registrations still need command-by-command runtime/schema/state-effect verification; registration and metadata lessons are not proof that every command is callable or works.
+- The full live NextCAD runtime command census still needs to be captured from the pinned GUI.
+- The six native train/validation/test trace files still need real collector artifacts and manifest review. Existing acceptance round trips and collector fixtures are not a substitute for a broad native operation corpus.
+- The complete mixed corpus must be rebuilt, deduplicated, tokenizer-audited and reviewed by application/domain/evidence level after these changes.

@@ -29,6 +29,7 @@ BUILDENG_DATASET = "Irfanuruchi/buildeng"
 
 from buildeng_dataset import make_buildeng_record
 from generate_verified_engineering_cases import generate_cases
+from nextai_master_curriculum import make_master_project_curriculum
 
 CAD_SYSTEM = (
     "You are NextAI, a CAD geometry and parametric-design specialist. "
@@ -3424,6 +3425,8 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                 "rule": "A design model is not an as-built record unless field changes and approvals have been verified.",
             },
         })
+
+    lessons.extend(make_master_project_curriculum())
 
     records = []
     for index, lesson in enumerate(lessons):

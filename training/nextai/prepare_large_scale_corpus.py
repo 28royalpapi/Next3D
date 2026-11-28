@@ -555,8 +555,8 @@ def main() -> int:
         "schema_version": 1,
         "profile": "full-public-source",
         "student": "Qwen/Qwen3.5-0.8B",
-        "target_train_text_tokens": 400_000_000,
-        "token_target_is_a_goal_not_a_claim": True,
+        "project_token_target": None,
+        "token_target_status": "NOT_CONFIGURED_BY_PROJECT_OWNER",
         "source_limits": {
             "cad_train_source_rows": args.cad_train,
             "cad_validation_source_rows": args.cad_validation,
@@ -600,8 +600,9 @@ def main() -> int:
         "requires_token_audit_before_gpu": True,
         "requires_native_trace_validation_before_claiming_native_mastery": True,
         "note": (
-            "400M is a target, not an achieved number. Actual text tokens must be read "
-            "from corpus_audit.json; image patch tokens and chat-template overhead are separate."
+            "No project token target is configured. Actual text-token counts are measured and "
+            "reported from corpus_audit.json; they are not a training prerequisite. Image patch "
+            "tokens and chat-template overhead are reported separately."
         ),
     }
     if not args.skip_token_audit:
@@ -621,7 +622,6 @@ def main() -> int:
             "image_files_total": audit.get("image_files_total"),
             "image_bytes_total": audit.get("image_bytes_total"),
         }
-        plan["target_met"] = int(audit.get("train_text_tokens", 0)) >= int(plan["target_train_text_tokens"])
     plan_path = out / "large_scale_training_plan.json"
     plan_path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps(plan, indent=2, ensure_ascii=False))

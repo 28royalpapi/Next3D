@@ -12,6 +12,10 @@ on:
       - "training/nextai/buildeng_dataset.py"
       - "training/nextai/generate_verified_engineering_cases.py"
       - "training/nextai/prepare_public_corpora.py"
+      - "training/nextai/nextai_master_curriculum.py"
+      - "training/nextai/operator_practical_exam_v1.json"
+      - "tests/next-ai/test_master_project_curriculum.py"
+      - "tests/next-ai/test_operator_practical_exam_v1.py"
       - "training/nextai/LARGE_SCALE_TRAINING_PROGRAMME.md"
       - "training/nextai/engineering_benchmark_v1.py"
       - "training/nextai/run_engineering_benchmark.py"
@@ -52,6 +56,10 @@ jobs:
         run: python -m unittest discover -s tests/next-ai -p 'test_nextbim_split_validation.py' -v
       - name: Test NextCAD native split lineage and state fingerprints
         run: python -m unittest discover -s tests/next-ai -p 'test_collect_nextcad_native_splits.py' -v
+      - name: Test master project/operator curriculum and held-out practical exam
+        run: |
+          python -m unittest discover -s tests/next-ai -p 'test_master_project_curriculum.py' -v
+          python -m unittest discover -s tests/next-ai -p 'test_operator_practical_exam_v1.py' -v
       - name: Test Next BIM native runner from submodule working directory
         run: python -m unittest discover -s tests/next-ai -p 'test_native_runner_import_context.py' -v
       - name: Compile training pipeline scripts
@@ -62,6 +70,7 @@ jobs:
               "training/nextai/audit_nextai_corpus.py",
               "training/nextai/prepare_large_scale_corpus.py",
               "training/nextai/prepare_public_corpora.py",
+              "training/nextai/nextai_master_curriculum.py",
               "training/nextai/buildeng_dataset.py",
               "training/nextai/generate_verified_engineering_cases.py",
               "training/nextai/run_large_scale_training.py",
