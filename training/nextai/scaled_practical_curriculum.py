@@ -692,6 +692,58 @@ def summarize_scaled_curriculum(
     confirmed_ratio = input_quality_counts["CONFIRMED"] / max(1, len(expansion_rows))
     if not 0.29 <= blocked_ratio <= 0.31 or not 0.69 <= confirmed_ratio <= 0.71:
         raise ValueError("Scenario input-quality mix is not balanced around 70% confirmed / 30% blocked")
+
+    # Prove that every designed profile option is represented in every
+    # collection. Unique prompts alone can hide a collapsed or unused axis.
+    scenario_axis_coverage: dict[str, Any] = {}
+    for collection in COLLECTIONS:
+        collection_rows = [
+            row for row in expansion_rows
+            if row.get("curriculum_collection") == collection
+        ]
+        profile = PROFILES[collection]
+        expected_axis_values = {
+            "project_context": set(profile["contexts"]),
+            "primary_objective": set(profile["objectives"]),
+            "operation": {str(item["id"]) for item in profile["operations"]},
+            "starting_state": {str(item["id"]) for item in profile["states"]},
+            "constraint": {str(item["id"]) for item in profile["constraints"]},
+            "input_quality": {str(item["id"]) for item in profile["input_quality"]},
+            "deliverable": {str(item["id"]) for item in profile["deliverables"]},
+            "affected_input": {
+                str(value)
+                for spec in SPECS
+                if COLLECTION_BY_APPLICATION[spec["application"]] == collection
+                for value in spec["inputs"]
+            },
+        }
+        collection_coverage: dict[str, Any] = {}
+        for axis, expected_values in expected_axis_values.items():
+            observed = Counter(
+                str((row.get("scenario_axes") or {}).get(axis) or "").strip()
+                for row in collection_rows
+            )
+            if "" in observed:
+                raise ValueError(
+                    f"{collection} has {observed['']} practical examples missing scenario axis {axis}"
+                )
+            missing = sorted(expected_values - set(observed))
+            unexpected = sorted(set(observed) - expected_values)
+            if missing or unexpected:
+                raise ValueError(
+                    f"{collection} scenario axis {axis} coverage mismatch; "
+                    f"missing={missing}, unexpected={unexpected}"
+                )
+            collection_coverage[axis] = {
+                "unique_options": len(observed),
+                "required_options": len(expected_values),
+                "min_examples_per_option": min(observed.values()),
+                "max_examples_per_option": max(observed.values()),
+                "total_examples": sum(observed.values()),
+                "missing_options": [],
+            }
+        scenario_axis_coverage[collection] = collection_coverage
+
     return {
         "version": VERSION,
         "target_per_collection": TARGET_PER_COLLECTION,
