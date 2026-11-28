@@ -1,60 +1,71 @@
 # NextAI deep-training readiness — 28 November 2026
 
-**Current decision: NOT READY to begin fine-tuning.** The data volume is substantial, but the complete merged corpus has not yet passed its exact-tokenizer and leakage gates, and native NextCAD/Next BIM acceptance evidence remains incomplete.
+**Decision: NOT READY to start fine-tuning.** The curriculum breadth is now substantial and independently audited in its standalone form, but the final merged corpus has not passed its exact Qwen tokenizer/leakage gate and the latest native NextCAD/Next BIM acceptance workflow has not completed.
 
-The authoritative, measurable pre-training gate is maintained in [NATIVE_OPERATION_FINISH_LINE_GATE.md](NATIVE_OPERATION_FINISH_LINE_GATE.md). This status file supersedes earlier dated checkpoints below; historical 400-million-token targets and old 620-row inventory figures are not current requirements.
+The authoritative finish criteria are in [NATIVE_OPERATION_FINISH_LINE_GATE.md](NATIVE_OPERATION_FINISH_LINE_GATE.md). Earlier dated reports and historical 400-million-token targets are superseded. The current training runner has no project-wide token minimum by default.
 
-## Current curriculum inventory
+## Verified curriculum inventory
 
-| Layer | Current count | Evidence |
+| Curriculum layer | Records | Current evidence level |
 |---|---:|---|
-| Practical NextCAD collection | 20,000 | L0 authored scenarios |
-| Practical Next BIM collection | 20,000 | L0 authored scenarios |
+| NextCAD practical collection | 20,000 | L0 authored scenarios |
+| Next BIM practical collection | 20,000 | L0 authored scenarios |
 | Engineering disciplines | 20,000 | L0 authored scenarios |
 | Complex engineering projects | 20,000 | L0 authored scenarios |
 | Native operator/tool selection/recovery | 20,000 | L0 authored scenarios |
-| Analytical engineering | 25 families × 10,000 = 250,000 | Deterministic formula-backed educational calculations |
-| BIMCraft capability metadata | 215 commands × 10 dimensions = 2,150 | L0 capability lessons |
-| NextCAD source-module metadata | 32 modules × 6 dimensions = 192 | L0 source lessons; not live runtime command coverage |
-| Local project skills | 75 lessons across 16 skill packs | L0 local knowledge |
+| Analytical engineering | 25 families × 10,000 = 250,000 | L0 formula-backed educational calculations |
+| BIMCraft capability lessons | 2,150 (215 commands × 10 dimensions) | L0 pinned metadata knowledge |
+| NextCAD module lessons | 192 (32 modules × 6 dimensions) | L0 pinned source knowledge |
+| Local project skill lessons | 75 across 16 skill packs | L0 authored knowledge |
 
-The practical curriculum is split 80,000/10,000/10,000. Its standalone Qwen/Qwen3.5-0.8B tokenizer audit passed with 95,207,123 text tokens across the three splits. This does not certify the complete merged corpus.
+The practical collections have 80,000 train, 10,000 validation and 10,000 held-out test records. All eight scenario axes are present in every collection: project context, objective, operation, starting state, constraint, input quality, deliverable and affected input. The 45–96 affected-input options per collection each have at least 166 examples; other axes have at least 1,980 examples per option. The original subject allocations are also tested.
 
-The analytical curriculum contains 25 registered families. Examples include structural beam and column calculations, torsion, geotechnical effective stress/consolidation/bearing/slope stability, hydraulics, pump power, surveying, earthworks and construction quantities. Each family is generated at 10,000 records per build. These are educational analytical cases, not professional design approvals or native CAD/BIM traces.
+### Standalone exact-tokenizer evidence
 
-## Current blockers and active evidence
+Deep-training validation [run 46130904424](https://github.com/28royalpapi/Next3D/actions/runs/46130904424) completed successfully with **175 unit tests**. The 100,000 practical curriculum passed exact Qwen/Qwen3.5-0.8B tokenization:
 
-### 1. Full merged-corpus integrity
+- Train: 76,157,082 text tokens
+- Validation: 9,521,610
+- Held-out test: 9,528,431
+- Total: 95,207,123
+- Zero missing images, cross-split identity leakage, cross-split exact-text leakage, within-split duplicate text or duplicate IDs.
 
-- [Run 46128394535](https://github.com/28royalpapi/Next3D/actions/runs/46128394535) built the merged corpus but failed the exact Qwen tokenizer audit because identical normalized conversations appeared across train and validation.
-- The audit was not weakened. A read-only diagnostic was added to identify duplicate records, source/domain lineage, split groups and image fingerprints.
-- The diagnostic's first CI command had a YAML shell formatting error; it was corrected in [commit b0d7d7d](https://github.com/28royalpapi/Next3D/commit/b0d7d7ddb2565b0978613097e23f3e175ce05454).
-- Corrected corpus build [run 46130402327](https://github.com/28royalpapi/Next3D/actions/runs/46130402327) passed the loader/split regression tests and was still preparing the full corpus at the latest checked status. The diagnostic artifact and fresh Qwen audit are pending.
-- No duplicate records will be silently discarded and no split leakage will be waived. Inspect the diagnostic first, then repair the source split/deduplication logic and rerun the audit.
+The same run audited the capability and skill sidecars: 2,342 metadata lessons plus 75 skill lessons, with 2,505,999 text tokens and zero duplicate IDs/text or cross-split leakage. These sidecars are L0; the audit does not claim native execution.
 
-### 2. Native application evidence
+The 250,000 analytical records previously measured 129,430,330 training text tokens. A subsequent builder correction now keeps all 25 families outside the capped public/mixed sampler and verifies their per-family counts in the final JSONL splits. The new unit tests for that preservation passed in the current corpus-loader regression run.
 
-- BIMCraft's pinned source catalogue contains 215 command registrations. Ten L0 metadata dimensions per command do not prove the commands execute successfully.
-- NextCAD's pinned source index contains 32 modules. A live GUI command/API census has not yet been captured; module count is not a command count.
-- Next BIM's earlier six L3/L4 records covered only the wall command. The acceptance runner has been expanded to wall and floor in each split, but a new native artifact must prove both commands and save/reopen behaviour.
-- The corrected NextCAD Boolean-volume acceptance macro still needs a successful real native GUI run.
-- Native build workflow [run 46127286250](https://github.com/28royalpapi/Next3D/actions/runs/46127286250) was still in progress on its Linux build and native test jobs at the latest check. No successful new native training artifact is claimed.
+## Remaining hard blockers
 
-### 3. Training and evaluation
+### 1. Complete merged-corpus build and leakage audit
 
-- Fine-tuning has **not** started. No adapter, checkpoint or updated model weights exist.
-- No paid Hugging Face GPU/CPU job has been started.
-- `--target-text-tokens` is optional and defaults to no project-wide minimum. No arbitrary 400-million-token minimum is imposed by the current training runner.
-- A bounded first fine-tuning pilot should begin only after the full merged-corpus integrity audit, native evidence gates and held-out evaluation preparation pass.
-- The 18-task practical exam and independent engineering benchmark remain evaluation-only; held-out records must not enter optimizer updates.
+- Previous full-corpus run [46128394535](https://github.com/28royalpapi/Next3D/actions/runs/46128394535) reached the tokenizer gate but failed on exact normalized conversations crossing train and validation.
+- A read-only leakage diagnostic now reports record IDs, source/domain, split-group lineage and image fingerprints; the audit is not weakened and duplicates are not silently discarded.
+- The merged-corpus adapter now preserves scenario-axis metadata, and regression tests verify the metadata survives conversion.
+- Latest full-corpus run [46131656244](https://github.com/28royalpapi/Next3D/actions/runs/46131656244) passed its loader/split regression tests and capability census, and was still preparing the merged curriculum at the latest check. The final merged tokenizer audit and diagnostic report have not yet completed.
 
-## Required next actions
+### 2. Native NextCAD and Next BIM execution
 
-1. Retrieve the corrected workflow's leakage diagnostic artifact and identify exact duplicate records and their source lineages.
-2. Repair global split assignment/deduplication at the source or source-group level, retaining provenance and held-out integrity.
-3. Rebuild the complete corpus and pass the exact Qwen/Qwen3.5-0.8B tokenizer audit on final train/validation/test files.
-4. Complete the NextCAD runtime census and native acceptance; complete Next BIM wall/floor acceptance in all splits.
-5. Run independent base-model evaluation on held-out engineering and operator tasks.
-6. Only then declare readiness for a bounded zero-cost fine-tuning pilot.
+- The pinned source census currently finds 32 NextCAD source modules, **zero live NextCAD runtime commands/API members**, and 215 BIMCraft registered commands. The live NextCAD census is incomplete.
+- BIMCraft's 2,150 lessons and NextCAD's 192 source-module lessons are knowledge obligations, not proof that the commands execute.
+- NextCAD still needs a successful GUI acceptance run proving create/edit/save/reopen and the corrected Boolean-volume assertion.
+- Next BIM still needs native wall and floor operations with save/reopen evidence across train, validation and test.
+- Native application workflow [run 46131141810](https://github.com/28royalpapi/Next3D/actions/runs/46131141810) was still running the NextCAD Linux build and Next BIM native test suite at the latest check. No successful new native training artifact is claimed.
 
-**Do not mark the project fine-tuning-ready solely because record counts or unit tests pass.**
+### 3. Fine-tuning access and evaluation
+
+- Fine-tuning has **not** started. No adapter, checkpoint or trained weights exist.
+- Hugging Face account `Justin75685` has zero running jobs. The private dataset and model repositories contain only `.gitattributes`.
+- The connected Hugging Face OAuth credential is read-only (`read-repos`, no write scope). A separate write-enabled `HF_TOKEN` is needed to publish weights to the private model repository.
+- No paid compute has been used or launched.
+- The 18-task practical exam and independent engineering benchmark remain held-out evaluation material, not training data.
+
+## Finish-line sequence
+
+1. Complete the latest full merged-corpus build and inspect its read-only leakage diagnostic.
+2. Repair any source-level duplicate/split lineage issues; rebuild until the final Qwen tokenizer audit passes with zero leakage and duplicates.
+3. Complete the live NextCAD runtime census and native NextCAD/Next BIM acceptance evidence; rebuild the corpus using the completed native workflow artifact.
+4. Run held-out base-model evaluations and verify the exam remains excluded from training.
+5. Obtain the write-enabled Hugging Face secret if publishing the resulting adapter is required.
+6. Only then declare readiness for a bounded, zero-cost first fine-tuning pilot.
+
+**Do not start fine-tuning based only on example counts or a successful standalone curriculum audit.**
