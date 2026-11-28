@@ -191,15 +191,15 @@ jobs:
           from pathlib import Path
 
           sys.path.insert(0, "training/nextai")
-          from train_nextai import read_jsonl, validate_training_splits
+          from train_nextai import IndexedJSONL, validate_training_splits
 
           runner_temp = Path(os.environ["RUNNER_TEMP"])
           root = runner_temp / "nextai-corpus"
           reports = {}
           for prefix in ("", "skill_", "capability_"):
-              train = read_jsonl(root / f"{prefix}train.jsonl")
-              validation = read_jsonl(root / f"{prefix}validation.jsonl")
-              test = read_jsonl(root / f"{prefix}test.jsonl")
+              train = IndexedJSONL(root / f"{prefix}train.jsonl")
+              validation = IndexedJSONL(root / f"{prefix}validation.jsonl")
+              test = IndexedJSONL(root / f"{prefix}test.jsonl")
               if prefix == "" and (not train or not validation or not test):
                   raise SystemExit("Main curriculum must have non-empty train, validation and held-out test splits.")
               reports[prefix or "main"] = {
