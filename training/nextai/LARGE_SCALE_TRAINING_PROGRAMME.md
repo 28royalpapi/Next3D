@@ -172,3 +172,17 @@ python training/nextai/prepare_large_scale_corpus.py \
 ```
 
 The runtime report is produced by running training/nextai/discover_nextcad_runtime.FCMacro inside the pinned NextCAD GUI. The build also performs the tokenizer audit unless explicitly disabled. A successful manifest check means the collected files and provenance declarations are internally consistent; it does not mean NextAI has been trained or has passed independent engineering validation.
+
+## Authored master curriculum v2 inventory
+
+The original 62 subject seeds have been expanded to ten distinct examples per subject:
+620 total (558 added variants). Counts are NextCAD 120, Next BIM 120, engineering disciplines
+160, integrated projects 100 and operator/tool selection/recovery 120. The dedicated
+materializer writes 496 train, 62 validation and 62 held-out test rows, preserves every row
+outside the mixed sampler cap, and emits per-domain and per-variant manifest counts.
+
+Combined with the previously verified 250,000 analytic calculation examples, the currently
+counted curated inventory is 250,620 across splits. Training-eligible rows in those two
+collections total 225,587; the remainder are validation/test. This is not the total full
+corpus: upstream CAD/BIM/BuildEng data, skill packs, capability metadata and native execution
+traces are separately admitted and must be counted after the full corpus build.

@@ -1,7 +1,8 @@
 import importlib.util
 import json
 import unittest
-import importlib.util
+import tempfile
+from collections import Counter, defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -13,49 +14,102 @@ CORPUS_SCRIPT = ROOT / "training/nextai/prepare_public_corpora.py"
 corpus_spec = importlib.util.spec_from_file_location("prepare_public_corpora_master_audit", CORPUS_SCRIPT)
 corpus_module = importlib.util.module_from_spec(corpus_spec)
 corpus_spec.loader.exec_module(corpus_module)
+BUILD_SCRIPT = ROOT / "training/nextai/build_master_curriculum.py"
+build_spec = importlib.util.spec_from_file_location("build_master_curriculum", BUILD_SCRIPT)
+build_module = importlib.util.module_from_spec(build_spec)
+build_spec.loader.exec_module(build_module)
 
 
 class MasterCurriculumTests(unittest.TestCase):
+    def test_materialized_files_and_manifest_report_exact_student_examples(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manifest = build_module.build(Path(temp))
+            self.assertEqual(manifest["total_examples"], 620)
+            self.assertEqual(manifest["by_split"], {"train": 496, "validation": 62, "test": 62})
+            self.assertEqual(manifest["combined_reference_inventory"]["analytic_plus_master_curriculum_total"], 250620)
+            self.assertEqual(manifest["combined_reference_inventory"]["train_eligible_records"], 225587)
+            self.assertTrue(manifest["all_subjects_have_ten_examples"])
+            self.assertTrue(manifest["all_record_ids_unique"])
+            self.assertTrue(manifest["all_normalized_prompts_unique"])
+            self.assertFalse(manifest["native_execution_claimed"])
+            self.assertEqual(manifest["by_collection"]["NextCAD"], 120)
+            self.assertEqual(manifest["by_collection"]["Next BIM"], 120)
+            self.assertEqual(manifest["by_collection"]["Engineering disciplines"], 160)
+            self.assertEqual(manifest["by_collection"]["Complex engineering projects"], 100)
+            self.assertEqual(manifest["by_collection"]["Native operator, tool selection and recovery"], 120)
+    def test_each_subject_has_ten_meaningfully_distinct_examples(self):
+        rows = module.make_master_project_curriculum()
+        self.assertEqual(len(rows), 620)
+        self.assertEqual(len({row["record_id"] for row in rows}), 620)
+        self.assertEqual(len({row["prompt"] for row in rows}), 620)
+        grouped = defaultdict(list)
+        for row in rows:
+            grouped[row["curriculum_subject_id"]].append(row)
+        self.assertEqual(len(grouped), 62)
+        self.assertTrue(all(len(items) == 10 for items in grouped.values()))
+        expected = {
+            "NextCAD": 120,
+            "Next BIM": 120,
+            "Engineering disciplines": 160,
+            "Complex engineering projects": 100,
+            "Native operator, tool selection and recovery": 120,
+        }
+        self.assertEqual(dict(Counter(row["curriculum_collection"] for row in rows)), expected)
 
-    def test_master_examples_survive_assigned_splits_and_have_auditable_counts(self):
+    def test_split_counts_are_exact_and_each_subject_spans_all_splits(self):
         rows = module.make_master_project_curriculum()
         splits = corpus_module.split_synthetic_curriculum(rows)
         summary = module.summarize_master_curriculum_splits(splits)
-        self.assertEqual(summary["total"], 62)
-        self.assertEqual(sum(summary["by_split"].values()), 62)
-        self.assertEqual(sum(summary["by_domain"].values()), 62)
-        self.assertEqual(sum(summary["by_application"].values()), 62)
+        self.assertEqual(summary["total"], 620)
+        self.assertEqual(summary["by_split"], {"train": 496, "validation": 62, "test": 62})
+        self.assertEqual(sum(summary["by_domain"].values()), 620)
+        self.assertEqual(sum(summary["by_application"].values()), 620)
+        expected_collections = {
+            "NextCAD": 120,
+            "Next BIM": 120,
+            "Engineering disciplines": 160,
+            "Complex engineering projects": 100,
+            "Native operator, tool selection and recovery": 120,
+        }
+        self.assertEqual(summary["by_collection"], expected_collections)
+        by_subject_split = defaultdict(Counter)
+        for split, items in splits.items():
+            for row in items:
+                by_subject_split[row["curriculum_subject_id"]][split] += 1
+        for subject_id, counts in by_subject_split.items():
+            self.assertEqual(counts, Counter({"train": 8, "validation": 1, "test": 1}), subject_id)
         self.assertEqual(summary["evidence_level"], "L0_authored_learning_example")
         self.assertFalse(summary["native_execution_claimed"])
-        self.assertGreater(summary["by_split"]["train"], 0)
-        self.assertGreater(summary["by_split"]["validation"], 0)
-        self.assertGreater(summary["by_split"]["test"], 0)
 
-    def test_curriculum_is_broad_and_has_unique_split_lineage(self):
+    def test_nine_variant_types_cover_distinct_learning_conditions(self):
         rows = module.make_master_project_curriculum()
-        self.assertGreaterEqual(len(rows), 60)
-        self.assertEqual(len({row["record_id"] for row in rows}), len(rows))
-        self.assertEqual(len({row["split_group"] for row in rows}), len(rows))
-        domains = {row["domain"] for row in rows}
-        for required in (
-            "cad_parametric_design",
-            "bim_residential_architecture",
-            "engineering_structural_slabs",
-            "engineering_geotechnical_foundations",
-            "engineering_stormwater_drainage",
-            "integrated_project_ten_storey_office",
-            "operator_native_tool_selection",
-            "operator_failed_recompute_recovery",
-            "operator_ifc_roundtrip_recovery",
-        ):
-            self.assertIn(required, domains)
+        expected_variants = {
+            "BASELINE", "BOUNDARY", "CLARIFY", "REVISION", "RECOVERY",
+            "COORDINATION", "ALTERNATIVE", "CHANGE_IMPACT", "DELIVERY",
+            "INDEPENDENT_REVIEW",
+        }
+        by_subject = defaultdict(set)
+        for row in rows:
+            by_subject[row["curriculum_subject_id"]].add(row["curriculum_variant_id"])
+        for subject_id, variants in by_subject.items():
+            self.assertEqual(variants, expected_variants, subject_id)
 
-    def test_each_record_has_a_structured_l0_target_and_checks(self):
+    def test_clarification_examples_never_include_a_native_write_plan(self):
+        for row in module.make_master_project_curriculum():
+            target = json.loads(row["completion"])
+            if row["curriculum_variant_id"] == "CLARIFY":
+                self.assertEqual(target["response_mode"], "clarify_before_action")
+                self.assertTrue(target["execution_blocked_until_clarification"])
+                self.assertEqual(target["native_write_plan"], [])
+                self.assertEqual(len(target["workflow"]), 3)
+
+    def test_each_record_has_structured_l0_target_and_preserves_subject_lineage(self):
         rows = module.make_master_project_curriculum()
         for row in rows:
             self.assertTrue(row["prompt"].strip(), row["record_id"])
             target = json.loads(row["completion"])
-            self.assertEqual(target["scenario_id"], row["record_id"])
+            self.assertEqual(target["scenario_id"], row["curriculum_subject_id"])
+            self.assertEqual(target["variant_id"], row["curriculum_variant_id"])
             self.assertEqual(target["evidence_level"], "L0_authored_learning_example")
             self.assertEqual(target["execution_status"], "not_executed_by_this_example")
             self.assertGreaterEqual(len(target["workflow"]), 3, row["record_id"])

@@ -29,7 +29,7 @@ BUILDENG_DATASET = "Irfanuruchi/buildeng"
 
 from buildeng_dataset import make_buildeng_record
 from generate_verified_engineering_cases import generate_cases
-from nextai_master_curriculum import make_master_project_curriculum, summarize_master_curriculum_splits
+from nextai_master_curriculum import make_master_project_curriculum, summarize_master_curriculum_splits, separate_master_curriculum_splits
 
 CAD_SYSTEM = (
     "You are NextAI, a CAD geometry and parametric-design specialist. "
@@ -3445,9 +3445,14 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                 if lesson.get("skill_name") else "Next3D original synthetic curriculum"
             ),
             "license": "project-authored",
-            **({"curriculum_version": lesson["curriculum_version"],
-                "curriculum_item_id": lesson["record_id"]}
-               if lesson.get("curriculum_version") and lesson.get("record_id") else {}),
+            **({
+                "curriculum_version": lesson["curriculum_version"],
+                "curriculum_item_id": lesson["record_id"],
+                "curriculum_subject_id": lesson.get("curriculum_subject_id"),
+                "curriculum_collection": lesson.get("curriculum_collection"),
+                "curriculum_variant_id": lesson.get("curriculum_variant_id"),
+                "evidence_level": lesson.get("evidence_level"),
+            } if lesson.get("curriculum_version") and lesson.get("record_id") else {}),
             **({"split_group": lesson["split_group"], "stage": lesson["stage"]}
                if lesson.get("split_group") else {}),
             **({"skill_name": lesson["skill_name"], "skill_section": lesson["skill_section"],
@@ -3910,7 +3915,11 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         native_application_splits[(application, split)].extend(rows)
         counts[f"{domain}_{split}"] = len(rows)
     synthetic_splits = split_synthetic_curriculum(make_synthetic_curriculum())
-    master_curriculum_coverage = summarize_master_curriculum_splits(synthetic_splits)
+    # Keep the master curriculum outside the capped public/mixed sampler. It
+    # represents required first-party learning objectives and must never be
+    # silently dropped by per-domain quotas.
+    master_curriculum_splits, synthetic_splits = separate_master_curriculum_splits(synthetic_splits)
+    master_curriculum_coverage = summarize_master_curriculum_splits(master_curriculum_splits)
     for split_name, count in master_curriculum_coverage["by_split"].items():
         counts[f"master_curriculum_{split_name}"] = count
     counts["master_curriculum_total"] = master_curriculum_coverage["total"]
@@ -3947,6 +3956,11 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     train, validation_rows, test_rows = merge_native_trace_splits(
         base_train, base_validation, base_tests, native_splits
     )
+    # Keep every authored master curriculum row even when the public/mixed
+    # sampler reaches its cap. Train/validation/test remain strictly separate.
+    train += master_curriculum_splits["train"]
+    validation_rows += master_curriculum_splits["validation"]
+    test_rows += master_curriculum_splits["test"]
     train += skill_splits["train"] + capability_splits["train"]
     validation_rows += skill_splits["validation"] + capability_splits["validation"]
     test_rows += skill_splits["test"] + capability_splits["test"]
@@ -3963,6 +3977,9 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     write_jsonl(out / "capability_train.jsonl", capability_splits["train"])
     write_jsonl(out / "capability_validation.jsonl", capability_splits["validation"])
     write_jsonl(out / "capability_test.jsonl", capability_splits["test"])
+    write_jsonl(out / "master_curriculum_train.jsonl", master_curriculum_splits["train"])
+    write_jsonl(out / "master_curriculum_validation.jsonl", master_curriculum_splits["validation"])
+    write_jsonl(out / "master_curriculum_test.jsonl", master_curriculum_splits["test"])
     for application in ("nextcad", "nextbim"):
         for split in ("train", "validation", "test"):
             write_jsonl(
@@ -3991,6 +4008,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": "Swiss Dwellings v3.0.0", "doi": "10.5281/zenodo.7788422", "license": "CC-BY-4.0", "attribution": "Standfest et al., Archilyse AG", "purpose": "Image-grounded architectural floor-plan geometry, room typology and shared-boundary relationships; optional training-only corpus"},
             {"repo": "optional IFC model corpus", "license": "manifest-declared", "purpose": "Parsed IFC2x3/IFC4 model hierarchy, element classes, safe properties, materials and relationships; no original GlobalIds or free-text personal metadata"},
             {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, multi-turn CAD/BIM design intake, BIM concepts and construction workflows"},
+            {"repo": "Next3D master project/operator curriculum v2", "license": "project-authored", "purpose": "620 L0 examples: 120 NextCAD, 120 Next BIM, 160 engineering discipline, 100 integrated project, 120 native operator/tool-selection/recovery. Full collection retained outside mixed sampling caps; each subject has ten scenario variants."},
             {"repo": "Next3D local engineering skill packs", "license": "project-authored", "purpose": "Section-level engineering and native-workbench knowledge lessons from the local NextAI skill library; L0 authored knowledge, not native execution traces"},
         ],
         "source_counts": dict(counts),
@@ -4000,6 +4018,33 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "quarantined_rows": len(quarantine),
         "training_domain_counts": dict(Counter(row["domain"] for row in train)),
         "authored_master_curriculum_coverage": master_curriculum_coverage,
+        "curated_example_inventory": {
+            "analytic_engineering": {
+                "train": counts.get("analytic_engineering_train", 0),
+                "validation": counts.get("analytic_engineering_validation", 0),
+                "test": counts.get("analytic_engineering_test", 0),
+            },
+            "master_project_operator_curriculum": {
+                "train": master_curriculum_coverage["by_split"]["train"],
+                "validation": master_curriculum_coverage["by_split"]["validation"],
+                "test": master_curriculum_coverage["by_split"]["test"],
+                "total": master_curriculum_coverage["total"],
+                "by_collection": master_curriculum_coverage["by_collection"],
+                "retained_outside_mixed_sampler_cap": True,
+            },
+            "combined_analytic_plus_master_curriculum": {
+                "train": counts.get("analytic_engineering_train", 0) + master_curriculum_coverage["by_split"]["train"],
+                "validation": counts.get("analytic_engineering_validation", 0) + master_curriculum_coverage["by_split"]["validation"],
+                "test": counts.get("analytic_engineering_test", 0) + master_curriculum_coverage["by_split"]["test"],
+                "total": (
+                    counts.get("analytic_engineering_train", 0)
+                    + counts.get("analytic_engineering_validation", 0)
+                    + counts.get("analytic_engineering_test", 0)
+                    + master_curriculum_coverage["total"]
+                ),
+                "scope_note": "Only the exact materialized 250k analytic corpus plus the authored master curriculum; excludes other public sources, skill packs and native trace artifacts.",
+            },
+        },
         "native_execution_trace_records": {
             application: {
                 split: len(native_application_splits[(application, split)])

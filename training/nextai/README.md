@@ -49,6 +49,40 @@ Generate/validate this collection through the normal full corpus build. The sepa
 require native execution and save/reopen evidence where applicable; independent engineering validation is
 still a separate acceptance gate.
 
+
+## Master curriculum v2: ten examples for every subject
+
+The current authored master curriculum contains **62 subjects and 620 examples**.
+Every subject has ten distinct scenario types: baseline, boundary/edge case, incomplete brief,
+existing-model revision, failure recovery, cross-discipline coordination, alternative strategy,
+change-impact analysis, controlled delivery and independent review.
+
+| Curriculum collection | Subjects | Examples per subject | Total examples | New variations added |
+|---|---:|---:|---:|---:|
+| NextCAD | 12 | 10 | 120 | 108 |
+| Next BIM | 12 | 10 | 120 | 108 |
+| Engineering disciplines | 16 | 10 | 160 | 144 |
+| Complex engineering projects | 10 | 10 | 100 | 90 |
+| Native operator, tool selection and recovery | 12 | 10 | 120 | 108 |
+| **Total** | **62** | **10** | **620** | **558** |
+
+The 620 are divided into 496 training, 62 validation and 62 held-out test examples.
+Each subject contributes eight training examples and one example to each held-out split.
+The complete collection is retained outside the mixed/public sampler cap, with JSONL sidecars
+and a manifest reporting counts by collection, application, domain, variant and split.
+
+A separate 18-task practical examination pack remains evaluation-only and is not included
+in the 620. The examples are L0 authored learning material; real native execution traces
+and independent engineering validation are counted separately.
+
+**Curated example inventory currently established:** the previously materialized 250,000-row
+analytic engineering corpus plus these 620 master-curriculum records gives 250,620 records
+across all splits. That consists of 225,587 training-eligible rows, 12,553 validation rows
+and 12,480 held-out test rows. This subtotal does not include the other public CAD/BIM/BuildEng
+sources, local skill packs, capability-census lessons or future native execution traces. The
+new 620 are materialized independently and will be included in the next full corpus build;
+the tokenizer audit must be rerun after the full merge.
+
 ## Comprehensive capability programme
 
 The implementation standard is documented in [COMPLETE_NATIVE_CAPABILITY_STANDARD.md](./COMPLETE_NATIVE_CAPABILITY_STANDARD.md). It defines full source/runtime discovery for both applications, ten learning obligations per native command, and separate counts for discovered capabilities, lessons, native execution and mastery.

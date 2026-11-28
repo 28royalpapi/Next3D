@@ -189,6 +189,42 @@ The headline claim must match the strongest evidence actually obtained. “100,0
 This programme is the coverage plan. It does not claim that every objective is covered, that the model has been fine-tuned, or that all native operations have been verified.
 
 
+
+## Master curriculum v2 — ten scenario examples per subject
+
+The initial 62 authored examples are retained as the baseline. Nine deliberately different
+scenario variants have been added for every subject, creating 620 total examples and 558
+additional examples. Scenario variants change the decision or evidence required; they are
+not simple prompt paraphrases or number substitutions.
+
+| Collection | Subjects | Total examples | Additional examples |
+|---|---:|---:|---:|
+| NextCAD | 12 | 120 | 108 |
+| Next BIM | 12 | 120 | 108 |
+| Engineering disciplines | 16 | 160 | 144 |
+| Complex engineering projects | 10 | 100 | 90 |
+| Operator/tool selection/recovery | 12 | 120 | 108 |
+| **Total** | **62** | **620** | **558** |
+
+The scenario types are baseline, boundary case, clarification, revision, recovery,
+coordination, alternative strategy, change impact, delivery and independent review.
+The nine variants are adapted separately for CAD, BIM, engineering, integrated projects
+and operator behaviours. Clarification cases explicitly require an empty native write plan
+until missing critical information is supplied.
+
+The split policy gives every subject eight training examples, one validation example and
+one held-out test example: 496/62/62 overall. The corpus builder keeps all master curriculum
+records outside the mixed/public sampler cap. The materializer writes the three JSONL files
+plus a manifest with hashes and per-collection/domain/variant counts.
+
+**Counting rule:** 620 is the authored master curriculum total, not a count of successful
+native operations. The independent 18-task practical examination is separate and excluded
+from this number and from SFT. The previous 250,000 analytic examples plus these 620 records
+form a 250,620-row curated inventory across splits (225,587 training-eligible, 12,553
+validation, 12,480 held-out test). Other upstream datasets, skill packs, capability lessons
+and genuine native trace artifacts are additional and will be counted only after the full
+corpus is materialized and audited.
+
 ## Master project/operator curriculum v1 — 28 November 2026
 
 The corpus builder now includes an additional authored collection in
