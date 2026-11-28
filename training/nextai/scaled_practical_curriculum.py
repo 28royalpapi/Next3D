@@ -640,6 +640,22 @@ def separate_scaled_curriculum_splits(
     return scaled, remainder
 
 
+def _scenario_axes_for_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Read scenario axes from either an in-memory row or serialized corpus completion."""
+    direct = row.get("scenario_axes")
+    if isinstance(direct, dict):
+        return direct
+    completion = row.get("completion")
+    if isinstance(completion, str) and completion.strip():
+        try:
+            target = json.loads(completion)
+        except json.JSONDecodeError:
+            return {}
+        axes = target.get("scenario_axes") if isinstance(target, dict) else None
+        return axes if isinstance(axes, dict) else {}
+    return {}
+
+
 def summarize_scaled_curriculum(
     expansion_rows: list[dict[str, Any]],
     baseline_rows: list[dict[str, Any]] | None = None,
@@ -720,7 +736,7 @@ def summarize_scaled_curriculum(
         collection_coverage: dict[str, Any] = {}
         for axis, expected_values in expected_axis_values.items():
             observed = Counter(
-                str((row.get("scenario_axes") or {}).get(axis) or "").strip()
+                str(_scenario_axes_for_row(row).get(axis) or "").strip()
                 for row in collection_rows
             )
             if "" in observed:

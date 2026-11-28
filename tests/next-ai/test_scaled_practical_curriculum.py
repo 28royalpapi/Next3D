@@ -82,6 +82,22 @@ class ScaledPracticalCurriculumTests(unittest.TestCase):
                 values = {row["scenario_axes"][key] for row in rows}
                 self.assertGreaterEqual(len(values), 4, f"{collection} axis {key} is too narrow")
 
+    def test_coverage_summary_reads_scenario_axes_from_serialized_completion(self):
+        from scaled_practical_curriculum import summarize_scaled_curriculum
+        rows = make_scaled_practical_curriculum()
+        serialized_rows = []
+        for row in rows:
+            copied = dict(row)
+            copied.pop("scenario_axes", None)
+            # The corpus writer serializes the target; this mirrors that boundary.
+            copied["completion"] = json.dumps(json.loads(row["completion"]), ensure_ascii=False)
+            serialized_rows.append(copied)
+        summary = summarize_scaled_curriculum(serialized_rows)
+        self.assertEqual(summary["total_examples_including_v2_baseline"], 100_000)
+        for collection, axes in summary["scenario_axis_coverage"].items():
+            self.assertEqual(len(axes), 8)
+            self.assertTrue(all(not axis["missing_options"] for axis in axes.values()))
+
     def test_every_profile_option_is_represented_in_each_collection(self):
         coverage = self.summary["scenario_axis_coverage"]
         self.assertEqual(set(coverage), set(COLLECTIONS))
