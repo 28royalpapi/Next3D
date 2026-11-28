@@ -53,6 +53,7 @@ jobs:
 
       - name: Run curriculum loader and split-integrity regression tests
         run: python -m unittest discover -s tests/next-ai -p 'test_public_corpus_preparation.py' -v
+          python -m unittest discover -s tests/next-ai -p 'test_corpus_leakage_diagnostic.py' -v
 
       - name: Find validated native capability and execution artifacts, when available
         id: native_census
