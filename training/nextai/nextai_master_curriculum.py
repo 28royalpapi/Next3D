@@ -1237,6 +1237,14 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
         "Complex engineering projects": 230,
         "Native operator, tool selection and recovery": 230,
     }
+    expected_training_stages = {
+        "cad_bim_fluency": 240,
+        "engineering_disciplines": 280,
+        "operator_methods": 230,
+        "integrated_projects": 230,
+    }
+    if summary["by_training_stage"] != expected_training_stages:
+        raise ValueError(f"Master curriculum training-stage mapping mismatch: {summary['by_training_stage']}")
     if summary["by_collection"] != expected_collections:
         raise ValueError(f"Master curriculum collection counts mismatch: {summary['by_collection']}")
     expected_variants = {"BASELINE": len(SPECS)}
