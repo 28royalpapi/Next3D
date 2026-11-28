@@ -467,7 +467,7 @@ SPECS: list[dict[str, Any]] = [
      "workflow":["Inspect each operation result and the final in-memory document state.","Save to the requested revision path and verify the write response.","Close and reopen the saved project using the native application.","Re-query expected objects, identities, properties, geometry and relationships.","Compare the reopened state with the expected acceptance criteria and report exceptions."],
      "checks":["Saved artifact exists and is readable.","Reopened state matches required objects and properties.","No unexpected identity loss or missing relationship occurs.","Report distinguishes native execution from round-trip validation."],
      "failures":["Checking only the viewport","Saving to wrong path","Unverified export treated as reopen success"],
-     "limits":["Round-trip success does not equal independent engineering validation."]},,
+     "limits":["Round-trip success does not equal independent engineering validation."]},
 
     # Expanded specialist engineering: electrical power, building services, controls,
     # mechanical/thermal design and electromechanical integration (12 subjects).
