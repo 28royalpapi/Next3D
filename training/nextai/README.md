@@ -50,38 +50,65 @@ require native execution and save/reopen evidence where applicable; independent 
 still a separate acceptance gate.
 
 
-## Master curriculum v2: ten examples for every subject
+## Master curriculum v3: expanded multidisciplinary operator programme
 
-The current authored master curriculum contains **62 subjects and 620 examples**.
-Every subject has ten distinct scenario types: baseline, boundary/edge case, incomplete brief,
-existing-model revision, failure recovery, cross-discipline coordination, alternative strategy,
-change-impact analysis, controlled delivery and independent review.
+The authored master curriculum now contains **94 subjects and 940 examples**. Every subject has ten
+distinct scenario types: baseline, boundary/edge case, incomplete brief, existing-model revision,
+failure recovery, cross-discipline coordination, alternative strategy, change-impact analysis,
+controlled delivery and independent review.
 
-| Curriculum collection | Subjects | Examples per subject | Total examples | New variations added |
-|---|---:|---:|---:|---:|
-| NextCAD | 12 | 10 | 120 | 108 |
-| Next BIM | 12 | 10 | 120 | 108 |
-| Engineering disciplines | 16 | 10 | 160 | 144 |
-| Complex engineering projects | 10 | 10 | 100 | 90 |
-| Native operator, tool selection and recovery | 12 | 10 | 120 | 108 |
-| **Total** | **62** | **10** | **620** | **558** |
+| Curriculum collection | Subjects | Examples per subject | Total examples |
+|---|---:|---:|---:|
+| NextCAD | 12 | 10 | 120 |
+| Next BIM | 12 | 10 | 120 |
+| Engineering disciplines | 28 | 10 | 280 |
+| Complex engineering projects | 20 | 10 | 200 |
+| Native operator, tool selection and recovery | 22 | 10 | 220 |
+| **Total** | **94** | **10** | **940** |
 
-The 620 are divided into 496 training, 62 validation and 62 held-out test examples.
-Each subject contributes eight training examples and one example to each held-out split: baseline and core operating variants are taught in training, delivery variants are used for validation, and independent-review variants remain held out for testing.
-The complete collection is retained outside the mixed/public sampler cap, with JSONL sidecars
-and a manifest reporting counts by collection, application, domain, variant and split.
+The 940 examples are split into **752 training, 94 validation and 94 held-out test** records.
+Each subject contributes eight training examples, one validation delivery example and one held-out
+independent-review example. The 940 records are retained outside the mixed/public sampler cap, with
+JSONL sidecars and a manifest reporting counts by collection, application, engineering domain,
+learning stage, variant and split.
 
-A separate 18-task practical examination pack remains evaluation-only and is not included
-in the 620. The examples are L0 authored learning material; real native execution traces
-and independent engineering validation are counted separately.
+### New Stage 3 specialist engineering coverage
 
-**Curated example inventory currently established:** the previously materialized 250,000-row
-analytic engineering corpus plus these 620 master-curriculum records gives 250,620 records
-across all splits. That consists of 225,587 training-eligible rows, 12,553 validation rows
-and 12,480 held-out test rows. This subtotal does not include the other public CAD/BIM/BuildEng
-sources, local skill packs, capability-census lessons or future native execution traces. The
-new 620 are materialized independently and will be included in the next full corpus build;
-the tokenizer audit must be rerun after the full merge.
+The new twelve specialist subjects close an important civil-only imbalance. They cover electrical
+load/distribution planning, lighting and emergency lighting, earthing/protection/lightning,
+control panels and motor controls, instrumentation/PLC loops, power-system studies, renewable
+microgrids, HVAC/thermal design, thermodynamics/heat exchangers, rotating machine elements,
+product design/manufacturing, and electromechanical integration.
+
+These are design-basis and engineering-workflow lessons. They require traceable input data,
+named standards and qualified review where applicable; they do not claim installation approval,
+protection settings, safety certification or production readiness.
+
+### New Stage 4 engineering-operator coverage
+
+Ten additional operator subjects deepen requirements traceability, multi-discipline orchestration,
+inspect-plan-execute-verify loops, schema/version drift, idempotency and partial success, transaction
+rollback, change-impact graphs, guarded batch operations, unfamiliar capability discovery, and
+evidence-based handoff. They teach an observable operating protocol rather than command-name
+memorisation.
+
+### New Stage 5 multidisciplinary project coverage
+
+Ten additional integrated project subjects cover a data centre, manufacturing factory, solar-hybrid
+microgrid, water-treatment plant, airport terminal, electrical substation, hospital expansion,
+transport/utility corridor, mixed-use high-rise and warehouse/logistics centre. Each integrates
+multiple disciplines, native model objects, shared interfaces, sequencing, coordination checks,
+deliverables and explicit engineering limitations.
+
+A separate 18-task practical examination pack remains evaluation-only and is not included in the
+940. The examples are **L0 authored learning material**, not native execution traces, verified
+engineering designs or evidence that the student has mastered these tasks.
+
+**Curated project-authored inventory reference:** the 250,000-row analytic engineering corpus plus
+the new 940-row master curriculum gives 250,940 records across all splits, with 225,843
+training-eligible, 12,585 validation and 12,512 held-out test records. This is a reference subtotal,
+not the full public-source/capability inventory and not a claim that the complete merged corpus has
+passed the exact-tokenizer/leakage gate. Rebuild the merged corpus and rerun the audit before training.
 
 ## Comprehensive capability programme
 
