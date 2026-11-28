@@ -1199,7 +1199,7 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
             if assigned_split != split:
                 raise ValueError(f"Master curriculum record {rid} assigned to {split}, expected {assigned_split}")
             for key, value in (("by_collection", collection), ("by_application", application),
-                               ("by_domain", domain), ("by_variant", variant_id)):
+                               ("by_domain", domain), ("by_stage", stage), ("by_variant", variant_id)):
                 summary[key][value] = summary[key].get(value, 0) + 1
             split_collection = summary["by_split_and_collection"][split]
             split_collection[collection] = split_collection.get(collection, 0) + 1
