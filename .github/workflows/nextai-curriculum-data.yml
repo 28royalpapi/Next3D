@@ -2,13 +2,17 @@ name: Build NextAI curriculum corpus
 
 on:
   push:
-    branches: [nextai-operator-foundation]
+    branches: [nextai-operator-foundation, nextai-deep-training]
     paths:
       - ".github/workflows/nextai-curriculum-data.yml"
       - "training/nextai/capability_census.py"
       - "training/nextai/prepare_public_corpora.py"
       - "training/nextai/train_nextai.py"
+      - "training/nextai/audit_nextai_corpus.py"
+      - "training/nextai/build_capability_curriculum.py"
       - "tests/next-ai/test_public_corpus_preparation.py"
+      - "tests/next-ai/test_capability_curriculum_materialization.py"
+      - "tests/next-ai/test_capability_census.py"
       - "docs/next-ai/catalogs/**"
       - "adapters/nextcad-ai/NextAI/knowledge_packs/skills/**"
   workflow_dispatch:
@@ -50,7 +54,7 @@ jobs:
       - name: Run curriculum loader and split-integrity regression tests
         run: python -m unittest discover -s tests/next-ai -p 'test_public_corpus_preparation.py' -v
 
-      - name: Find a native NextCAD runtime census, when available
+      - name: Find validated native capability and execution artifacts, when available
         id: native_census
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,13 +67,15 @@ jobs:
           if [[ -z "$run_id" ]]; then
             run_id="$(gh run list \
               --workflow .github/workflows/native-application-build.yml \
-              --branch "$GITHUB_REF_NAME" --limit 20 \
+              --branch "$GITHUB_REF_NAME" --limit 30 \
               --json databaseId,status,conclusion \
-              --jq '[.[] | select(.status == "completed")][0].databaseId // ""')"
+              --jq '[.[] | select(.status == "completed" and (.conclusion == "success" or .conclusion == "failure"))][0].databaseId // ""')"
           fi
           runtime_report=""
+          nextcad_native_dir=""
+          nextbim_native_dir=""
           if [[ -n "$run_id" ]]; then
-            echo "Checking native workflow run $run_id for a version-pinned runtime census."
+            echo "Checking native workflow run $run_id for version-pinned census and validated L3/L4 split artifacts."
             for artifact in nextcad-windows-capability-census nextcad-macos-capability-census nextcad-linux-gui-evidence; do
               target="$RUNNER_TEMP/native-evidence/$artifact"
               mkdir -p "$target"
@@ -81,14 +87,47 @@ jobs:
                 fi
               fi
             done
+            for app in nextcad nextbim; do
+              artifact="${app}-native-training-corpus"
+              target="$RUNNER_TEMP/native-evidence/$artifact"
+              mkdir -p "$target"
+              if gh run download "$run_id" --name "$artifact" --dir "$target"; then
+                if [[ -f "$target/manifest.json" && -f "$target/sft/train.jsonl" && -f "$target/sft/validation.jsonl" && -f "$target/sft/test.jsonl" ]]; then
+                  if python - "$target/manifest.json" "$app" <<'PY'
+          import json, sys
+          manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+          app = sys.argv[2]
+          expected = "nextcad" if app == "nextcad" else "nextbim"
+          summary = manifest.get("sft_summary") or {}
+          expected_counts = {"train": 2, "validation": 2, "test": 2}
+          observed = {key: int(summary.get(key, 0)) for key in expected_counts}
+          app_valid = manifest.get("application") == expected
+          schema_valid = manifest.get("schema_version") == f"{expected}.native-trace-corpus.v1"
+          lineage_valid = bool(
+              manifest.get("train_validation_test_source_lineages_are_disjoint")
+              or manifest.get("source_lineages_disjoint")
+          )
+          splits_valid = observed == expected_counts and summary.get("quarantine", 0) == 0 and summary.get("source_groups_with_split_leakage", 0) == 0
+          raise SystemExit(0 if app_valid and schema_valid and lineage_valid and splits_valid else 1)
+          PY
+                  then
+                    if [[ "$app" == "nextcad" ]]; then nextcad_native_dir="$target"; else nextbim_native_dir="$target"; fi
+                    echo "$app native split artifact validated."
+                  else
+                    echo "$app native artifact failed manifest/SFT split validation; it will not be merged."
+                  fi
+                else
+                  echo "$app native artifact is partial or missing a manifest; it will not be merged."
+                fi
+              fi
+            done
           fi
-          if [[ -n "$runtime_report" ]]; then
-            echo "runtime_report=$runtime_report" >> "$GITHUB_OUTPUT"
-            echo "NEXTCAD_RUNTIME_CENSUS=AVAILABLE" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "runtime_report=" >> "$GITHUB_OUTPUT"
-            echo "NEXTCAD_RUNTIME_CENSUS=NOT YET CAPTURED; source-only census will be marked incomplete." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "runtime_report=$runtime_report" >> "$GITHUB_OUTPUT"
+          echo "nextcad_native_dir=$nextcad_native_dir" >> "$GITHUB_OUTPUT"
+          echo "nextbim_native_dir=$nextbim_native_dir" >> "$GITHUB_OUTPUT"
+          [[ -n "$runtime_report" ]] && echo "NEXTCAD_RUNTIME_CENSUS=AVAILABLE" >> "$GITHUB_STEP_SUMMARY" || echo "NEXTCAD_RUNTIME_CENSUS=NOT CAPTURED; source-only coverage is incomplete." >> "$GITHUB_STEP_SUMMARY"
+          [[ -n "$nextcad_native_dir" ]] && echo "NEXTCAD_NATIVE_SPLITS=VALIDATED" >> "$GITHUB_STEP_SUMMARY" || echo "NEXTCAD_NATIVE_SPLITS=NOT AVAILABLE OR NOT VALIDATED" >> "$GITHUB_STEP_SUMMARY"
+          [[ -n "$nextbim_native_dir" ]] && echo "NEXTBIM_NATIVE_SPLITS=VALIDATED" >> "$GITHUB_STEP_SUMMARY" || echo "NEXTBIM_NATIVE_SPLITS=NOT AVAILABLE OR NOT VALIDATED" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build the pinned native capability census
         shell: bash
@@ -109,20 +148,37 @@ jobs:
           python training/nextai/capability_census.py "${args[@]}"
 
       - name: Prepare the multimodal CAD, BIM and engineering curriculum
+        env:
+          NEXTCAD_NATIVE_DIR: ${{ steps.native_census.outputs.nextcad_native_dir }}
+          NEXTBIM_NATIVE_DIR: ${{ steps.native_census.outputs.nextbim_native_dir }}
+        shell: bash
         run: |
-          python training/nextai/prepare_public_corpora.py \
-            --output-dir "$RUNNER_TEMP/nextai-corpus" \
-            --capability-census "$RUNNER_TEMP/nextai-capability-census/capability-census.json" \
-            --max-cad-train 2500 \
-            --max-cad-validation 250 \
-            --max-cad-test 250 \
-            --max-bim-train 30000 \
-            --max-bim-validation 3000 \
-            --max-ifcqa-train 5000 \
-            --max-ifcqa-test 1000 \
-            --max-mixed-train 24000 \
-            --max-validation 2500 \
+          set -euo pipefail
+          args=(
+            --output-dir "$RUNNER_TEMP/nextai-corpus"
+            --capability-census "$RUNNER_TEMP/nextai-capability-census/capability-census.json"
+            --max-cad-train 2500
+            --max-cad-validation 250
+            --max-cad-test 250
+            --max-bim-train 30000
+            --max-bim-validation 3000
+            --max-ifcqa-train 5000
+            --max-ifcqa-test 1000
+            --max-mixed-train 24000
+            --max-validation 2500
             --max-test 1200
+          )
+          if [[ -n "$NEXTCAD_NATIVE_DIR" ]]; then
+            args+=(--nextcad-native-train "$NEXTCAD_NATIVE_DIR/sft/train.jsonl"
+                   --nextcad-native-validation "$NEXTCAD_NATIVE_DIR/sft/validation.jsonl"
+                   --nextcad-native-test "$NEXTCAD_NATIVE_DIR/sft/test.jsonl")
+          fi
+          if [[ -n "$NEXTBIM_NATIVE_DIR" ]]; then
+            args+=(--nextbim-native-train "$NEXTBIM_NATIVE_DIR/sft/train.jsonl"
+                   --nextbim-native-validation "$NEXTBIM_NATIVE_DIR/sft/validation.jsonl"
+                   --nextbim-native-test "$NEXTBIM_NATIVE_DIR/sft/test.jsonl")
+          fi
+          python training/nextai/prepare_public_corpora.py "${args[@]}"
 
       - name: Validate train, validation, test and curriculum sidecar isolation
         working-directory: .
@@ -179,7 +235,17 @@ jobs:
           print(json.dumps(profile, indent=2, ensure_ascii=False))
           PY
 
-      - name: Publish the curriculum audit profile (no raw dataset upload)
+      - name: Install pinned Transformers for exact Qwen3.5 tokenization
+        run: python -m pip install --disable-pip-version-check "transformers==5.24.1"
+
+      - name: Audit the complete merged training corpus with the Qwen3.5 tokenizer
+        run: |
+          python training/nextai/audit_nextai_corpus.py \
+            --data-dir "$RUNNER_TEMP/nextai-corpus" \
+            --tokenizer Qwen/Qwen3.5-0.8B \
+            --output "$RUNNER_TEMP/nextai-corpus/corpus_audit.json"
+
+      - name: Publish the curriculum audit profile and tokenizer report (no raw dataset upload)
         uses: actions/upload-artifact@v4
         with:
           name: nextai-curriculum-profile
@@ -188,5 +254,6 @@ jobs:
             ${{ runner.temp }}/nextai-corpus/manifest.json
             ${{ runner.temp }}/nextai-capability-census/capability-census.json
             ${{ runner.temp }}/nextai-capability-census/capability-census-report.md
+            ${{ runner.temp }}/nextai-corpus/corpus_audit.json
           if-no-files-found: error
           retention-days: 3
