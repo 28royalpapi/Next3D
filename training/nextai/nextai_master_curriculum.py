@@ -1138,6 +1138,7 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
         "by_collection": {},
         "by_application": {},
         "by_domain": {},
+        "by_stage": {},
         "by_variant": {},
         "by_split_and_variant": {},
         "by_split_and_collection": {},
@@ -1162,6 +1163,7 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
             collection = str(row.get("curriculum_collection", "unknown"))
             application = str(row.get("application", "unknown"))
             domain = str(row.get("domain", "unknown"))
+            stage = str(row.get("stage", "unknown"))
             variant_id = str(row.get("curriculum_variant_id", "unknown"))
             assigned_split = str(row.get("curriculum_split", ""))
             if assigned_split != split:
