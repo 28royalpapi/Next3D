@@ -3451,6 +3451,8 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                 "curriculum_subject_id": lesson.get("curriculum_subject_id"),
                 "curriculum_collection": lesson.get("curriculum_collection"),
                 "curriculum_variant_id": lesson.get("curriculum_variant_id"),
+                "curriculum_split": lesson.get("curriculum_split"),
+                "application": lesson.get("application"),
                 "evidence_level": lesson.get("evidence_level"),
             } if lesson.get("curriculum_version") and lesson.get("record_id") else {}),
             **({"split_group": lesson["split_group"], "stage": lesson["stage"]}
@@ -3648,8 +3650,14 @@ def split_synthetic_curriculum(lessons: list[dict[str, Any]]) -> dict[str, list[
         group_id = str(lesson.get("split_group") or lesson.get("record_id") or f"lesson-{index}")
         grouped.setdefault(group_id, []).append(lesson)
     for group_index, group in enumerate(grouped.values(), 1):
-        bucket = group_index % 10
-        split = "test" if bucket == 0 else "validation" if bucket == 1 else "train"
+        explicit = {str(row.get("curriculum_split")) for row in group if row.get("curriculum_split")}
+        if explicit:
+            if len(explicit) != 1 or next(iter(explicit)) not in result:
+                raise ValueError(f"Invalid or conflicting explicit curriculum split for {group[0].get('record_id')}")
+            split = next(iter(explicit))
+        else:
+            bucket = group_index % 10
+            split = "test" if bucket == 0 else "validation" if bucket == 1 else "train"
         result[split].extend(group)
     return result
 

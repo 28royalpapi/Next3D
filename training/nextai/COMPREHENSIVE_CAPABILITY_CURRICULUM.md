@@ -213,7 +213,8 @@ and operator behaviours. Clarification cases explicitly require an empty native 
 until missing critical information is supplied.
 
 The split policy gives every subject eight training examples, one validation example and
-one held-out test example: 496/62/62 overall. The corpus builder keeps all master curriculum
+one held-out test example: 496/62/62 overall. Baseline/core operation variants are assigned
+to train, delivery examples to validation, and independent-review cases to the held-out test split. The corpus builder keeps all master curriculum
 records outside the mixed/public sampler cap. The materializer writes the three JSONL files
 plus a manifest with hashes and per-collection/domain/variant counts.
 

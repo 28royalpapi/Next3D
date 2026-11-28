@@ -37,6 +37,12 @@ class MasterCurriculumTests(unittest.TestCase):
             self.assertEqual(manifest["by_collection"]["Engineering disciplines"], 160)
             self.assertEqual(manifest["by_collection"]["Complex engineering projects"], 100)
             self.assertEqual(manifest["by_collection"]["Native operator, tool selection and recovery"], 120)
+            self.assertEqual(manifest["by_application"], {
+                "nextcad": 120, "nextbim": 120, "engineering": 160,
+                "integrated": 100, "operator": 120,
+            })
+            self.assertEqual(manifest["by_split_and_variant"]["validation"], {"DELIVERY": 62})
+            self.assertEqual(manifest["by_split_and_variant"]["test"], {"INDEPENDENT_REVIEW": 62})
     def test_each_subject_has_ten_meaningfully_distinct_examples(self):
         rows = module.make_master_project_curriculum()
         self.assertEqual(len(rows), 620)

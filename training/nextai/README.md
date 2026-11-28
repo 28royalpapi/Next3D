@@ -67,7 +67,7 @@ change-impact analysis, controlled delivery and independent review.
 | **Total** | **62** | **10** | **620** | **558** |
 
 The 620 are divided into 496 training, 62 validation and 62 held-out test examples.
-Each subject contributes eight training examples and one example to each held-out split.
+Each subject contributes eight training examples and one example to each held-out split: baseline and core operating variants are taught in training, delivery variants are used for validation, and independent-review variants remain held out for testing.
 The complete collection is retained outside the mixed/public sampler cap, with JSONL sidecars
 and a manifest reporting counts by collection, application, domain, variant and split.
 

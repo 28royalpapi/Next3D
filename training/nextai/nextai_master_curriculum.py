@@ -482,6 +482,19 @@ COLLECTION_BY_APPLICATION = {
     "operator": "Native operator, tool selection and recovery",
 }
 
+VARIANT_SPLIT_ASSIGNMENT = {
+    "BASELINE": "train",
+    "BOUNDARY": "train",
+    "CLARIFY": "train",
+    "REVISION": "train",
+    "RECOVERY": "train",
+    "COORDINATION": "train",
+    "ALTERNATIVE": "train",
+    "CHANGE_IMPACT": "train",
+    "DELIVERY": "validation",
+    "INDEPENDENT_REVIEW": "test",
+}
+
 # Nine additional teaching situations accompany every baseline subject. They
 # deliberately vary the decision, initial model state, missing information,
 # failure mechanism, interface, revision scope or acceptance evidence.
@@ -794,6 +807,7 @@ def _master_target(spec: dict[str, Any], variant: dict[str, Any]) -> dict[str, A
         "variant_type": variant["id"].lower(),
         "collection": COLLECTION_BY_APPLICATION[spec["application"]],
         "application": spec["application"],
+        "data_split": VARIANT_SPLIT_ASSIGNMENT[variant["id"]],
         "task_type": spec["task_type"],
         "response_mode": variant["mode"],
         "confirmed_inputs": spec["inputs"],
@@ -866,6 +880,8 @@ def make_master_project_curriculum() -> list[dict[str, Any]]:
                 "curriculum_subject_id": spec["id"],
                 "curriculum_collection": COLLECTION_BY_APPLICATION[application],
                 "curriculum_variant_id": variant["id"],
+                "application": application,
+                "curriculum_split": VARIANT_SPLIT_ASSIGNMENT[variant["id"]],
                 "evidence_level": "L0_authored_learning_example",
             })
     expected_total = len(SPECS) * EXAMPLES_PER_SUBJECT
@@ -892,6 +908,7 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
         "by_application": {},
         "by_domain": {},
         "by_variant": {},
+        "by_split_and_variant": {},
         "by_split_and_collection": {},
         "evidence_level": "L0_authored_learning_example",
         "native_execution_claimed": False,
@@ -904,6 +921,7 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
         ]
         summary["by_split"][split] = len(rows)
         summary["by_split_and_collection"][split] = {}
+        summary["by_split_and_variant"][split] = {}
         summary["total"] += len(rows)
         for row in rows:
             rid = str(row.get("record_id", ""))
@@ -914,11 +932,16 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
             application = str(row.get("application", "unknown"))
             domain = str(row.get("domain", "unknown"))
             variant_id = str(row.get("curriculum_variant_id", "unknown"))
+            assigned_split = str(row.get("curriculum_split", ""))
+            if assigned_split != split:
+                raise ValueError(f"Master curriculum record {rid} assigned to {split}, expected {assigned_split}")
             for key, value in (("by_collection", collection), ("by_application", application),
                                ("by_domain", domain), ("by_variant", variant_id)):
                 summary[key][value] = summary[key].get(value, 0) + 1
             split_collection = summary["by_split_and_collection"][split]
             split_collection[collection] = split_collection.get(collection, 0) + 1
+            split_variant = summary["by_split_and_variant"][split]
+            split_variant[variant_id] = split_variant.get(variant_id, 0) + 1
             try:
                 target = json.loads(row.get("completion", "{}"))
             except (TypeError, json.JSONDecodeError):
@@ -949,6 +972,15 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
         expected_variants[profile["id"]] = 62
     if summary["by_variant"] != expected_variants:
         raise ValueError(f"Master curriculum variant coverage mismatch: {summary['by_variant']}")
+    if summary["by_split_and_variant"]["train"] != {
+        "BASELINE": 62, "BOUNDARY": 62, "CLARIFY": 62, "REVISION": 62,
+        "RECOVERY": 62, "COORDINATION": 62, "ALTERNATIVE": 62, "CHANGE_IMPACT": 62,
+    }:
+        raise ValueError("Training split must include the baseline and six/seven core scenario variants for every subject")
+    if summary["by_split_and_variant"]["validation"] != {"DELIVERY": 62}:
+        raise ValueError("Validation split must contain one delivery example per subject")
+    if summary["by_split_and_variant"]["test"] != {"INDEPENDENT_REVIEW": 62}:
+        raise ValueError("Held-out test split must contain one independent-review example per subject")
     return summary
 
 

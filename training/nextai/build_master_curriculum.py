@@ -34,8 +34,14 @@ def split_curriculum(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any
         grouped.setdefault(group_id, []).append(row)
     result = {"train": [], "validation": [], "test": []}
     for group_index, group in enumerate(grouped.values(), 1):
-        bucket = group_index % 10
-        split = "test" if bucket == 0 else "validation" if bucket == 1 else "train"
+        explicit = {str(row.get("curriculum_split")) for row in group if row.get("curriculum_split")}
+        if explicit:
+            if len(explicit) != 1 or next(iter(explicit)) not in result:
+                raise ValueError(f"Invalid or conflicting explicit curriculum split for {group[0].get('record_id')}")
+            split = next(iter(explicit))
+        else:
+            bucket = group_index % 10
+            split = "test" if bucket == 0 else "validation" if bucket == 1 else "train"
         result[split].extend(group)
     return result
 
