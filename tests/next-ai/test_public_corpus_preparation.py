@@ -482,7 +482,7 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             self.assertEqual(set(row.get("scenario_axes") or {}), expected_axes)
             scenario_hash = str(row.get("scenario_hash") or "")
             self.assertEqual(len(scenario_hash), 64)
-            self.assertTrue(row["record_id"].endswith(scenario_hash[:20]))
+            self.assertTrue(row["curriculum_item_id"].endswith(scenario_hash[:20]))
 
     def test_synthetic_corpus_includes_specialist_engineering_intake_domains(self):
         lessons = module.make_synthetic_curriculum()
