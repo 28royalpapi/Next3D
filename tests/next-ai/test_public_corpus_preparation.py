@@ -103,6 +103,19 @@ class TrainingDatasetIntegrityTests(unittest.TestCase):
 
 
 class PublicCorpusPreparationTests(unittest.TestCase):
+    def test_analytic_training_records_create_new_domain_groups(self):
+        groups = {"engineering_statics_beam_udl": [{"record_id": "existing"}]}
+        record = {
+            "record_id": "new-geotechnical-family",
+            "domain": "engineering_geotechnical_elastic_foundation_settlement",
+        }
+        module.append_analytic_training_records(groups, [record])
+        self.assertEqual(
+            groups["engineering_geotechnical_elastic_foundation_settlement"],
+            [record],
+        )
+        self.assertEqual(len(groups["engineering_statics_beam_udl"]), 1)
+
     def test_every_analytic_family_has_an_explicit_sampler_weight(self):
         self.assertEqual(set(module.FAMILY_BUILDERS) - {
             "engineering_statics_beam_udl",

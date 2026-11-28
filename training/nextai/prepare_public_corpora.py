@@ -3513,6 +3513,18 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
     return records
 
 
+def append_analytic_training_records(
+    groups: dict[str, list[dict[str, Any]]],
+    records: list[dict[str, Any]],
+) -> None:
+    """Append analytic records while admitting new solver families into the domain map."""
+    for record in records:
+        domain = str(record.get("domain") or "").strip()
+        if not domain:
+            raise ValueError("Analytic engineering record has no domain.")
+        groups.setdefault(domain, []).append(record)
+
+
 def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: int) -> list[dict[str, Any]]:
     weights = {
         "cad_visual": 0.12,
@@ -3939,8 +3951,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         cases_per_domain=args.analytic_cases_per_domain,
         seed=args.seed,
     )
-    for record in analytic_splits["train"]:
-        groups[record["domain"]].append(record)
+    append_analytic_training_records(groups, analytic_splits["train"])
     validation.extend(analytic_splits["validation"])
     tests.extend(analytic_splits["test"])
     counts["analytic_engineering_train"] = len(analytic_splits["train"])
