@@ -84,7 +84,7 @@ class ScaledPracticalCurriculumTests(unittest.TestCase):
 
     def test_coverage_summary_reads_scenario_axes_from_serialized_completion(self):
         from scaled_practical_curriculum import summarize_scaled_curriculum
-        rows = make_scaled_practical_curriculum()
+        rows = make_scaled_curriculum_expansion()
         serialized_rows = []
         for row in rows:
             copied = dict(row)
