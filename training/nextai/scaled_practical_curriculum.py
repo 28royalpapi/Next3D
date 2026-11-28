@@ -671,16 +671,27 @@ def summarize_scaled_curriculum(
     if any(count != 0 for count in Counter(row.get("curriculum_split") for row in all_rows if row.get("curriculum_split") not in {"train","validation","test"}).values()):
         raise ValueError("Practical curriculum contains an invalid split label")
     blocked = 0
+    input_quality_counts: Counter[str] = Counter()
     for row in expansion_rows:
         target = json.loads(row["completion"])
         if target.get("evidence_level") != "L0_authored_learning_example":
             raise ValueError(f"{row['record_id']} has a false evidence level")
         if target.get("execution_status") != "not_executed_by_this_example":
             raise ValueError(f"{row['record_id']} claims native execution")
+        quality = str((target.get("scenario_axes") or {}).get("input_quality") or "")
+        if quality not in {"CONFIRMED", "MISSING", "CONFLICT", "UNVERIFIED"}:
+            raise ValueError(f"{row['record_id']} has an unknown input-quality stratum")
+        input_quality_counts[quality] += 1
         if target.get("execution_blocked_until_clarification"):
             blocked += 1
-            if target.get("native_write_plan") != []:
-                raise ValueError(f"{row['record_id']} must have an empty native write plan")
+            if quality == "CONFIRMED" or target.get("native_write_plan") != []:
+                raise ValueError(f"{row['record_id']} has inconsistent clarification/write-plan status")
+    if sum(input_quality_counts.values()) != len(expansion_rows):
+        raise ValueError("Input-quality coverage does not reconcile with the expansion row count")
+    blocked_ratio = blocked / max(1, len(expansion_rows))
+    confirmed_ratio = input_quality_counts["CONFIRMED"] / max(1, len(expansion_rows))
+    if not 0.29 <= blocked_ratio <= 0.31 or not 0.69 <= confirmed_ratio <= 0.71:
+        raise ValueError("Scenario input-quality mix is not balanced around 70% confirmed / 30% blocked")
     return {
         "version": VERSION,
         "target_per_collection": TARGET_PER_COLLECTION,
@@ -691,6 +702,9 @@ def summarize_scaled_curriculum(
         "by_split": actual_splits,
         "by_subject": dict(sorted(by_subject.items())),
         "blocked_until_clarification_examples_in_expansion": blocked,
+        "by_input_quality_in_expansion": dict(sorted(input_quality_counts.items())),
+        "confirmed_input_ratio_in_expansion": round(confirmed_ratio, 6),
+        "blocked_input_ratio_in_expansion": round(blocked_ratio, 6),
         "unique_record_ids": len({row["record_id"] for row in all_rows}),
         "unique_normalized_prompts": len({" ".join(row["prompt"].lower().split()) for row in all_rows}),
         "scenario_dimensions": [

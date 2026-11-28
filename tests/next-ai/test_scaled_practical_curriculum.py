@@ -106,6 +106,18 @@ class ScaledPracticalCurriculumTests(unittest.TestCase):
                 self.assertIsInstance(target["native_write_plan"], str)
                 self.assertNotEqual(target["native_write_plan"], "")
         self.assertGreater(blocked, 0)
+        blocked_ratio = blocked / len(self.expansion)
+        self.assertGreaterEqual(blocked_ratio, 0.29)
+        self.assertLessEqual(blocked_ratio, 0.31)
+        confirmed = sum(
+            json.loads(row["completion"])["scenario_axes"]["input_quality"] == "CONFIRMED"
+            for row in self.expansion
+        )
+        confirmed_ratio = confirmed / len(self.expansion)
+        self.assertGreaterEqual(confirmed_ratio, 0.69)
+        self.assertLessEqual(confirmed_ratio, 0.71)
+        self.assertEqual(self.summary["by_input_quality_in_expansion"]["CONFIRMED"], confirmed)
+        self.assertEqual(self.summary["blocked_until_clarification_examples_in_expansion"], blocked)
 
     def test_prompt_and_record_identity_are_unique(self):
         self.assertEqual(len({row["record_id"] for row in self.all_rows}), 100_000)
