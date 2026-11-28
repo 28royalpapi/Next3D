@@ -3502,6 +3502,7 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                 "curriculum_collection": lesson.get("curriculum_collection"),
                 "curriculum_variant_id": lesson.get("curriculum_variant_id"),
                 "curriculum_split": lesson.get("curriculum_split"),
+                "curriculum_stage": lesson.get("curriculum_stage"),
                 "application": lesson.get("application"),
                 "evidence_level": lesson.get("evidence_level"),
                 "scenario_hash": lesson.get("scenario_hash"),
