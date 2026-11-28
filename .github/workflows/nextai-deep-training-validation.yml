@@ -14,6 +14,9 @@ on:
       - "training/nextai/prepare_public_corpora.py"
       - "training/nextai/nextai_master_curriculum.py"
       - "training/nextai/build_master_curriculum.py"
+      - "training/nextai/scaled_practical_curriculum.py"
+      - "training/nextai/build_scaled_practical_curriculum.py"
+      - "tests/next-ai/test_scaled_practical_curriculum.py"
       - "training/nextai/operator_practical_exam_v1.json"
       - "tests/next-ai/test_master_project_curriculum.py"
       - "tests/next-ai/test_operator_practical_exam_v1.py"
@@ -61,6 +64,8 @@ jobs:
         run: |
           python -m unittest discover -s tests/next-ai -p 'test_master_project_curriculum.py' -v
           python -m unittest discover -s tests/next-ai -p 'test_operator_practical_exam_v1.py' -v
+      - name: Test 100,000-example practical curriculum scale and split integrity
+        run: python -m unittest discover -s tests/next-ai -p 'test_scaled_practical_curriculum.py' -v
       - name: Materialize and verify 620 authored master curriculum examples
         run: python training/nextai/build_master_curriculum.py --output-dir "$RUNNER_TEMP/nextai-master-curriculum"
       - name: Upload exact master curriculum splits and manifest
@@ -68,6 +73,15 @@ jobs:
         with:
           name: nextai-master-curriculum-v2
           path: ${{ runner.temp }}/nextai-master-curriculum/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Materialize 100,000 practical curriculum examples and audit all splits
+        run: python training/nextai/build_scaled_practical_curriculum.py --output-dir "$RUNNER_TEMP/nextai-scaled-practical-curriculum"
+      - name: Upload 100,000 practical curriculum splits and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextai-scaled-practical-curriculum-v1
+          path: ${{ runner.temp }}/nextai-scaled-practical-curriculum/
           if-no-files-found: error
           retention-days: 30
       - name: Test Next BIM native runner from submodule working directory
@@ -82,6 +96,8 @@ jobs:
               "training/nextai/prepare_public_corpora.py",
               "training/nextai/nextai_master_curriculum.py",
               "training/nextai/build_master_curriculum.py",
+              "training/nextai/scaled_practical_curriculum.py",
+              "training/nextai/build_scaled_practical_curriculum.py",
               "training/nextai/buildeng_dataset.py",
               "training/nextai/generate_verified_engineering_cases.py",
               "training/nextai/run_large_scale_training.py",
@@ -100,6 +116,7 @@ jobs:
           python training/nextai/run_large_scale_training.py --help
           python training/nextai/generate_verified_engineering_cases.py --help
           python training/nextai/build_master_curriculum.py --help
+          python training/nextai/build_scaled_practical_curriculum.py --help
           python scripts/run_nextcad_ai_acceptance.py --help
           python scripts/collect_nextcad_native_splits.py --help
           python scripts/run_nextbim_ai_acceptance.py --help

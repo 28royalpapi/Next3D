@@ -30,6 +30,7 @@ BUILDENG_DATASET = "Irfanuruchi/buildeng"
 from buildeng_dataset import make_buildeng_record
 from generate_verified_engineering_cases import generate_cases
 from nextai_master_curriculum import make_master_project_curriculum, summarize_master_curriculum_splits, separate_master_curriculum_splits
+from scaled_practical_curriculum import make_scaled_curriculum_expansion, separate_scaled_curriculum_splits, summarize_scaled_curriculum
 
 CAD_SYSTEM = (
     "You are NextAI, a CAD geometry and parametric-design specialist. "
@@ -3427,6 +3428,9 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
         })
 
     lessons.extend(make_master_project_curriculum())
+    # Preserve the five practical curricula at >=20,000 examples each.
+    # Generated rows remain L0 until real native evidence is collected.
+    lessons.extend(make_scaled_curriculum_expansion())
 
     records = []
     for index, lesson in enumerate(lessons):
@@ -3928,6 +3932,20 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     # silently dropped by per-domain quotas.
     master_curriculum_splits, synthetic_splits = separate_master_curriculum_splits(synthetic_splits)
     master_curriculum_coverage = summarize_master_curriculum_splits(master_curriculum_splits)
+    scaled_curriculum_splits, synthetic_splits = separate_scaled_curriculum_splits(synthetic_splits)
+    scaled_expansion_rows = [
+        *scaled_curriculum_splits["train"],
+        *scaled_curriculum_splits["validation"],
+        *scaled_curriculum_splits["test"],
+    ]
+    scaled_curriculum_coverage = summarize_scaled_curriculum(
+        scaled_expansion_rows,
+        [*master_curriculum_splits["train"], *master_curriculum_splits["validation"], *master_curriculum_splits["test"]],
+    )
+    for split_name, count in scaled_curriculum_coverage["by_split"].items():
+        counts[f"practical_curriculum_{split_name}"] = count
+    counts["practical_curriculum_total"] = scaled_curriculum_coverage["total_examples_including_v2_baseline"]
+    counts["practical_curriculum_expansion_records"] = scaled_curriculum_coverage["new_expansion_examples"]
     for split_name, count in master_curriculum_coverage["by_split"].items():
         counts[f"master_curriculum_{split_name}"] = count
     counts["master_curriculum_total"] = master_curriculum_coverage["total"]
@@ -3969,6 +3987,10 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     train += master_curriculum_splits["train"]
     validation_rows += master_curriculum_splits["validation"]
     test_rows += master_curriculum_splits["test"]
+    # Keep all 99,380 scale-expansion rows outside public/mixed sampler caps.
+    train += scaled_curriculum_splits["train"]
+    validation_rows += scaled_curriculum_splits["validation"]
+    test_rows += scaled_curriculum_splits["test"]
     train += skill_splits["train"] + capability_splits["train"]
     validation_rows += skill_splits["validation"] + capability_splits["validation"]
     test_rows += skill_splits["test"] + capability_splits["test"]
@@ -3988,6 +4010,9 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     write_jsonl(out / "master_curriculum_train.jsonl", master_curriculum_splits["train"])
     write_jsonl(out / "master_curriculum_validation.jsonl", master_curriculum_splits["validation"])
     write_jsonl(out / "master_curriculum_test.jsonl", master_curriculum_splits["test"])
+    write_jsonl(out / "scaled_practical_curriculum_train.jsonl", scaled_curriculum_splits["train"])
+    write_jsonl(out / "scaled_practical_curriculum_validation.jsonl", scaled_curriculum_splits["validation"])
+    write_jsonl(out / "scaled_practical_curriculum_test.jsonl", scaled_curriculum_splits["test"])
     for application in ("nextcad", "nextbim"):
         for split in ("train", "validation", "test"):
             write_jsonl(
@@ -4016,7 +4041,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": "Swiss Dwellings v3.0.0", "doi": "10.5281/zenodo.7788422", "license": "CC-BY-4.0", "attribution": "Standfest et al., Archilyse AG", "purpose": "Image-grounded architectural floor-plan geometry, room typology and shared-boundary relationships; optional training-only corpus"},
             {"repo": "optional IFC model corpus", "license": "manifest-declared", "purpose": "Parsed IFC2x3/IFC4 model hierarchy, element classes, safe properties, materials and relationships; no original GlobalIds or free-text personal metadata"},
             {"repo": "Next3D original synthetic curriculum", "license": "project-authored", "purpose": "2D drafting, parametric sketches, 3D modeling, documentation, multi-turn CAD/BIM design intake, BIM concepts and construction workflows"},
-            {"repo": "Next3D master project/operator curriculum v2", "license": "project-authored", "purpose": "620 L0 examples: 120 NextCAD, 120 Next BIM, 160 engineering discipline, 100 integrated project, 120 native operator/tool-selection/recovery. Full collection retained outside mixed sampling caps; each subject has ten scenario variants."},
+            {"repo": "Next3D master project/operator curriculum v2", "license": "project-authored", "purpose": "620 L0 baseline examples across NextCAD, Next BIM, engineering disciplines, integrated projects and operator behaviour; retained outside mixed sampling caps."},
+            {"repo": "Next3D scaled practical curriculum v1", "license": "project-authored", "purpose": "99,380 additional L0 scenarios, bringing each of five practical collections to exactly 20,000 examples (100,000 total including the v2 baseline). Each scenario varies project context, objective, operation, starting state, constraint, input quality and deliverable. Retained outside mixed sampling caps; not native execution evidence."},
             {"repo": "Next3D local engineering skill packs", "license": "project-authored", "purpose": "Section-level engineering and native-workbench knowledge lessons from the local NextAI skill library; L0 authored knowledge, not native execution traces"},
         ],
         "source_counts": dict(counts),
@@ -4026,6 +4052,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "quarantined_rows": len(quarantine),
         "training_domain_counts": dict(Counter(row["domain"] for row in train)),
         "authored_master_curriculum_coverage": master_curriculum_coverage,
+        "scaled_practical_curriculum_coverage": scaled_curriculum_coverage,
         "curated_example_inventory": {
             "analytic_engineering": {
                 "train": counts.get("analytic_engineering_train", 0),
@@ -4038,6 +4065,14 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
                 "test": master_curriculum_coverage["by_split"]["test"],
                 "total": master_curriculum_coverage["total"],
                 "by_collection": master_curriculum_coverage["by_collection"],
+                "retained_outside_mixed_sampler_cap": True,
+            },
+            "scaled_practical_curriculum": {
+                "train": scaled_curriculum_coverage["by_split"]["train"],
+                "validation": scaled_curriculum_coverage["by_split"]["validation"],
+                "test": scaled_curriculum_coverage["by_split"]["test"],
+                "total": scaled_curriculum_coverage["total_examples_including_v2_baseline"],
+                "by_collection": scaled_curriculum_coverage["by_collection"],
                 "retained_outside_mixed_sampler_cap": True,
             },
             "combined_analytic_plus_master_curriculum": {
