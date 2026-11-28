@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Materialize and audit the authored NextAI master curriculum v2."""
+"""Materialize and audit the authored NextAI master curriculum v3."""
 from __future__ import annotations
 
 import argparse
@@ -123,7 +123,7 @@ def build(output_dir: Path) -> dict[str, Any]:
             "train_eligible_records": 225843,
             "validation_records": 12585,
             "held_out_test_records": 12512,
-            "scope": "250000 previously audited analytic rows plus 620 newly materialized master curriculum rows only; excludes other public-source datasets, local skill packs, capability metadata lessons and real native traces."
+            "scope": "250000 previously audited analytic rows plus 940 newly materialized master curriculum rows only; excludes other public-source datasets, local skill packs, capability metadata lessons and real native traces."
         },
         "training_policy": {
             "test_split_used_for_gradient_updates": False,
