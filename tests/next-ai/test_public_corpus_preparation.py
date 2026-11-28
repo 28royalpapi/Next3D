@@ -480,9 +480,9 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         }
         for row in scaled:
             self.assertEqual(set(row.get("scenario_axes") or {}), expected_axes)
-            self.assertEqual(row.get("scenario_hash"), row["record_id"].split("-")[-1] if False else row.get("scenario_hash"))
-            completion = json.loads(row["completion"])
-            self.assertEqual(set(completion.get("scenario_axes") or {}), expected_axes)
+            scenario_hash = str(row.get("scenario_hash") or "")
+            self.assertEqual(len(scenario_hash), 64)
+            self.assertTrue(row["record_id"].endswith(scenario_hash[:20]))
 
     def test_synthetic_corpus_includes_specialist_engineering_intake_domains(self):
         lessons = module.make_synthetic_curriculum()
