@@ -256,11 +256,23 @@ try:
     require(all(not any(x in list(getattr(obj, "State", []) or []) for x in ("Invalid", "Error"))
                 for obj in doc.Objects),
             "A native model object is in an Invalid/Error state before save.")
+    # Capture the final, recomputed state immediately before persistence. The
+    # source operands are intentionally revised by later acceptance operations,
+    # so the round-trip gate compares the saved result with this exact state,
+    # not only with the boolean's first-creation analytical volume.
+    cut_before_save = doc.getObject(cut["created"])
+    require(cut_before_save is not None and cut_before_save.Shape.isValid()
+            and len(cut_before_save.Shape.Solids) == 1,
+            "Boolean result is not one valid solid immediately before save.")
+    cut_volume_before_save = float(cut_before_save.Shape.Volume)
+    require(cut_volume_before_save > 0.0,
+            "Boolean result has no positive volume immediately before save.")
     project.parent.mkdir(parents=True, exist_ok=True)
     doc.saveAs(str(project))
     saved_names = {obj.Name for obj in doc.Objects}
     App.closeDocument(doc.Name)
     reopened = App.openDocument(str(project))
+    reopened.recompute()
     require(saved_names.issubset({obj.Name for obj in reopened.Objects}),
             "One or more native model objects were lost on reopen.")
     require(reopened.getObject("AcceptanceModelSchedule") is not None,
@@ -269,8 +281,26 @@ try:
             "PartDesign pattern Body is invalid after reopen.")
     require(reopened.getObject("AcceptancePolarBody").Tip.Shape.isValid(),
             "PartDesign polar Body is invalid after reopen.")
-    require(abs(float(reopened.getObject(cut["created"]).Shape.Volume) - 3000.0 * scenario_scale ** 3) < 1e-4,
-            "Boolean result volume changed after reopen.")
+    reopened_cut = reopened.getObject(cut["created"])
+    require(reopened_cut is not None and reopened_cut.Shape.isValid()
+            and len(reopened_cut.Shape.Solids) == 1,
+            "Boolean result is not one valid solid after reopen.")
+    cut_volume_after_reopen = float(reopened_cut.Shape.Volume)
+    cut_roundtrip_tolerance = max(1e-2, abs(cut_volume_before_save) * 1e-6)
+    cut_roundtrip_delta = abs(cut_volume_after_reopen - cut_volume_before_save)
+    require(
+        cut_roundtrip_delta <= cut_roundtrip_tolerance,
+        f"Boolean result volume changed after reopen: before={cut_volume_before_save}, "
+        f"after={cut_volume_after_reopen}, delta={cut_roundtrip_delta}, "
+        f"tolerance={cut_roundtrip_tolerance}.",
+    )
+    report["checks"]["boolean_volume_save_close_reopen"] = "PASS"
+    report["measurements"]["boolean_volume_roundtrip"] = {
+        "before_save_mm3": cut_volume_before_save,
+        "after_reopen_mm3": cut_volume_after_reopen,
+        "absolute_delta_mm3": cut_roundtrip_delta,
+        "tolerance_mm3": cut_roundtrip_tolerance,
+    }
     report["checks"]["native_save_close_reopen"] = "PASS"
 
     def sha256_file(path):

@@ -2760,6 +2760,15 @@ CAPABILITY_SKILL_DIMENSIONS = {
     "limitations": "State exactly what the pinned metadata does not prove and what must not be claimed.",
 }
 
+NEXTCAD_MODULE_SKILL_DIMENSIONS = {
+    "module_recognition": "Describe the module/workbench using only its pinned source metadata; do not infer the exact feature set from its name.",
+    "source_layout": "Locate the module in the pinned source tree and distinguish source presence from successful installation.",
+    "runtime_availability": "Explain how to verify that the workbench/module actually imports and registers in the running NextCAD build.",
+    "capability_discovery": "Describe how to enumerate the module's live GUI commands and public API members after activation.",
+    "dependency_and_activation": "Identify only documented activation/dependency facts and list what must be checked in the installed runtime.",
+    "limitations": "State that a source module is not a discovered command, safe AI tool, executed task or evidence of mastery.",
+}
+
 
 def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, Any]]:
     """Turn pinned command/API metadata into attributed L0 lessons, never execution traces."""
@@ -2777,7 +2786,8 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
         if not isinstance(capability, dict):
             continue
         capability_type = capability.get("capability_type")
-        if capability_type not in {"native_command", "native_gui_command", "native_api_member"}:
+        is_nextcad_module = capability_type == "workbench_or_module" and capability.get("application") == "nextcad"
+        if capability_type not in {"native_command", "native_gui_command", "native_api_member"} and not is_nextcad_module:
             continue
         application = capability.get("application")
         if application not in {"nextcad", "nextbim"}:
@@ -2804,6 +2814,9 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
             "source_evidence": capability.get("source_evidence"),
             "source_commit": source_commit,
             "source_path": capability.get("source_path"),
+            "source_present": capability.get("source_present"),
+            "runtime_status": capability.get("runtime_status"),
+            "ai_discovery_rule": capability.get("ai_discovery_rule"),
             "application_version": capability.get("application_version"),
             "menu_or_ui_label": capability.get("menu_text") or capability.get("menu"),
             "tooltip": capability.get("tooltip"),
@@ -2818,9 +2831,19 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
                 or capability.get("agent_tool_status")
                 or "requires_reviewed_typed_adapter",
         }
-        if application == "nextcad":
+        if is_nextcad_module:
             license_name = "LGPL-2.1"
-            attribution = "FreeCAD contributors; pinned FreeCAD source metadata, adapted for Next3D."
+            attribution = "FreeCAD contributors; pinned FreeCAD source module metadata, adapted for Next3D."
+            policy = (
+                "This record proves only that a module/workbench path is present in the pinned source index. "
+                "Its runtime availability is not yet verified. Before relying on it, activate the module in the "
+                "pinned NextCAD GUI, inspect the live workbench registry, enumerate its commands and public API, "
+                "and review each operation for a typed AI adapter. Never infer commands from a module name."
+            )
+            domain = "nextcad_workbench_knowledge"
+        elif application == "nextcad":
+            license_name = "LGPL-2.1"
+            attribution = "FreeCAD contributors; pinned FreeCAD source/runtime metadata, adapted for Next3D."
             policy = (
                 "A discovered FreeCAD GUI command or API member is not an approved AI operation. "
                 "NextCAD must use a reviewed typed adapter, exact argument schema and native validation. "
@@ -2837,14 +2860,24 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
             )
             domain = "nextbim_capability_knowledge"
 
-        for dimension, objective in CAPABILITY_SKILL_DIMENSIONS.items():
+        dimensions = (
+            NEXTCAD_MODULE_SKILL_DIMENSIONS
+            if is_nextcad_module
+            else CAPABILITY_SKILL_DIMENSIONS
+        )
+        capability_subject = "source module/workbench" if is_nextcad_module else "native capability"
+        for dimension, objective in dimensions.items():
             prompt = (
-                f"Teach the '{dimension}' aspect of native capability '{native_id}' "
+                f"Teach the '{dimension}' aspect of {capability_subject} '{native_id}' "
                 f"({name}) in {application}. Use only the pinned capability metadata below. "
                 "Do not invent parameters, units, prerequisites, commands, geometry or successful results."
             )
             completion = {
-                "lesson_type": "pinned_native_capability_metadata_knowledge",
+                "lesson_type": (
+                    "pinned_nextcad_source_module_knowledge"
+                    if is_nextcad_module
+                    else "pinned_native_capability_metadata_knowledge"
+                ),
                 "evidence_level": "L0_metadata_knowledge_authored",
                 "application": application,
                 "capability": known,
@@ -2855,6 +2888,10 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
                     if value not in (None, "", [], {})
                 },
                 "parameter_rule": (
+                    "This is a source-module inventory entry, not a command contract. It does not expose a "
+                    "complete operation list, parameter schema or runtime availability. Discover and verify "
+                    "those facts inside the pinned running application."
+                    if is_nextcad_module else
                     "The parameter contract is human-readable registration text, not a formal JSON Schema. "
                     "Treat it as a discovery hint and ask the live native command registry for current details."
                     if contract_kind == "human_readable_registration_description_not_json_schema"
@@ -2866,6 +2903,12 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
                 ),
                 "execution_permission_rule": policy,
                 "evidence_boundary": (
+                    (
+                        "This lesson describes a source module only. Source presence is not proof that the "
+                        "module loads or registers in the running application, and it is not a list of callable "
+                        "operations. No native operation was executed by generating this lesson. L3/L4/L5 evidence "
+                        "must be collected separately."
+                    ) if is_nextcad_module else
                     "This lesson describes a pinned source/runtime capability, not an executed task. "
                     "No native object was created, edited, saved, reopened or independently validated by generating this lesson. "
                     "Mastery requires L3 native execution, L4 save/reopen and L5 independent validation."
@@ -2892,7 +2935,10 @@ def make_capability_knowledge_curriculum(census_path: Path) -> list[dict[str, An
                 "learning_dimension": dimension,
                 "evidence_level": "L0_metadata_knowledge_authored",
                 "split_group": "capability-knowledge-" + application + "-" + capability_id,
-                "stage": "capability_metadata_knowledge",
+                "stage": (
+                    "nextcad_source_module_knowledge"
+                    if is_nextcad_module else "capability_metadata_knowledge"
+                ),
                 "record_type": "authored_metadata_knowledge_not_native_execution",
             })
     return lessons
