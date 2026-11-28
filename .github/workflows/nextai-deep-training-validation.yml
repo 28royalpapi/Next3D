@@ -77,6 +77,14 @@ jobs:
           retention-days: 30
       - name: Materialize 100,000 practical curriculum examples and audit all splits
         run: python training/nextai/build_scaled_practical_curriculum.py --output-dir "$RUNNER_TEMP/nextai-scaled-practical-curriculum"
+      - name: Install pinned Transformers package for the Qwen3.5 tokenizer
+        run: python -m pip install --disable-pip-version-check "transformers==5.24.1"
+      - name: Audit all 100,000 practical records with the exact Qwen3.5 tokenizer
+        run: |
+          python training/nextai/audit_nextai_corpus.py \
+            --data-dir "$RUNNER_TEMP/nextai-scaled-practical-curriculum" \
+            --tokenizer Qwen/Qwen3.5-0.8B \
+            --output "$RUNNER_TEMP/nextai-scaled-practical-curriculum/corpus_audit.json"
       - name: Upload 100,000 practical curriculum splits and manifest
         uses: actions/upload-artifact@v4
         with:
