@@ -22,6 +22,37 @@ train_spec.loader.exec_module(train_module)
 
 
 class TrainingDatasetIntegrityTests(unittest.TestCase):
+    def test_analytic_records_are_preserved_outside_public_mixed_sampler_cap(self):
+        base_train = [{"record_id": "public-train", "split_group": "public-a"}]
+        base_validation = [{"record_id": "public-validation", "split_group": "public-b"}]
+        base_test = [{"record_id": "public-test", "split_group": "public-c"}]
+        analytic = {
+            "train": [
+                {"record_id": f"analytic-train-{i}", "split": "train", "case_family": "family-a"}
+                for i in range(4)
+            ],
+            "validation": [
+                {"record_id": "analytic-validation-0", "split": "validation", "case_family": "family-a"}
+            ],
+            "test": [
+                {"record_id": "analytic-test-0", "split": "test", "case_family": "family-a"}
+            ],
+        }
+        train, validation, test = module.merge_analytic_splits(
+            base_train, base_validation, base_test, analytic
+        )
+        self.assertEqual(len(train), 5)
+        self.assertEqual(len(validation), 2)
+        self.assertEqual(len(test), 2)
+        self.assertEqual(sum(row.get("case_family") == "family-a" for row in train), 4)
+        self.assertEqual(sum(row.get("case_family") == "family-a" for row in validation), 1)
+        self.assertEqual(sum(row.get("case_family") == "family-a" for row in test), 1)
+
+    def test_analytic_merge_rejects_mislabeled_split_records(self):
+        analytic = {"train": [{"record_id": "bad", "split": "test"}], "validation": [], "test": []}
+        with self.assertRaisesRegex(ValueError, "not 'train'"):
+            module.merge_analytic_splits([], [], [], analytic)
+
     def test_training_split_identity_and_reference_integrity_passes(self):
         train = [{
             "record_id": "train-1",

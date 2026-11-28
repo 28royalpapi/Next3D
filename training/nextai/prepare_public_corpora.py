@@ -3525,6 +3525,32 @@ def append_analytic_training_records(
         groups.setdefault(domain, []).append(record)
 
 
+def merge_analytic_splits(
+    train_rows: list[dict[str, Any]],
+    validation_rows: list[dict[str, Any]],
+    test_rows: list[dict[str, Any]],
+    analytic_splits: dict[str, list[dict[str, Any]]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Preserve every generated analytic record outside the capped public sampler."""
+    merged = {
+        "train": list(train_rows),
+        "validation": list(validation_rows),
+        "test": list(test_rows),
+    }
+    for split in ("train", "validation", "test"):
+        rows = analytic_splits.get(split)
+        if not isinstance(rows, list):
+            raise ValueError(f"Analytic curriculum is missing its {split} split.")
+        for row in rows:
+            if row.get("split") != split:
+                raise ValueError(
+                    f"Analytic record {row.get('record_id')!r} is assigned to "
+                    f"{row.get('split')!r}, not {split!r}."
+                )
+        merged[split].extend(rows)
+    return merged["train"], merged["validation"], merged["test"]
+
+
 def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: int) -> list[dict[str, Any]]:
     weights = {
         "cad_visual": 0.12,
@@ -3951,9 +3977,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         cases_per_domain=args.analytic_cases_per_domain,
         seed=args.seed,
     )
-    append_analytic_training_records(groups, analytic_splits["train"])
-    validation.extend(analytic_splits["validation"])
-    tests.extend(analytic_splits["test"])
+    # Keep all analytic records separate from the capped public/mixed sampler.
+    # Their per-family 10,000-case targets must survive into the final JSONL splits.
     counts["analytic_engineering_train"] = len(analytic_splits["train"])
     counts["analytic_engineering_validation"] = len(analytic_splits["validation"])
     counts["analytic_engineering_test"] = len(analytic_splits["test"])
@@ -4053,6 +4078,36 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     train, validation_rows, test_rows = merge_native_trace_splits(
         base_train, base_validation, base_tests, native_splits
     )
+    train, validation_rows, test_rows = merge_analytic_splits(
+        train, validation_rows, test_rows, analytic_splits
+    )
+    final_split_rows = {
+        "train": train,
+        "validation": validation_rows,
+        "test": test_rows,
+    }
+    analytic_final_split_counts = {
+        split: dict(Counter(
+            row["case_family"] for row in rows
+            if row.get("source") == analytic_manifest["source"] and row.get("case_family")
+        ))
+        for split, rows in final_split_rows.items()
+    }
+    expected_analytic_split_counts = {
+        split: dict(Counter(row["case_family"] for row in rows))
+        for split, rows in analytic_splits.items()
+    }
+    if analytic_final_split_counts != expected_analytic_split_counts:
+        raise ValueError("Analytic per-family counts were not fully preserved in final corpus splits.")
+    analytic_final_split_totals = {
+        split: sum(families.values())
+        for split, families in analytic_final_split_counts.items()
+    }
+    analytic_family_totals: Counter = Counter()
+    for families in analytic_final_split_counts.values():
+        analytic_family_totals.update(families)
+    if dict(analytic_family_totals) != dict(analytic_manifest["families"]):
+        raise ValueError("Final analytic family totals do not match the generator manifest.")
     # Keep every authored master curriculum row even when the public/mixed
     # sampler reaches its cap. Train/validation/test remain strictly separate.
     train += master_curriculum_splits["train"]
@@ -4117,6 +4172,8 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             {"repo": "Next3D local engineering skill packs", "license": "project-authored", "purpose": "Section-level engineering and native-workbench knowledge lessons from the local NextAI skill library; L0 authored knowledge, not native execution traces"},
         ],
         "source_counts": dict(counts),
+        "analytic_records_preserved_outside_mixed_sampler": analytic_final_split_totals,
+        "analytic_family_records_preserved_in_final_splits": analytic_final_split_counts,
         "train_records": len(train),
         "validation_records": len(validation_rows),
         "test_records": len(test_rows),
