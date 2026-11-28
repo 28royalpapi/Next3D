@@ -71,6 +71,19 @@ The macro now captures the final recomputed Boolean volume immediately before sa
 
 The 32 source modules must not be reported as 32 live workbenches, and no NextCAD GUI command/API count is claimed until a version-matched runtime census artifact is captured.
 
+## Curriculum expansion update — 28 November 2026
+
+The master authored curriculum is now version 3: **98 subjects, 980 L0 examples**,
+split into 784 train, 98 validation and 98 held-out test records. It supersedes the
+earlier 62-subject/620-record master-curriculum snapshot above. The complete collection
+breakdown and detailed lesson objectives are in [training/nextai/README.md](README.md)
+and [COMPREHENSIVE_CAPABILITY_CURRICULUM.md](COMPREHENSIVE_CAPABILITY_CURRICULUM.md).
+
+The expansion explicitly fills the electrical/mechanical specialist gap and deepens the
+engineering operator and complete-project curriculum. It does not change the acceptance
+standard: all 980 rows are L0 authored lessons. The native-operation finish gate, exact
+merged-corpus tokenizer/leakage audit and held-out evaluation remain independent blockers.
+
 ## Required evidence before full operator fine-tuning
 
 1. NextCAD Linux build and corrected create/edit/save/reopen acceptance pass, plus a valid three-way native training artifact.
