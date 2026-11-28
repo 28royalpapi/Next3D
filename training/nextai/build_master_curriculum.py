@@ -62,7 +62,7 @@ def build(output_dir: Path) -> dict[str, Any]:
 
     if len(rows) != len(SPECS) * EXAMPLES_PER_SUBJECT:
         raise ValueError("Materialized row count does not match curriculum subjects × examples per subject")
-    if coverage["by_split"] != {"train": 752, "validation": 94, "test": 94}:
+    if coverage["by_split"] != {"train": 784, "validation": 98, "test": 98}:
         raise ValueError(f"Unexpected split counts: {coverage['by_split']}")
 
     all_ids: set[str] = set()
@@ -76,7 +76,7 @@ def build(output_dir: Path) -> dict[str, Any]:
         write_jsonl(output_dir / f"{split_name}.jsonl", split_rows)
 
     per_subject = Counter(row["curriculum_subject_id"] for row in rows)
-    if len(per_subject) != 94 or any(count != 10 for count in per_subject.values()):
+    if len(per_subject) != 98 or any(count != 10 for count in per_subject.values()):
         raise ValueError("Each subject must have exactly ten authored examples")
     split_hashes = {
         f"{split}.jsonl": {
@@ -119,11 +119,11 @@ def build(output_dir: Path) -> dict[str, Any]:
             "note": "Previously materialized and tokenizer-audited source snapshot. It is counted separately, not merged into these JSONL files."
         },
         "combined_reference_inventory": {
-            "analytic_plus_master_curriculum_total": 250940,
-            "train_eligible_records": 225843,
-            "validation_records": 12585,
-            "held_out_test_records": 12512,
-            "scope": "250000 previously audited analytic rows plus 940 newly materialized master curriculum rows only; excludes other public-source datasets, local skill packs, capability metadata lessons and real native traces."
+            "analytic_plus_master_curriculum_total": 250980,
+            "train_eligible_records": 225875,
+            "validation_records": 12589,
+            "held_out_test_records": 12516,
+            "scope": "250000 previously audited analytic rows plus 980 newly materialized master curriculum rows only; excludes other public-source datasets, local skill packs, capability metadata lessons and real native traces."
         },
         "training_policy": {
             "test_split_used_for_gradient_updates": False,
