@@ -31,7 +31,7 @@ class ScaledPracticalCurriculumTests(unittest.TestCase):
 
     def test_every_practical_collection_reaches_twenty_thousand(self):
         self.assertEqual(self.summary["total_examples_including_v2_baseline"], 100_000)
-        self.assertEqual(self.summary["new_expansion_examples"], 99_380)
+        self.assertEqual(self.summary["new_expansion_examples"], 99_020)
         self.assertEqual(
             self.summary["by_collection"],
             {collection: TARGET_PER_COLLECTION for collection in COLLECTIONS},
@@ -52,7 +52,7 @@ class ScaledPracticalCurriculumTests(unittest.TestCase):
 
     def test_every_original_subject_reaches_its_allocated_count(self):
         per_subject = Counter(row["curriculum_subject_id"] for row in self.all_rows)
-        self.assertEqual(len(per_subject), 62)
+        self.assertEqual(len(per_subject), 98)
         self.assertEqual(sum(per_subject.values()), 100_000)
         for collection in COLLECTIONS:
             specs = sorted(
