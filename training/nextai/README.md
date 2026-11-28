@@ -52,7 +52,7 @@ still a separate acceptance gate.
 
 ## Master curriculum v3: expanded multidisciplinary operator programme
 
-The authored master curriculum now contains **94 subjects and 940 examples**. Every subject has ten
+The authored master curriculum now contains **98 subjects and 980 examples**. Every subject has ten
 distinct scenario types: baseline, boundary/edge case, incomplete brief, existing-model revision,
 failure recovery, cross-discipline coordination, alternative strategy, change-impact analysis,
 controlled delivery and independent review.
@@ -62,11 +62,11 @@ controlled delivery and independent review.
 | NextCAD | 12 | 10 | 120 |
 | Next BIM | 12 | 10 | 120 |
 | Engineering disciplines | 28 | 10 | 280 |
-| Complex engineering projects | 20 | 10 | 200 |
-| Native operator, tool selection and recovery | 22 | 10 | 220 |
-| **Total** | **94** | **10** | **940** |
+| Complex engineering projects | 23 | 10 | 230 |
+| Native operator, tool selection and recovery | 23 | 10 | 230 |
+| **Total** | **98** | **10** | **980** |
 
-The 940 examples are split into **752 training, 94 validation and 94 held-out test** records.
+The 980 examples are split into **784 training, 98 validation and 98 held-out test** records.
 Each subject contributes eight training examples, one validation delivery example and one held-out
 independent-review example. The 940 records are retained outside the mixed/public sampler cap, with
 JSONL sidecars and a manifest reporting counts by collection, application, engineering domain,
@@ -86,7 +86,7 @@ protection settings, safety certification or production readiness.
 
 ### New Stage 4 engineering-operator coverage
 
-Ten additional operator subjects deepen requirements traceability, multi-discipline orchestration,
+Eleven additional operator subjects deepen requirements traceability, multi-discipline orchestration,
 inspect-plan-execute-verify loops, schema/version drift, idempotency and partial success, transaction
 rollback, change-impact graphs, guarded batch operations, unfamiliar capability discovery, and
 evidence-based handoff. They teach an observable operating protocol rather than command-name
@@ -94,19 +94,24 @@ memorisation.
 
 ### New Stage 5 multidisciplinary project coverage
 
-Ten additional integrated project subjects cover a data centre, manufacturing factory, solar-hybrid
+Thirteen additional integrated project subjects cover a data centre, manufacturing factory, solar-hybrid
 microgrid, water-treatment plant, airport terminal, electrical substation, hospital expansion,
 transport/utility corridor, mixed-use high-rise and warehouse/logistics centre. Each integrates
 multiple disciplines, native model objects, shared interfaces, sequencing, coordination checks,
 deliverables and explicit engineering limitations.
 
+The latest additions include a complex automated packaging machine, a microwave-oven product and
+an unfamiliar autonomous-inspection-robot brief that must be solved compositionally rather than by
+retrieving a fixed project template. The dedicated adaptive interview subject teaches one high-value
+question at a time, retention of confirmed answers and a no-write-before-confirmation rule.
+
 A separate 18-task practical examination pack remains evaluation-only and is not included in the
-940. The examples are **L0 authored learning material**, not native execution traces, verified
+980. The examples are **L0 authored learning material**, not native execution traces, verified
 engineering designs or evidence that the student has mastered these tasks.
 
 **Curated project-authored inventory reference:** the 250,000-row analytic engineering corpus plus
-the new 940-row master curriculum gives 250,940 records across all splits, with 225,843
-training-eligible, 12,585 validation and 12,512 held-out test records. This is a reference subtotal,
+the new 940-row master curriculum gives 250,940 records across all splits, with 225,875
+training-eligible, 12,589 validation and 12,516 held-out test records. This is a reference subtotal,
 not the full public-source/capability inventory and not a claim that the complete merged corpus has
 passed the exact-tokenizer/leakage gate. Rebuild the merged corpus and rerun the audit before training.
 
