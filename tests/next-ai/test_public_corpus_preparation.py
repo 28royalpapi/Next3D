@@ -295,16 +295,24 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             path = Path(temp) / "capability-census.json"
             path.write_text(json.dumps(census), encoding="utf-8")
             lessons = module.make_capability_knowledge_curriculum(path)
-        self.assertEqual(len(lessons), 30)
+        self.assertEqual(len(lessons), 36)
         self.assertEqual(
             sum(row["domain"] == "nextbim_capability_knowledge" for row in lessons), 10
         )
         self.assertEqual(
             sum(row["domain"] == "nextcad_capability_knowledge" for row in lessons), 20
         )
+        self.assertEqual(
+            sum(row["domain"] == "nextcad_workbench_knowledge" for row in lessons), 6
+        )
         self.assertTrue(all(row["evidence_level"] == "L0_metadata_knowledge_authored" for row in lessons))
         self.assertTrue(all(row["record_type"] == "authored_metadata_knowledge_not_native_execution" for row in lessons))
-        self.assertTrue(all("No native object was created" in json.loads(row["completion"])["evidence_boundary"] for row in lessons))
+        module_lesson = next(row for row in lessons if row["capability_type"] == "workbench_or_module")
+        module_target = json.loads(module_lesson["completion"])
+        self.assertIn("source module only", module_target["evidence_boundary"])
+        self.assertEqual(module_target["capability"]["runtime_status"], "not_yet_verified")
+        command_lessons = [row for row in lessons if row["capability_type"] != "workbench_or_module"]
+        self.assertTrue(all("No native object was created" in json.loads(row["completion"])["evidence_boundary"] for row in command_lessons))
         bim_inputs = next(
             json.loads(row["completion"]) for row in lessons
             if row["application"] == "nextbim" and row["learning_dimension"] == "inputs_and_units"
