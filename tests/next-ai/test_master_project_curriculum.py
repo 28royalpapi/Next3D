@@ -34,9 +34,9 @@ class MasterCurriculumTests(unittest.TestCase):
             self.assertFalse(manifest["native_execution_claimed"])
             self.assertEqual(manifest["by_collection"]["NextCAD"], 120)
             self.assertEqual(manifest["by_collection"]["Next BIM"], 120)
-            self.assertEqual(manifest["by_collection"]["Engineering disciplines"], 160)
-            self.assertEqual(manifest["by_collection"]["Complex engineering projects"], 100)
-            self.assertEqual(manifest["by_collection"]["Native operator, tool selection and recovery"], 120)
+            self.assertEqual(manifest["by_collection"]["Engineering disciplines"], 280)
+            self.assertEqual(manifest["by_collection"]["Complex engineering projects"], 200)
+            self.assertEqual(manifest["by_collection"]["Native operator, tool selection and recovery"], 220)
             self.assertEqual(manifest["by_application"], {
                 "nextcad": 120, "nextbim": 120, "engineering": 280,
                 "integrated": 200, "operator": 220,
@@ -58,7 +58,7 @@ class MasterCurriculumTests(unittest.TestCase):
             "Next BIM": 120,
             "Engineering disciplines": 280,
             "Complex engineering projects": 200,
-            "Native operator, tool selection and recovery": 120,
+            "Native operator, tool selection and recovery": 220,
         }
         self.assertEqual(dict(Counter(row["curriculum_collection"] for row in rows)), expected)
 
@@ -76,7 +76,7 @@ class MasterCurriculumTests(unittest.TestCase):
             "Next BIM": 120,
             "Engineering disciplines": 280,
             "Complex engineering projects": 200,
-            "Native operator, tool selection and recovery": 120,
+            "Native operator, tool selection and recovery": 220,
         }
         self.assertEqual(summary["by_collection"], expected_collections)
         by_subject_split = defaultdict(Counter)
