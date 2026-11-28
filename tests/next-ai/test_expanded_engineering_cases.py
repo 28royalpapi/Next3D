@@ -219,6 +219,20 @@ class ExpandedEngineeringCaseTests(unittest.TestCase):
         self.assertEqual(manifest["duplicate_conversation_retries"], 1)
         self.assertEqual(manifest["duplicate_conversation_retries_by_family"], {"test_family": 1})
 
+    def test_zero_case_manifest_retains_the_full_generation_schema(self):
+        splits, manifest = MODULE.generate_cases(cases_per_domain=0, seed=99)
+        self.assertEqual({key: len(rows) for key, rows in splits.items()}, {
+            "train": 0, "validation": 0, "test": 0,
+        })
+        self.assertEqual(manifest["source"], MODULE.SOURCE_NAME)
+        self.assertEqual(manifest["license"], MODULE.SOURCE_LICENSE)
+        self.assertEqual(manifest["generation_method"], "Deterministic analytic engineering cases with unit-aware closed-form solvers")
+        self.assertEqual(manifest["seed"], 99)
+        self.assertEqual(manifest["families"], {})
+        self.assertEqual(manifest["solver_functions"], {})
+        self.assertEqual(manifest["split_counts"], {"train": 0, "validation": 0, "test": 0})
+        self.assertFalse(manifest["native_execution_verified"])
+
     def test_new_families_join_deterministic_l0_corpus_generation(self):
         splits, manifest = MODULE.generate_cases(cases_per_domain=3, seed=20261127)
         self.assertEqual(len(MODULE.FAMILY_BUILDERS), 25)

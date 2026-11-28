@@ -167,6 +167,7 @@ jobs:
             --max-mixed-train 24000
             --max-validation 2500
             --max-test 1200
+            --analytic-cases-per-domain 10000
           )
           if [[ -n "$NEXTCAD_NATIVE_DIR" ]]; then
             args+=(--nextcad-native-train "$NEXTCAD_NATIVE_DIR/sft/train.jsonl"

@@ -817,12 +817,25 @@ def generate_cases(
     result: dict[str, list[dict[str, Any]]] = {split: [] for split in SPLITS}
     if cases_per_domain == 0:
         return result, {
+            "schema_version": 1,
             "source": SOURCE_NAME,
             "license": SOURCE_LICENSE,
+            "generation_method": "Deterministic analytic engineering cases with unit-aware closed-form solvers",
+            "seed": seed,
             "cases_per_domain": 0,
-            "total_records": 0,
-            "split_counts": {split: 0 for split in SPLITS},
             "families": {},
+            "solver_functions": {},
+            "split_counts": {split: 0 for split in SPLITS},
+            "total_records": 0,
+            "duplicate_conversation_retries": 0,
+            "duplicate_conversation_retries_by_family": {},
+            "split_policy": "No analytic records generated because cases_per_domain is zero.",
+            "evidence_level": "L0",
+            "native_execution_verified": False,
+            "limitations": [
+                "No analytic records were generated in this run.",
+                "Analytic cases are educational calculations, not native CAD/BIM execution or professional design approval.",
+            ],
         }
     rng = random.Random(seed)
     family_counts: Counter = Counter()
