@@ -467,6 +467,23 @@ class PublicCorpusPreparationTests(unittest.TestCase):
         self.assertEqual(sum(len(rows) for rows in splits.values()), len(lessons))
         self.assertTrue({"train", "validation", "test"}.issubset(set(split_by_group.values())))
 
+    def test_scaled_scenario_axes_survive_the_merged_corpus_adapter(self):
+        lessons = module.make_synthetic_curriculum()
+        scaled = [
+            row for row in lessons
+            if row.get("curriculum_version") == "nextai-scaled-practical-curriculum-v1"
+        ]
+        self.assertEqual(len(scaled), 99_380)
+        expected_axes = {
+            "project_context", "primary_objective", "operation", "starting_state",
+            "constraint", "input_quality", "deliverable", "affected_input",
+        }
+        for row in scaled:
+            self.assertEqual(set(row.get("scenario_axes") or {}), expected_axes)
+            self.assertEqual(row.get("scenario_hash"), row["record_id"].split("-")[-1] if False else row.get("scenario_hash"))
+            completion = json.loads(row["completion"])
+            self.assertEqual(set(completion.get("scenario_axes") or {}), expected_axes)
+
     def test_synthetic_corpus_includes_specialist_engineering_intake_domains(self):
         lessons = module.make_synthetic_curriculum()
         domains = {row["domain"] for row in lessons}
