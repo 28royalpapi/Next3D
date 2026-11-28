@@ -1220,13 +1220,13 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
     expected_total = len(SPECS) * EXAMPLES_PER_SUBJECT
     if summary["total"] != expected_total:
         raise ValueError(f"Expected {expected_total} master curriculum records, found {summary['total']}")
-    expected_splits = {"train": 752, "validation": 94, "test": 94}
+    expected_splits = {"train": 784, "validation": 98, "test": 98}
     if summary["by_split"] != expected_splits:
         raise ValueError(f"Master curriculum split counts mismatch: {summary['by_split']}")
     expected_collections = {
         "NextCAD": 120, "Next BIM": 120, "Engineering disciplines": 280,
-        "Complex engineering projects": 200,
-        "Native operator, tool selection and recovery": 220,
+        "Complex engineering projects": 230,
+        "Native operator, tool selection and recovery": 230,
     }
     if summary["by_collection"] != expected_collections:
         raise ValueError(f"Master curriculum collection counts mismatch: {summary['by_collection']}")
