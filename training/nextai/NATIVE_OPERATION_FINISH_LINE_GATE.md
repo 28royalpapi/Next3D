@@ -2,6 +2,49 @@
 
 This record tracks native evidence separately from authored curriculum volume.
 
+## Curriculum finish-line snapshot — 28 November 2026
+
+### Authored curriculum volume (not native mastery)
+
+| Curriculum layer | Current materialized target | Evidence boundary |
+|---|---:|---|
+| Practical NextCAD collection | 20,000 | L0 scenario-authored; not all native commands executed |
+| Practical Next BIM collection | 20,000 | L0 scenario-authored; not all BIMCraft commands executed |
+| Engineering disciplines | 20,000 | L0 scenarios; analytical solvers audited separately |
+| Complex engineering projects | 20,000 | L0 scenario-authored |
+| Native operator/tool selection/recovery | 20,000 | L0 scenario-authored; not native traces |
+| Analytical engineering | 25 families × 10,000 = 250,000 | Deterministic formula-backed educational calculations |
+| Pinned BIMCraft command lessons | 215 commands × 10 dimensions = 2,150 | L0 metadata obligations |
+| NextCAD source-module lessons | 32 modules × 6 dimensions = 192 | L0 source knowledge only; not a live runtime census |
+| Local skill lessons | 75 across 16 skill packs | L0 local project knowledge |
+
+The 100,000 practical curriculum has an independently completed exact Qwen/Qwen3.5-0.8B tokenizer audit (95,207,123 text tokens across train/validation/test). The 250,000 analytical source has a previous tokenizer measurement. Neither result substitutes for the fresh audit of the complete merged corpus.
+
+### Latest merged-corpus gate
+
+- The merged-corpus builder reached the exact-tokenizer audit but failed because identical normalized model-facing conversations were found across training and validation.
+- The failure is a real hold: no split leakage may be waived to force a PASS.
+- A read-only diagnostic has been added to report exact duplicate records, sources, domains, record IDs, image fingerprints and split-group lineage. It must run before the next repair; records must not be silently discarded or moved.
+- The diagnostic's first workflow invocation exposed a malformed shell command; that command was corrected in commit b0d7d7ddb2565b0978613097e23f3e175ce05454. The corrected workflow run is still in progress at the time of this snapshot.
+
+### Native application evidence
+
+- NextCAD: the prior acceptance macro passed create/edit/save/reopen but failed its final Boolean-volume assertion. The assertion was corrected to compare the final recomputed pre-save and post-reopen volume. A real native Linux GUI acceptance run and a live command/API census are still required.
+- Next BIM: the earlier six native records covered only the wall command. The runner now exercises wall and floor in each split; the new native Linux acceptance artifact must prove both commands in train, validation and test before those records are admitted.
+- Source-module counts, metadata lessons, compile checks and unit tests must never be presented as proof of GUI execution.
+
+### Definition of the finish line before the first fine-tuning pilot
+
+1. Every included dataset source has documented provenance/licence, record counts and explicit split lineage.
+2. The full merged corpus builds from the intended sources; duplicate IDs, duplicate conversations and source-group leakage are zero. The exact Qwen tokenizer audit passes on the final merged train/validation/test files.
+3. The 25 analytical families each retain 10,000 records, and all solver, unit, invalid-input and split tests pass.
+4. The 100,000 practical curriculum remains balanced at 20,000 per collection with 80/10/10 split allocation.
+5. BIMCraft's 215 registered commands and NextCAD's live runtime command/API census are represented accurately; unsupported or unverified operations remain explicit coverage gaps.
+6. Native acceptance artifacts prove the supported NextCAD and Next BIM operations execute and survive save/reopen, with disjoint train/validation/test lineages.
+7. Independent held-out exams and engineering benchmarks remain excluded from training. Base-model evaluation is recorded so the tuned candidate can be compared against it.
+
+Passing this gate authorizes a **bounded, zero-cost first fine-tuning pilot**, not a claim that NextAI has mastered every professional engineering task. Promotion to a broader operator model requires the candidate to improve held-out results without increasing invalid or unsafe native operations.
+
 ## Current source inventories
 
 - BIMCraft is pinned to \`a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b\` and its checked-in catalogue contains 215 command registrations.
