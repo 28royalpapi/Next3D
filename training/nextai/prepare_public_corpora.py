@@ -28,7 +28,7 @@ BIM_QA_DATASET = "Dietmar2020/ifc-bim-qa-dataset"
 BUILDENG_DATASET = "Irfanuruchi/buildeng"
 
 from buildeng_dataset import make_buildeng_record
-from generate_verified_engineering_cases import generate_cases
+from generate_verified_engineering_cases import FAMILY_BUILDERS, generate_cases
 from nextai_master_curriculum import make_master_project_curriculum, summarize_master_curriculum_splits, separate_master_curriculum_splits
 from scaled_practical_curriculum import make_scaled_curriculum_expansion, separate_scaled_curriculum_splits, summarize_scaled_curriculum
 
@@ -3591,6 +3591,14 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "engineering_electrical_three_phase_power": 0.025,
         "engineering_surveying_leveling": 0.03,
         "engineering_structural_section_properties": 0.03,
+        "engineering_structural_euler_column_buckling": 0.035,
+        "engineering_geotechnical_rankine_active_pressure": 0.035,
+        "engineering_hydraulics_hydrostatic_gate": 0.025,
+        "engineering_geotechnical_terzaghi_strip_footing": 0.035,
+        "engineering_geotechnical_infinite_slope": 0.035,
+        "engineering_hydraulics_rational_method_runoff": 0.025,
+        "engineering_hydraulics_water_pump_power": 0.025,
+        "engineering_geotechnical_elastic_foundation_settlement": 0.035,
         "civil_earthwork_average_end_area": 0.025,
         "nextcad_capability_knowledge": 0.10,
         "nextbim_capability_knowledge": 0.12,
@@ -3634,6 +3642,12 @@ def sample_balanced(groups: dict[str, list[dict[str, Any]]], limit: int, seed: i
         "nextcad_native": 0.05,
         "nextbim_native": 0.05,
     }
+    missing_analytic_weights = sorted(set(FAMILY_BUILDERS) - set(weights))
+    if missing_analytic_weights:
+        raise ValueError(
+            "Analytic engineering families lack explicit sampler weights: "
+            + ", ".join(missing_analytic_weights)
+        )
     pools = {key: list(rows) for key, rows in groups.items() if rows}
     if not pools or limit <= 0:
         return []

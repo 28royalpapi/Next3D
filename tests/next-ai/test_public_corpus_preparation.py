@@ -103,6 +103,44 @@ class TrainingDatasetIntegrityTests(unittest.TestCase):
 
 
 class PublicCorpusPreparationTests(unittest.TestCase):
+    def test_every_analytic_family_has_an_explicit_sampler_weight(self):
+        self.assertEqual(set(module.FAMILY_BUILDERS) - {
+            "engineering_statics_beam_udl",
+            "engineering_statics_beam_centre_load",
+            "engineering_statics_cantilever_tip_load",
+            "engineering_structural_axial_bar",
+            "engineering_mechanical_torsion",
+            "engineering_hydraulics_continuity",
+            "engineering_hydraulics_darcy_weisbach",
+            "engineering_hydraulics_manning",
+            "engineering_geotechnical_effective_stress",
+            "engineering_geotechnical_consolidation",
+            "construction_concrete_quantity",
+            "construction_reinforcement_mass",
+            "engineering_mechanical_gear_ratio",
+            "engineering_electrical_three_phase_power",
+            "engineering_surveying_leveling",
+            "engineering_structural_section_properties",
+            "civil_earthwork_average_end_area",
+            "engineering_structural_euler_column_buckling",
+            "engineering_geotechnical_rankine_active_pressure",
+            "engineering_hydraulics_hydrostatic_gate",
+            "engineering_geotechnical_terzaghi_strip_footing",
+            "engineering_geotechnical_infinite_slope",
+            "engineering_hydraulics_rational_method_runoff",
+            "engineering_hydraulics_water_pump_power",
+            "engineering_geotechnical_elastic_foundation_settlement",
+        }, set())
+
+    def test_sampler_fails_closed_when_a_new_analytic_family_has_no_weight(self):
+        original = module.FAMILY_BUILDERS
+        try:
+            module.FAMILY_BUILDERS = {**original, "engineering_unweighted_future_family": (None, None)}
+            with self.assertRaisesRegex(ValueError, "lack explicit sampler weights"):
+                module.sample_balanced({}, 1, 1)
+        finally:
+            module.FAMILY_BUILDERS = original
+
     def test_load_stream_uses_tiny_buffer_for_multiview_cad_images(self):
         class FakeIterable:
             def __init__(self):
