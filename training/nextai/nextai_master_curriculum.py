@@ -1139,6 +1139,13 @@ def make_master_project_curriculum() -> list[dict[str, Any]]:
                 "curriculum_version": VERSION,
                 "curriculum_item_id": item_id,
                 "curriculum_subject_id": spec["id"],
+                "curriculum_stage": {
+                    "nextcad": "cad_bim_fluency",
+                    "nextbim": "cad_bim_fluency",
+                    "engineering": "engineering_disciplines",
+                    "operator": "operator_methods",
+                    "integrated": "integrated_projects",
+                }[application],
                 "curriculum_collection": COLLECTION_BY_APPLICATION[application],
                 "curriculum_variant_id": variant["id"],
                 "application": application,
@@ -1169,6 +1176,7 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
         "by_application": {},
         "by_domain": {},
         "by_stage": {},
+        "by_training_stage": {},
         "by_variant": {},
         "by_split_and_variant": {},
         "by_split_and_collection": {},
@@ -1194,12 +1202,13 @@ def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) 
             application = str(row.get("application", "unknown"))
             domain = str(row.get("domain", "unknown"))
             stage = str(row.get("stage", "unknown"))
+            training_stage = str(row.get("curriculum_stage", "unknown"))
             variant_id = str(row.get("curriculum_variant_id", "unknown"))
             assigned_split = str(row.get("curriculum_split", ""))
             if assigned_split != split:
                 raise ValueError(f"Master curriculum record {rid} assigned to {split}, expected {assigned_split}")
             for key, value in (("by_collection", collection), ("by_application", application),
-                               ("by_domain", domain), ("by_stage", stage), ("by_variant", variant_id)):
+                               ("by_domain", domain), ("by_stage", stage), ("by_training_stage", training_stage), ("by_variant", variant_id)):
                 summary[key][value] = summary[key].get(value, 0) + 1
             split_collection = summary["by_split_and_collection"][split]
             split_collection[collection] = split_collection.get(collection, 0) + 1
