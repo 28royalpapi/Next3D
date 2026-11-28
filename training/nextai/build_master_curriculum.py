@@ -101,6 +101,7 @@ def build(output_dir: Path) -> dict[str, Any]:
         "by_application": coverage["by_application"],
         "by_domain": coverage["by_domain"],
         "by_stage": coverage["by_stage"],
+        "by_training_stage": coverage["by_training_stage"],
         "by_variant": coverage["by_variant"],
         "by_split": coverage["by_split"],
         "by_split_and_variant": coverage["by_split_and_variant"],
