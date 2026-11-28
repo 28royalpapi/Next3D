@@ -110,6 +110,99 @@ Train on tasks that begin from an existing model: move a wall without losing its
 
 Include unusual combinations and open-ended prompts: redesign a bottle into a refillable dispenser; convert a standard building floor into a plant level; fit a mechanical assembly into a constrained enclosure; adapt a tower for a different occupancy; remodel an existing building around a new stair core; create a modular product family from one parameterised master. The model should combine known operations compositionally and use live capability discovery when it encounters an unfamiliar command.
 
+## Discipline and stage coverage addendum — master curriculum v3
+
+This addendum makes explicit the specialist and operator coverage added to the authored master
+curriculum. It complements the native capability census; it does not redefine L0 as execution
+evidence.
+
+### Stage 3 — Specialist engineering beyond civil
+
+Specialist coverage must not be civil-only. NextAI must learn the discipline-specific inputs,
+coordinate conventions, design objects, analysis workflows, drawing/schedule outputs and
+validation boundaries used by electrical, mechanical, controls and product engineers as well as
+civil, structural and geotechnical engineers.
+
+**Electrical power and building electrical:** load schedules; connected load versus maximum
+demand; diversity; phases and balancing; distribution boards and single-line diagrams; cable
+routes and installation conditions; voltage drop; fault levels; protective-device duties and
+coordination; earthing and bonding; lightning protection; normal and emergency lighting; standby
+power, UPS and generator interfaces; renewable PV, battery and hybrid microgrids.
+
+**Industrial electrical, automation and instrumentation:** switchboards and motor-control
+centres; motor starters, drives and VFDs; control-panel layouts; PLC/DCS I/O lists; sensor and
+actuator selection from supplied datasheets; process instrumentation; control-loop diagrams;
+interlocks, alarms and cause-and-effect matrices; cable segregation, grounding and EMC interfaces.
+Safety-integrity claims and protection settings require verified design inputs and specialist
+review.
+
+**Mechanical, thermal and building services:** HVAC zone loads; ventilation; air distribution;
+duct and pipe routing; pumps and fans; pressure loss; thermal balances; heat exchangers; process
+cooling; machine elements; shafts, bearings, gears, couplings and drives; fatigue and tolerance
+considerations; equipment packaging; maintenance and replacement clearances.
+
+**Product, manufacturing and mechatronics:** functional requirements; parametric components;
+material/process selection from sourced properties; datum and tolerance strategy; sheet metal,
+machining, moulding and additive manufacture; assembly sequence; BOM/drawings; sensors, motors,
+electronics, cable paths, enclosures, cooling and serviceability. A model must distinguish a
+visual envelope from dimensioned, analysed, tested or production-approved geometry.
+
+### Stage 4 — Engineering operator method
+
+Operator teaching is a repeatable observable protocol, not memorisation of command names:
+
+1. Conduct an adaptive design interview using known conversation and model context; ask one
+   high-value question at a time, retain confirmed answers and do not ask them again.
+2. Convert answers into a requirements register that distinguishes facts, preferences,
+   assumptions, constraints, dependencies and unknowns.
+3. Inspect the live native document, discover the installed capability and current typed schema,
+   and distinguish discoverable commands from allowed/callable tools.
+4. Decompose the brief into dependency-aware tasks and sequence them across disciplines.
+5. Validate preconditions, units, object identity, permissions and expected postconditions before
+   each bounded native write.
+6. Execute one coherent action, inspect the actual after-state, and use that observation to decide
+   whether the next action may proceed.
+7. Edit existing objects in place where possible, track dependency and revision impacts, and
+   preserve a recoverable baseline.
+8. Recover from partial success, timeout, schema drift, failed recompute and unintended geometry
+   using state inspection, idempotency checks and scoped rollback rather than blind retry.
+9. Guard batch operations with preview IDs/counts, exclusions, chunk checkpoints and reconciliation.
+10. Hand off the artifact with native evidence, save/reopen state, failed/skipped checks, open
+    engineering approvals and precise limitations.
+
+No operator lesson may claim execution merely because a plan or command schema exists.
+
+### Stage 5 — Complete products and multidisciplinary projects
+
+The project curriculum must exercise full building and infrastructure work as well as complex
+mechanical and electromechanical products. The v3 authored subjects add the following full-project
+families: data centre; manufacturing factory; solar-hybrid microgrid; water-treatment plant;
+airport terminal; electrical substation; hospital expansion; transport and utility corridor;
+mixed-use high-rise; warehouse/logistics centre; automated packaging machine; microwave appliance;
+and an unfamiliar autonomous-inspection robot.
+
+The packaging machine integrates frame, conveyor, guarded mechanisms, drives, bearings,
+pneumatics, sensors, PLC I/O, electrical cabinet, cable/air routing and manufacturing drawings.
+The microwave appliance integrates enclosure/cavity, door and hinge/latch, electrical modules,
+cooling, wiring and production/service interfaces. The unfamiliar robot task explicitly requires
+an interview, live capability discovery and compositional reuse of native operations rather than
+copying an existing project template.
+
+Every integrated project must include a brief, discipline inputs, shared datums/interfaces,
+dependency sequence, native object plan, coordination checks, revision/change-impact behaviour,
+deliverables, and explicit non-claims. The 18-task practical examination remains held out from
+training and retrieval.
+
+### Current master authored materialization target
+
+Master curriculum v3 currently defines **98 subjects and 980 L0 examples**: 12 NextCAD subjects,
+12 Next BIM subjects, 28 specialist engineering subjects, 23 integrated-project subjects and
+23 operator subjects. Each subject has eight training variants, one delivery validation variant
+and one independent-review held-out test variant, giving 784/98/98. These counts describe this
+authored master collection only; they do not replace the separate practical, analytic, native
+execution, capability-census or public-source dataset counts. The complete merged-corpus audit
+must be rerun after this collection is included.
+
 ## Scenario scale and counting rules
 
 The programme is coverage-driven, not quota-driven. No total scenario count per application has been approved by the project owner. The 10,000-case and 100,000-case figures previously proposed are optional scale-expansion experiments only; they are not prerequisites for the first comprehensive training run and must not keep the project in curriculum preparation indefinitely.
