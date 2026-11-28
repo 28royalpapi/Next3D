@@ -87,8 +87,8 @@ class CapabilityLearningCurriculumTests(unittest.TestCase):
                         row = json.loads(line)
                         self.assertEqual(row["curriculum_split"], split)
                         group = row["split_group"]
-                        self.assertNotIn(group, seen, group)
-                        seen[group] = split
+                        prior = seen.setdefault(group, split)
+                        self.assertEqual(prior, split, f"split-group leakage: {group} appears in {prior} and {split}")
             self.assertGreater(manifest["local_skill_l0_lessons"], 0)
             self.assertEqual(manifest["local_skill_count"], 16)
 
