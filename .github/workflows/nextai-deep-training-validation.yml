@@ -74,7 +74,7 @@ jobs:
           python -m unittest discover -s tests/next-ai -p 'test_nextcad_ai_acceptance.py' -v
       - name: Test 100,000-example practical curriculum scale and split integrity
         run: python -m unittest discover -s tests/next-ai -p 'test_scaled_practical_curriculum.py' -v
-      - name: Materialize and verify 940 authored master curriculum examples
+      - name: Materialize and verify 980 authored master curriculum examples
         run: python training/nextai/build_master_curriculum.py --output-dir "$RUNNER_TEMP/nextai-master-curriculum"
       - name: Upload exact master curriculum splits and manifest
         uses: actions/upload-artifact@v4
