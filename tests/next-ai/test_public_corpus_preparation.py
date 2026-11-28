@@ -484,6 +484,23 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             self.assertEqual(len(scenario_hash), 64)
             self.assertTrue(row["curriculum_item_id"].endswith(scenario_hash[:20]))
 
+        master = [
+            row for row in lessons
+            if row.get("curriculum_version") == "nextai-master-curriculum-v3"
+        ]
+        self.assertEqual(len(master), 980)
+        stage_counts = {}
+        for row in master:
+            stage = row.get("curriculum_stage")
+            stage_counts[stage] = stage_counts.get(stage, 0) + 1
+            self.assertEqual(train_module.curriculum_stage_for_record(row), stage)
+        self.assertEqual(stage_counts, {
+            "cad_bim_fluency": 240,
+            "engineering_disciplines": 280,
+            "operator_methods": 230,
+            "integrated_projects": 230,
+        })
+
     def test_synthetic_corpus_includes_specialist_engineering_intake_domains(self):
         lessons = module.make_synthetic_curriculum()
         domains = {row["domain"] for row in lessons}
