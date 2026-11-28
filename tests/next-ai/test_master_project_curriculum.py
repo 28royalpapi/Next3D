@@ -59,6 +59,7 @@ class MasterCurriculumTests(unittest.TestCase):
     def test_split_counts_are_exact_and_each_subject_spans_all_splits(self):
         rows = module.make_master_project_curriculum()
         splits = corpus_module.split_synthetic_curriculum(rows)
+        self.assertEqual(build_module.split_curriculum(rows), splits)
         summary = module.summarize_master_curriculum_splits(splits)
         self.assertEqual(summary["total"], 620)
         self.assertEqual(summary["by_split"], {"train": 496, "validation": 62, "test": 62})
