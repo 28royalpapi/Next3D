@@ -29,7 +29,7 @@ BUILDENG_DATASET = "Irfanuruchi/buildeng"
 
 from buildeng_dataset import make_buildeng_record
 from generate_verified_engineering_cases import generate_cases
-from nextai_master_curriculum import make_master_project_curriculum
+from nextai_master_curriculum import make_master_project_curriculum, summarize_master_curriculum_splits
 
 CAD_SYSTEM = (
     "You are NextAI, a CAD geometry and parametric-design specialist. "
@@ -3445,6 +3445,9 @@ def make_synthetic_curriculum() -> list[dict[str, Any]]:
                 if lesson.get("skill_name") else "Next3D original synthetic curriculum"
             ),
             "license": "project-authored",
+            **({"curriculum_version": lesson["curriculum_version"],
+                "curriculum_item_id": lesson["record_id"]}
+               if lesson.get("curriculum_version") and lesson.get("record_id") else {}),
             **({"split_group": lesson["split_group"], "stage": lesson["stage"]}
                if lesson.get("split_group") else {}),
             **({"skill_name": lesson["skill_name"], "skill_section": lesson["skill_section"],
@@ -3907,6 +3910,10 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         native_application_splits[(application, split)].extend(rows)
         counts[f"{domain}_{split}"] = len(rows)
     synthetic_splits = split_synthetic_curriculum(make_synthetic_curriculum())
+    master_curriculum_coverage = summarize_master_curriculum_splits(synthetic_splits)
+    for split_name, count in master_curriculum_coverage["by_split"].items():
+        counts[f"master_curriculum_{split_name}"] = count
+    counts["master_curriculum_total"] = master_curriculum_coverage["total"]
     for lesson in synthetic_splits["train"]:
         groups.setdefault(lesson["domain"], []).append(lesson)
     validation.extend(synthetic_splits["validation"])
@@ -3992,6 +3999,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "test_records": len(test_rows),
         "quarantined_rows": len(quarantine),
         "training_domain_counts": dict(Counter(row["domain"] for row in train)),
+        "authored_master_curriculum_coverage": master_curriculum_coverage,
         "native_execution_trace_records": {
             application: {
                 split: len(native_application_splits[(application, split)])

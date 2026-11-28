@@ -511,3 +511,41 @@ def make_master_project_curriculum() -> list[dict[str, Any]]:
             "evidence_level": "L0_authored_learning_example",
         })
     return records
+
+
+def summarize_master_curriculum_splits(splits: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    """Count only master-curriculum records after the corpus split has been assigned."""
+    summary: dict[str, Any] = {
+        "version": VERSION,
+        "total": 0,
+        "by_split": {},
+        "by_domain": {},
+        "by_application": {},
+        "evidence_level": "L0_authored_learning_example",
+        "native_execution_claimed": False,
+    }
+    for split in ("train", "validation", "test"):
+        rows = [
+            row for row in splits.get(split, [])
+            if row.get("curriculum_version") == VERSION
+        ]
+        summary["by_split"][split] = len(rows)
+        summary["total"] += len(rows)
+        for row in rows:
+            domain = str(row.get("domain", "unknown"))
+            summary["by_domain"][domain] = summary["by_domain"].get(domain, 0) + 1
+            try:
+                target = json.loads(row.get("completion", "{}"))
+            except (TypeError, json.JSONDecodeError):
+                target = {}
+            application = str(target.get("application", "unknown"))
+            summary["by_application"][application] = summary["by_application"].get(application, 0) + 1
+            if target.get("evidence_level") != "L0_authored_learning_example":
+                raise ValueError(f"Master curriculum record {row.get('record_id')} has an invalid evidence level")
+            if target.get("execution_status") != "not_executed_by_this_example":
+                raise ValueError(f"Master curriculum record {row.get('record_id')} claims native execution")
+    if summary["total"] != len(SPECS):
+        raise ValueError(
+            f"Master curriculum split count mismatch: expected {len(SPECS)}, found {summary['total']}"
+        )
+    return summary
