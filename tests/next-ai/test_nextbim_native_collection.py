@@ -167,21 +167,41 @@ class PrepareNativeSftTests(unittest.TestCase):
             self.assertEqual(target["steps"][0]["tool"], "wall")
             self.assertNotIn("tools", example)
 
-    def test_nextbim_native_record_builder_produces_schema_valid_record(self):
+    def test_nextbim_native_record_builder_produces_schema_valid_wall_record(self):
         from scripts.run_nextbim_ai_acceptance import build_native_record
         before = {"format": "BIMC", "uri": "before.bimc", "sha256": "a" * 64, "state_summary": {"counts": {"wall": 4}}}
         after = {"format": "BIMC", "uri": "after.bimc", "sha256": "b" * 64, "state_summary": {"counts": {"wall": 5}}}
         record = build_native_record(
             record_id="nextbim-train-wall-1", split="train", scenario_id="train-compact",
-            prompt="Add a BIM wall from (1,2) to (3,2) mm.", points=[[1.0, 2.0], [3.0, 2.0]],
-            before_state=before, after_state=after, before_wall_count=4, after_wall_count=5,
+            prompt="Add a BIM wall from (1,2) to (3,2) mm.",
+            command_id="wall", command_args={"points": [[1.0, 2.0], [3.0, 2.0]]},
+            category="wall", before_state=before, after_state=after, before_count=4, after_count=5,
             cli_stdout='{"created":123}', application_version="bimcraft-cli 0.1",
         )
         module.validate_training_record(record)
         self.assertEqual(record["application"], "nextbim")
         self.assertEqual(record["operations"][0]["tool"], "wall")
+        self.assertEqual(record["operations"][0]["result"]["element_category"], "wall")
         self.assertEqual(record["split"], "train")
         self.assertEqual(record["validation"]["checks"][0]["actual"], 5)
+
+    def test_nextbim_native_record_builder_produces_schema_valid_floor_record(self):
+        from scripts.run_nextbim_ai_acceptance import build_native_record
+        before = {"format": "BIMC", "uri": "before.bimc", "sha256": "a" * 64, "state_summary": {"counts": {"floor": 1}}}
+        after = {"format": "BIMC", "uri": "after.bimc", "sha256": "b" * 64, "state_summary": {"counts": {"floor": 2}}}
+        boundary = [[15000.0, 12000.0], [18000.0, 12000.0], [18000.0, 15000.0], [15000.0, 15000.0]]
+        record = build_native_record(
+            record_id="nextbim-train-floor-1", split="train", scenario_id="train-compact",
+            prompt="Create a floor inside the specified boundary.",
+            command_id="floor", command_args={"boundary": boundary},
+            category="floor", before_state=before, after_state=after, before_count=1, after_count=2,
+            cli_stdout='{"id":124,"area_m2":9}', application_version="bimcraft-cli 0.1",
+        )
+        module.validate_training_record(record)
+        self.assertEqual(record["operations"][0]["tool"], "floor")
+        self.assertEqual(record["operations"][0]["arguments"]["boundary"], boundary)
+        self.assertEqual(record["operations"][0]["result"]["element_category"], "floor")
+        self.assertEqual(record["validation"]["checks"][0]["check_id"], "floor_count_increment")
 
     def test_failed_native_validation_is_quarantined(self):
         item = make_record()

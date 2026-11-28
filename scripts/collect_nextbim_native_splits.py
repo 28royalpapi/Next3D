@@ -88,27 +88,31 @@ def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[st
             raise ValueError(f"Next BIM {split} record has no distinct valid saved after-project SHA-256")
         operations = row.get("operations")
         if not isinstance(operations, list) or len(operations) != 1:
-            raise ValueError(f"Next BIM {split} acceptance record must contain exactly one native wall command")
+            raise ValueError(f"Next BIM {split} acceptance record must contain exactly one native operation")
         operation = operations[0]
         if operation.get("status") != "applied":
             raise ValueError(f"Next BIM {split} record contains a failed command")
-        if operation.get("tool") != "wall":
-            raise ValueError(f"Next BIM {split} acceptance trace may contain only native wall commands")
+        command_id = str(operation.get("tool") or "")
+        if command_id not in {"wall", "floor"}:
+            raise ValueError(f"Next BIM {split} acceptance trace contains an unsupported command: {command_id}")
         if operation.get("before_state_hash") != before_hash or operation.get("after_state_hash") != after_hash:
             raise ValueError(f"Next BIM {split} operation hashes do not match the native before/after states")
         result = operation.get("result") or {}
+        category = str(result.get("element_category") or "")
+        if category != command_id:
+            raise ValueError(f"Next BIM {split} command/category mismatch: {command_id}/{category}")
         try:
-            count_before = int(result.get("wall_count_before"))
-            count_after = int(result.get("wall_count_after_reopen"))
+            count_before = int(result.get("element_count_before"))
+            count_after = int(result.get("element_count_after_reopen"))
             count_delta = int(result.get("count_delta"))
         except (TypeError, ValueError):
-            raise ValueError(f"Next BIM {split} wall command has incomplete reopened-count evidence")
+            raise ValueError(f"Next BIM {split} {command_id} command has incomplete reopened-count evidence")
         if count_after != count_before + 1 or count_delta != 1:
-            raise ValueError(f"Next BIM {split} wall command does not prove exactly one persisted wall")
+            raise ValueError(f"Next BIM {split} {command_id} command does not prove exactly one persisted element")
         checks = validation.get("checks") or []
-        increment = next((item for item in checks if item.get("check_id") == "wall_count_increment"), None)
+        increment = next((item for item in checks if item.get("check_id") == f"{category}_count_increment"), None)
         if not increment or increment.get("status") != "pass":
-            raise ValueError(f"Next BIM {split} record lacks a passing wall-count validation check")
+            raise ValueError(f"Next BIM {split} record lacks a passing {category}-count validation check")
         if increment.get("expected") != count_before + 1 or increment.get("actual") != count_after:
             raise ValueError(f"Next BIM {split} validation count does not match the recorded CLI result")
         operation_count += 1
@@ -116,8 +120,21 @@ def validate_split_trace_rows(split: str, rows: list[dict[str, Any]]) -> dict[st
         raise ValueError(f"Next BIM {split} stage records must share one source lineage")
     if len(prompts) != 2:
         raise ValueError(f"Next BIM {split} stage prompts must be present and distinct")
-    return {"records": len(rows), "source_id": next(iter(lineages)), "record_ids": sorted(ids),
-            "operation_count": operation_count, "scenario_id": SCENARIOS[split][0], "scenario_scale": SCENARIOS[split][1]}
+    command_ids = {
+        str((row.get("operations") or [{}])[0].get("tool") or "")
+        for row in rows
+    }
+    if command_ids != {"wall", "floor"}:
+        raise ValueError(f"Next BIM {split} must have one native wall and one native floor trace; found {sorted(command_ids)}")
+    return {
+        "records": len(rows),
+        "source_id": next(iter(lineages)),
+        "record_ids": sorted(ids),
+        "operation_count": operation_count,
+        "commands": sorted(command_ids),
+        "scenario_id": SCENARIOS[split][0],
+        "scenario_scale": SCENARIOS[split][1],
+    }
 
 
 def validate_source_lineage_separation(reports: dict[str, dict[str, Any]]) -> None:
@@ -175,7 +192,7 @@ def collect_trace_files(trace_files: dict[str, Path], output_dir: Path) -> dict[
         ),
         "sft_summary": describe_artifact(output_dir / "sft" / "summary.json", output_dir),
     }
-    manifest={"schema_version":"nextbim.native-trace-corpus.v1","application":"nextbim","source_revision":"a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b","evidence_level":"L3 native CLI execution + L4 project save/reopen","independent_engineering_validation":"not_claimed","synthetic_acceptance_fixtures":True,"split_record_counts":actual,"splits":reports,"raw_trace_file":raw.name,"raw_trace_sha256":sha256_file(raw),"sft_output_dir":"sft","sft_summary":summary,"artifact_inventory":artifact_inventory,"source_lineages_disjoint":True,"note":"Native BIMCraft wall-command acceptance examples. They test command execution and project persistence; independent geometric and engineering validation is not claimed."}
+    manifest={"schema_version":"nextbim.native-trace-corpus.v1","application":"nextbim","source_revision":"a0c57b738e308d433ab4b8c0c93d7fff9e53bc1b","evidence_level":"L3 native CLI execution + L4 project save/reopen","independent_engineering_validation":"not_claimed","synthetic_acceptance_fixtures":True,"split_record_counts":actual,"splits":reports,"raw_trace_file":raw.name,"raw_trace_sha256":sha256_file(raw),"sft_output_dir":"sft","sft_summary":summary,"artifact_inventory":artifact_inventory,"source_lineages_disjoint":True,"note":"Native BIMCraft wall and floor command acceptance examples. They test two distinct command paths and project persistence; independent geometric and engineering validation is not claimed."}
     (output_dir/"manifest.json").write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
     return manifest
 

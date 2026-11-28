@@ -38,16 +38,18 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
 
     def rows(self, split, scenario):
         result = []
-        for index, stage in enumerate(("a", "b")):
-            count_before = 5 + index
-            count_after = count_before + 1
+        stages = (
+            ("a", "wall", "wall", 5, 6),
+            ("b", "floor", "floor", 1, 2),
+        )
+        for stage, command, category, count_before, count_after in stages:
             result.append({
                 "schema_version": "1.0.0",
                 "record_id": f"{scenario}-{stage}",
                 "application": "nextbim",
                 "split": split,
                 "source": {"source_id": f"native-bim:{scenario}:{split}:a0c57b738e308d433ab4b8c0c93d7fff9e53bc1"},
-                "task": {"prompt": f"Add wall stage {stage} for {scenario}."},
+                "task": {"prompt": f"Add native {command} stage {stage} for {scenario}."},
                 "native_states": {
                     "before": {"sha256": "b" * 64},
                     "after": {"sha256": "a" * 64},
@@ -57,20 +59,21 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
                     "round_trip_passed": True,
                     "recompute_passed": True,
                     "checks": [{
-                        "check_id": "wall_count_increment",
+                        "check_id": f"{category}_count_increment",
                         "status": "pass",
                         "expected": count_after,
                         "actual": count_after,
                     }],
                 },
                 "operations": [{
-                    "tool": "wall",
+                    "tool": command,
                     "status": "applied",
                     "before_state_hash": "b" * 64,
                     "after_state_hash": "a" * 64,
                     "result": {
-                        "wall_count_before": count_before,
-                        "wall_count_after_reopen": count_after,
+                        "element_category": category,
+                        "element_count_before": count_before,
+                        "element_count_after_reopen": count_after,
                         "count_delta": 1,
                     },
                 }],
@@ -105,10 +108,20 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "does not match its scenario"):
             validate_split_trace_rows("train", rows)
 
-    def test_collector_rejects_commands_outside_wall_acceptance_scope(self):
+    def test_collector_requires_wall_and_floor_in_each_split(self):
+        rows = self.rows("test", "test-expanded")
+        rows[1]["operations"][0]["tool"] = "wall"
+        rows[1]["operations"][0]["result"]["element_category"] = "wall"
+        rows[1]["validation"]["checks"][0]["check_id"] = "wall_count_increment"
+        with self.assertRaisesRegex(ValueError, "one native wall and one native floor"):
+            validate_split_trace_rows("test", rows)
+
+    def test_collector_rejects_commands_outside_accepted_native_scope(self):
         rows = self.rows("test", "test-expanded")
         rows[0]["operations"][0]["tool"] = "beam"
-        with self.assertRaisesRegex(ValueError, "only native wall commands"):
+        rows[0]["operations"][0]["result"]["element_category"] = "beam"
+        rows[0]["validation"]["checks"][0]["check_id"] = "beam_count_increment"
+        with self.assertRaisesRegex(ValueError, "unsupported command"):
             validate_split_trace_rows("test", rows)
 
     def test_operation_hashes_must_match_native_before_and_after_states(self):
@@ -117,10 +130,10 @@ class NextBIMNativeSplitValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "operation hashes do not match"):
             validate_split_trace_rows("test", rows)
 
-    def test_native_wall_count_must_increase_exactly_once(self):
+    def test_native_element_count_must_increase_exactly_once(self):
         rows = self.rows("test", "test-expanded")
         rows[0]["operations"][0]["result"]["count_delta"] = 2
-        with self.assertRaisesRegex(ValueError, "does not prove exactly one persisted wall"):
+        with self.assertRaisesRegex(ValueError, "does not prove exactly one persisted element"):
             validate_split_trace_rows("test", rows)
 
     def test_validation_count_must_match_reopened_cli_result(self):
