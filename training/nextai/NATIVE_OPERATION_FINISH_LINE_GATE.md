@@ -86,3 +86,12 @@ The 32 source modules must not be reported as 32 live workbenches, and no NextCA
 - A passing compile, unit test or source inspection is not proof of GUI/runtime availability.
 - A valid BIM object-count round trip is not proof of geometric correctness, code compliance or professional engineering adequacy.
 - Fine-tuning has not started and no trained adapter/checkpoint is claimed by this gate document.
+
+## Bounded finish-line review — 28 November 2026
+
+- The 100,000-example practical curriculum is allocated at exactly 20,000 per collection and 80/10/10 train/validation/test.
+- The scaled-curriculum builder now audits all eight scenario axes in every collection. It verifies that every option defined in that collection's profile appears at least once and reports per-option minimum/maximum example counts. Regression test: `test_every_profile_option_is_represented_in_each_collection`.
+- The profile-option coverage regression passed in the deep-training validation workflow for commit `db8bc1912ea4161a9c2bcff17a3ce004492c4420`; the complete Qwen tokenizer and remaining validation steps were still running at this snapshot.
+- Ordinary pushes to `nextai-deep-training` intentionally skip native builds. This commit explicitly requests the Linux native acceptance jobs with the required `[run-native-build]` marker. Do not infer any native PASS until the resulting NextCAD and Next BIM artifacts are inspected.
+- The merged-corpus exact-tokenizer audit remains a separate gate. A prior attempt was cancelled during audit; the retried CPU-only corpus build must complete and produce its final result. Its read-only leakage diagnostic must be run against the actual generated train/validation/test files before any split repair.
+- Fine-tuning remains blocked. No GPU/CPU fine-tuning job, adapter, or trained checkpoint has been started or produced.
