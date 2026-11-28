@@ -759,6 +759,7 @@ def summarize_scaled_curriculum(
         "blocked_input_ratio_in_expansion": round(blocked_ratio, 6),
         "unique_record_ids": len({row["record_id"] for row in all_rows}),
         "unique_normalized_prompts": len({" ".join(row["prompt"].lower().split()) for row in all_rows}),
+        "scenario_axis_coverage": scenario_axis_coverage,
         "scenario_dimensions": [
             "project_context", "primary_objective", "operation", "starting_state",
             "constraint", "input_quality", "deliverable", "affected_input",
