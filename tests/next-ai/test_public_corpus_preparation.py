@@ -473,7 +473,7 @@ class PublicCorpusPreparationTests(unittest.TestCase):
             row for row in lessons
             if row.get("curriculum_version") == "nextai-scaled-practical-curriculum-v1"
         ]
-        self.assertEqual(len(scaled), 99_380)
+        self.assertEqual(len(scaled), 99_020)
         expected_axes = {
             "project_context", "primary_objective", "operation", "starting_state",
             "constraint", "input_quality", "deliverable", "affected_input",
