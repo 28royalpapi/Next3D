@@ -24,10 +24,13 @@ class MasterCurriculumTests(unittest.TestCase):
     def test_materialized_files_and_manifest_report_exact_student_examples(self):
         with tempfile.TemporaryDirectory() as temp:
             manifest = build_module.build(Path(temp))
-            self.assertEqual(manifest["total_examples"], 940)
-            self.assertEqual(manifest["by_split"], {"train": 752, "validation": 94, "test": 94})
-            self.assertEqual(manifest["combined_reference_inventory"]["analytic_plus_master_curriculum_total"], 250940)
-            self.assertEqual(manifest["combined_reference_inventory"]["train_eligible_records"], 225843)
+            self.assertEqual(manifest["total_examples"], 980)
+            self.assertEqual(manifest["by_split"], {"train": 784, "validation": 98, "test": 98})
+            self.assertEqual(manifest["by_stage"]["discipline_depth"], 280)
+            self.assertEqual(manifest["by_stage"]["operator_method"], 170)
+            self.assertEqual(manifest["by_stage"]["integrated_projects"], 230)
+            self.assertEqual(manifest["combined_reference_inventory"]["analytic_plus_master_curriculum_total"], 250980)
+            self.assertEqual(manifest["combined_reference_inventory"]["train_eligible_records"], 225875)
             self.assertTrue(manifest["all_subjects_have_ten_examples"])
             self.assertTrue(manifest["all_record_ids_unique"])
             self.assertTrue(manifest["all_normalized_prompts_unique"])
@@ -35,30 +38,30 @@ class MasterCurriculumTests(unittest.TestCase):
             self.assertEqual(manifest["by_collection"]["NextCAD"], 120)
             self.assertEqual(manifest["by_collection"]["Next BIM"], 120)
             self.assertEqual(manifest["by_collection"]["Engineering disciplines"], 280)
-            self.assertEqual(manifest["by_collection"]["Complex engineering projects"], 200)
-            self.assertEqual(manifest["by_collection"]["Native operator, tool selection and recovery"], 220)
+            self.assertEqual(manifest["by_collection"]["Complex engineering projects"], 230)
+            self.assertEqual(manifest["by_collection"]["Native operator, tool selection and recovery"], 230)
             self.assertEqual(manifest["by_application"], {
                 "nextcad": 120, "nextbim": 120, "engineering": 280,
-                "integrated": 200, "operator": 220,
+                "integrated": 230, "operator": 230,
             })
-            self.assertEqual(manifest["by_split_and_variant"]["validation"], {"DELIVERY": 94})
-            self.assertEqual(manifest["by_split_and_variant"]["test"], {"INDEPENDENT_REVIEW": 94})
+            self.assertEqual(manifest["by_split_and_variant"]["validation"], {"DELIVERY": 98})
+            self.assertEqual(manifest["by_split_and_variant"]["test"], {"INDEPENDENT_REVIEW": 98})
     def test_each_subject_has_ten_meaningfully_distinct_examples(self):
         rows = module.make_master_project_curriculum()
-        self.assertEqual(len(rows), 940)
-        self.assertEqual(len({row["record_id"] for row in rows}), 940)
-        self.assertEqual(len({row["prompt"] for row in rows}), 940)
+        self.assertEqual(len(rows), 980)
+        self.assertEqual(len({row["record_id"] for row in rows}), 980)
+        self.assertEqual(len({row["prompt"] for row in rows}), 980)
         grouped = defaultdict(list)
         for row in rows:
             grouped[row["curriculum_subject_id"]].append(row)
-        self.assertEqual(len(grouped), 94)
+        self.assertEqual(len(grouped), 98)
         self.assertTrue(all(len(items) == 10 for items in grouped.values()))
         expected = {
             "NextCAD": 120,
             "Next BIM": 120,
             "Engineering disciplines": 280,
-            "Complex engineering projects": 200,
-            "Native operator, tool selection and recovery": 220,
+            "Complex engineering projects": 230,
+            "Native operator, tool selection and recovery": 230,
         }
         self.assertEqual(dict(Counter(row["curriculum_collection"] for row in rows)), expected)
 
@@ -67,16 +70,16 @@ class MasterCurriculumTests(unittest.TestCase):
         splits = corpus_module.split_synthetic_curriculum(rows)
         self.assertEqual(build_module.split_curriculum(rows), splits)
         summary = module.summarize_master_curriculum_splits(splits)
-        self.assertEqual(summary["total"], 940)
-        self.assertEqual(summary["by_split"], {"train": 752, "validation": 94, "test": 94})
-        self.assertEqual(sum(summary["by_domain"].values()), 940)
-        self.assertEqual(sum(summary["by_application"].values()), 940)
+        self.assertEqual(summary["total"], 980)
+        self.assertEqual(summary["by_split"], {"train": 784, "validation": 98, "test": 98})
+        self.assertEqual(sum(summary["by_domain"].values()), 980)
+        self.assertEqual(sum(summary["by_application"].values()), 980)
         expected_collections = {
             "NextCAD": 120,
             "Next BIM": 120,
             "Engineering disciplines": 280,
-            "Complex engineering projects": 200,
-            "Native operator, tool selection and recovery": 220,
+            "Complex engineering projects": 230,
+            "Native operator, tool selection and recovery": 230,
         }
         self.assertEqual(summary["by_collection"], expected_collections)
         by_subject_split = defaultdict(Counter)
@@ -164,14 +167,19 @@ class MasterCurriculumTests(unittest.TestCase):
             row["curriculum_subject_id"]: row
             for row in rows if row["curriculum_variant_id"] == "BASELINE"
         }
-        operator_ids = [f"OPS-{number:03d}" for number in range(13, 23)]
-        project_ids = [f"PRJ-{number:03d}" for number in range(11, 21)]
+        operator_ids = [f"OPS-{number:03d}" for number in range(13, 24)]
+        project_ids = [f"PRJ-{number:03d}" for number in range(11, 24)]
         for subject_id in operator_ids:
             self.assertIn(subject_id, baseline)
             self.assertEqual(baseline[subject_id]["stage"], "operator_method")
         for subject_id in project_ids:
             self.assertIn(subject_id, baseline)
             self.assertEqual(baseline[subject_id]["stage"], "integrated_projects")
+        self.assertEqual(baseline["OPS-023"]["domain"], "operator_adaptive_design_interview")
+        self.assertIn("interview", baseline["OPS-023"]["prompt"].lower())
+        self.assertEqual(baseline["PRJ-021"]["domain"], "integrated_complex_mechanical_packaging_machine")
+        self.assertEqual(baseline["PRJ-022"]["domain"], "integrated_microwave_appliance_product")
+        self.assertEqual(baseline["PRJ-023"]["domain"], "integrated_unfamiliar_autonomous_inspection_robot")
         for subject_id in operator_ids + project_ids:
             target = json.loads(baseline[subject_id]["completion"])
             self.assertGreaterEqual(len(target["workflow"]), 4)
