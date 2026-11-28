@@ -62,7 +62,7 @@ def build(output_dir: Path) -> dict[str, Any]:
 
     if len(rows) != len(SPECS) * EXAMPLES_PER_SUBJECT:
         raise ValueError("Materialized row count does not match curriculum subjects × examples per subject")
-    if coverage["by_split"] != {"train": 496, "validation": 62, "test": 62}:
+    if coverage["by_split"] != {"train": 752, "validation": 94, "test": 94}:
         raise ValueError(f"Unexpected split counts: {coverage['by_split']}")
 
     all_ids: set[str] = set()
@@ -76,7 +76,7 @@ def build(output_dir: Path) -> dict[str, Any]:
         write_jsonl(output_dir / f"{split_name}.jsonl", split_rows)
 
     per_subject = Counter(row["curriculum_subject_id"] for row in rows)
-    if len(per_subject) != 62 or any(count != 10 for count in per_subject.values()):
+    if len(per_subject) != 94 or any(count != 10 for count in per_subject.values()):
         raise ValueError("Each subject must have exactly ten authored examples")
     split_hashes = {
         f"{split}.jsonl": {
@@ -87,7 +87,7 @@ def build(output_dir: Path) -> dict[str, Any]:
         for split in ("train", "validation", "test")
     }
     manifest = {
-        "schema_version": "nextai-master-curriculum-manifest.v2",
+        "schema_version": "nextai-master-curriculum-manifest.v3",
         "curriculum_version": VERSION,
         "student": "Qwen/Qwen3.5-0.8B",
         "source": "Next3D project-authored curriculum",
@@ -100,6 +100,7 @@ def build(output_dir: Path) -> dict[str, Any]:
         "by_collection": coverage["by_collection"],
         "by_application": coverage["by_application"],
         "by_domain": coverage["by_domain"],
+        "by_stage": coverage["by_stage"],
         "by_variant": coverage["by_variant"],
         "by_split": coverage["by_split"],
         "by_split_and_variant": coverage["by_split_and_variant"],
@@ -118,10 +119,10 @@ def build(output_dir: Path) -> dict[str, Any]:
             "note": "Previously materialized and tokenizer-audited source snapshot. It is counted separately, not merged into these JSONL files."
         },
         "combined_reference_inventory": {
-            "analytic_plus_master_curriculum_total": 250620,
-            "train_eligible_records": 225587,
-            "validation_records": 12553,
-            "held_out_test_records": 12480,
+            "analytic_plus_master_curriculum_total": 250940,
+            "train_eligible_records": 225843,
+            "validation_records": 12585,
+            "held_out_test_records": 12512,
             "scope": "250000 previously audited analytic rows plus 620 newly materialized master curriculum rows only; excludes other public-source datasets, local skill packs, capability metadata lessons and real native traces."
         },
         "training_policy": {
