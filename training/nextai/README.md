@@ -68,7 +68,7 @@ python training/nextai/capability_census.py \\
 
 To add the complete live NextCAD command registry, run `training/nextai/discover_nextcad_runtime.FCMacro` inside the pinned NextCAD GUI with `NEXT3D_CAPABILITY_REPORT` and `NEXT3D_NEXTCAD_SOURCE_COMMIT` set. The macro is read-only with respect to the active model.
 
-The next curriculum phase is specified in [COMPREHENSIVE_CAPABILITY_CURRICULUM.md](./COMPREHENSIVE_CAPABILITY_CURRICULUM.md). It defines a full native capability census, atomic and compound skills, complete projects, high-rise floor variation, product/mechanical design, revisions and recovery, plus 10,000-case and 100,000-case milestones per application. These are future targets, not current counts. It also defines evidence levels so authored lessons, schema-checked plans, native-executed traces and independently validated results are reported separately.
+The next curriculum phase is specified in [COMPREHENSIVE_CAPABILITY_CURRICULUM.md](./COMPREHENSIVE_CAPABILITY_CURRICULUM.md). It defines a full native capability census, atomic and compound skills, complete projects, high-rise floor variation, product/mechanical design, revisions and recovery. Readiness is coverage- and evidence-driven; previously suggested 10,000/100,000 per-application counts are not training gates. It also defines evidence levels so authored lessons, schema-checked plans, native-executed traces and independently validated results are reported separately.
 
 ## Data sources and admission
 
@@ -98,7 +98,7 @@ Prepare a full-source candidate corpus outside the app (this streams the publish
 
     python training/nextai/prepare_large_scale_corpus.py --output-dir /workspace/nextai-large-corpus
 
-The full-source defaults cover all available Zero-to-CAD train/validation/test rows, all available IFC/BIM Alpaca train/validation rows, IFC/BIM QA train/test rows, and up to 145,117 BuildEng source rows. The mixed sampler cap is 700,000 records, with 60,000 validation and 50,000 test capacity. It also generates 10,000 formula-checked cases in each of 25 original engineering families (250,000 records before deterministic train/validation/test splitting). The Builder reports the accepted row counts and actual tokenizer count; 400 million tokens is a target, not an assumed achieved value. The original engineering cases contain equations, inputs, units, derived results and explicit assumptions; their reference solvers are covered by independent unit tests.
+The full-source defaults cover all available Zero-to-CAD train/validation/test rows, all available IFC/BIM Alpaca train/validation rows, IFC/BIM QA train/test rows, and up to 145,117 BuildEng source rows. The mixed sampler cap is 700,000 records, with 60,000 validation and 50,000 test capacity. It also generates 10,000 formula-checked cases in each of 25 original engineering families (250,000 records before deterministic train/validation/test splitting). The Builder reports the accepted row counts and actual tokenizer count. No project-wide token target is configured; token totals are measured for reporting and planning, not treated as a launch gate. The original engineering cases contain equations, inputs, units, derived results and explicit assumptions; their reference solvers are covered by independent unit tests.
 
 For a small pipeline smoke test only, the lower-level command remains available:
 

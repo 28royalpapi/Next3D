@@ -112,13 +112,11 @@ Include unusual combinations and open-ended prompts: redesign a bottle into a re
 
 ## Scenario scale and counting rules
 
-The programme target is staged:
+The programme is coverage-driven, not quota-driven. No total scenario count per application has been approved by the project owner. The 10,000-case and 100,000-case figures previously proposed are optional scale-expansion experiments only; they are not prerequisites for the first comprehensive training run and must not keep the project in curriculum preparation indefinitely.
 
-- First milestone: at least 10,000 meaningful scenario cases per application, with explicit coverage across atomic skills, compound workflows, complete projects, revisions and recovery.
-- Expansion milestone: 100,000 or more meaningful cases per application, with domain balance and held-out project families.
-- Ongoing: new capability and failure cases whenever the native applications, command catalogue, tool adapter or engineering knowledge changes.
+Training readiness is determined by whether every required learning objective has enough *meaningfully different* examples for its complexity and risk, whether applicable native capabilities have schema/plan/execution evidence, whether complex project families are represented, and whether independent examinations are held out. Counts remain important diagnostics, but a large count cannot substitute for capability coverage or evidence.
 
-The target is not met by generating 100,000 near-identical prompts. The corpus builder must track unique skill signatures, source-group hashes, application/domain coverage, operation sequences, scenario families and validation types. Duplicate and near-duplicate checks must run before training. Counts must be reported separately for authored dialogue, synthetic task plans, schema-checked plans, verified native traces and held-out tests.
+The corpus builder must track unique skill signatures, source-group hashes, application/domain coverage, operation sequences, scenario families and validation types. Duplicate and near-duplicate checks must run before training. Counts must be reported separately for authored dialogue, synthetic task plans, schema-checked plans, verified native traces and held-out tests.
 
 The exact NextCAD count cannot be responsibly stated until its complete workbench/command census is exported from the installed build. The existing typed NextAI tool list is not a proxy for the full set of commands available to a human user.
 
@@ -185,10 +183,10 @@ The headline claim must match the strongest evidence actually obtained. “100,0
 2. Expand the 215-command Next BIM catalogue into a command-by-command capability test plan, then verify each command's parameters and state effects.
 3. Build a shared capability graph linking objects, operations, dependencies, disciplines, project stages and validation checks.
 4. Add meaningful scenario families for architecture, high-rise floor variation, civil/structural, MEP, mechanical assemblies, consumer products, manufacturing, existing-model revisions and recovery.
-5. Generate the first 10,000-case candidate corpus with provenance and deduplication, then audit its coverage before any GPU training.
+5. Generate the candidate corpus with provenance and deduplication, then audit its coverage by learning objective and evidence level before the main training run.
 6. Collect real native execution traces and held-out tests; promote only after measured improvement.
 
-This programme is the coverage plan. It does not claim that the 10,000-case or 100,000-case targets have already been generated, that the model has been fine-tuned, or that all native operations have been verified.
+This programme is the coverage plan. It does not claim that every objective is covered, that the model has been fine-tuned, or that all native operations have been verified.
 
 
 ## Master project/operator curriculum v1 — 28 November 2026
@@ -216,7 +214,7 @@ review where safety or code adequacy is being assessed.
 
 ### What this addition does not complete
 
-- The 62 new scenarios do not satisfy the 10,000-case-per-application expansion milestone.
+- The 62 new scenarios are an initial authored tranche, not a claim of complete coverage. Their adequacy must be judged against the learning-objective matrix and evidence requirements, not an arbitrary row quota.
 - The 215 BIMCraft command registrations still need command-by-command runtime/schema/state-effect verification; registration and metadata lessons are not proof that every command is callable or works.
 - The full live NextCAD runtime command census still needs to be captured from the pinned GUI.
 - The six native train/validation/test trace files still need real collector artifacts and manifest review. Existing acceptance round trips and collector fixtures are not a substitute for a broad native operation corpus.

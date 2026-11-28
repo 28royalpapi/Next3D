@@ -399,3 +399,9 @@ This checkpoint corrects the earlier misleading materialization status: the 250k
 - Added unit tests for curriculum breadth, record structure, evidence labelling, unique split lineage and exam isolation.
 - Removed the stale 400,000,000 value from the full corpus planner's descriptive plan. The project has no owner-defined token target; measured token counts remain reported, not gated.
 - This commit adds authored L0 curriculum. It does not claim that all 10,000-per-application scenario expansion, live command census, broad native trace collection, L5 engineering validation, full corpus rebuild or fine-tuning is complete.
+
+## Curriculum scale policy clarified — 28 November 2026
+
+- The earlier 10,000-case and 100,000-case per-application figures are not project-owner requirements and are not training launch gates. They are optional capacity/scale experiments only.
+- The main curriculum readiness gate is coverage and evidence: every required capability has appropriately varied examples; native operations have command/schema/plan evidence and applicable real execution/round-trip traces; complex projects, recovery and held-out examinations are represented.
+- No owner-defined token target exists. Historical status entries mentioning a 400M target or a 10k/100k scenario quota are superseded by the current policy; actual counts remain measured and reported.
