@@ -29,6 +29,12 @@ class MasterCurriculumTests(unittest.TestCase):
             self.assertEqual(manifest["by_stage"]["discipline_depth"], 280)
             self.assertEqual(manifest["by_stage"]["operator_method"], 170)
             self.assertEqual(manifest["by_stage"]["integrated_projects"], 230)
+            self.assertEqual(manifest["by_training_stage"], {
+                "cad_bim_fluency": 240,
+                "engineering_disciplines": 280,
+                "operator_methods": 230,
+                "integrated_projects": 230,
+            })
             self.assertEqual(manifest["combined_reference_inventory"]["analytic_plus_master_curriculum_total"], 250980)
             self.assertEqual(manifest["combined_reference_inventory"]["train_eligible_records"], 225875)
             self.assertTrue(manifest["all_subjects_have_ten_examples"])
@@ -137,6 +143,27 @@ class MasterCurriculumTests(unittest.TestCase):
             self.assertTrue(all(isinstance(item, str) and item.strip()
                                 for item in target["limitations_and_non_claims"]))
 
+
+    def test_each_master_record_has_correct_progressive_training_stage(self):
+        rows = module.make_master_project_curriculum()
+        self.assertEqual(len(rows), 980)
+        expected = {
+            "nextcad": "cad_bim_fluency",
+            "nextbim": "cad_bim_fluency",
+            "engineering": "engineering_disciplines",
+            "operator": "operator_methods",
+            "integrated": "integrated_projects",
+        }
+        from collections import Counter
+        observed = Counter(row["curriculum_stage"] for row in rows)
+        self.assertEqual(observed, Counter({
+            "cad_bim_fluency": 240,
+            "engineering_disciplines": 280,
+            "operator_methods": 230,
+            "integrated_projects": 230,
+        }))
+        for row in rows:
+            self.assertEqual(row["curriculum_stage"], expected[row["application"]])
 
     def test_stage_three_explicitly_covers_electrical_and_mechanical_disciplines(self):
         rows = module.make_master_project_curriculum()
